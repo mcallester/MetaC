@@ -1,0 +1,85 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <math.h>
+#include <setjmp.h>
+#include <time.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/file.h>
+#include <fcntl.h>
+
+#include "mcc.h"
+
+expptr casecode1(expptr,expptr,expptr);
+expptr casecode1a(expptr,expptr,expptr,expptr);
+expptr casecode2(expptr,expptr,expptr);
+
+void case_error(expptr topexp){
+  fprintf(stderr,"unknown syntax in ucase:\n");
+  pprint(topexp,stderr,0);
+  berror("");
+}
+
+expptr op_arg1(expptr e);
+expptr op_arg2(expptr e);
+
+umacro{
+  ucase(expptr e){
+    expptr arglist = arg1(arg2(e));
+    expptr topexp = arg1(op_arg1(arglist));
+    expptr rules = op_arg2(arglist);
+    
+    expptr donelabel = gensym(`done);
+    expptr topvar = gensym(`top);
+    expptr val = `{expptr $topvar = $topexp;
+		   $casecode1(rules, topvar, donelabel)
+		   $donelabel: ;};
+    return val;
+  }
+}
+
+expptr casecode1(expptr rules, expptr topvar, expptr donelabel){
+  if(constructor(rules) != 'O')uerror(`{illegal rules value $rules});
+  char * s = symbol_string(arg1(rules));
+  if(s[0] == ' '){
+    return casecode1a(op_arg1(rules),topvar,donelabel,casecode1(op_arg2(rules),topvar,donelabel));}
+  return casecode1a(rules,topvar,donelabel,`{case_error($topvar);});
+}
+
+expptr intern_exp_op(char c, expptr a1, expptr a2);
+
+expptr casecode1a(expptr rule, expptr topvar, expptr donelabel, expptr elseform){
+  expptr pattern = arg1(op_arg1(rule));
+  expptr body = arg1(op_arg2(rule));
+  return(`{$casecode2(intern_exp_op(' ',intern_exp_op(':',pattern,topvar),NULL),
+		      macroexpand(body),
+		      donelabel)
+	$elseform});
+}
+
+expptr constructor_code(char c);
+
+expptr casecode2(expptr pairs, expptr body, expptr donelabel){
+  if(pairs==NULL)return`{$body ; goto $donelabel ;};
+  expptr restpairs = op_arg2(pairs);
+  expptr pattern = op_arg1(op_arg1(pairs));
+  expptr valvar = op_arg2(op_arg1(pairs));
+  if(pattern == NULL)return `{if($valvar == NULL){$casecode2(restpairs,body,donelabel)}};
+  char c = constructor(pattern);
+  if(c == '!'){
+    expptr var = arg1(pattern);
+    if(var == NULL || constructor(var)!='a')berror("illegal variable in ucase pattern");
+    return(`{expptr $var = $valvar;$casecode2(restpairs,body,donelabel)});}
+  if(c == '$')return `{if($valvar == $macroexpand(arg1(pattern))){$casecode2(restpairs,body,donelabel)}};
+  if(c == 'a' || c == 'o' || string_quotep(c))return `{if($valvar == $quote_code(pattern)){$casecode2(restpairs,body,donelabel)}};
+  expptr left = gensym(`leftval);
+  expptr right = gensym(`rightval);
+  return `{if(constructor($valvar) == $constructor_code(c)){
+      expptr $left = arg1($valvar);
+      expptr $right = arg2($valvar);
+      $casecode2(`{$arg1(pattern):$left $arg2(pattern):$right $restpairs},body,donelabel)}};
+}
+
+initfun(mccB_init)

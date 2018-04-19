@@ -1,0 +1,215 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{psfrag}
+
+\input /users/davidmcallester/03/tex/nofill.tex
+%\input /home/david/03/tex/texcom.tex
+\headsep=-.5in
+\textwidth=6.5in
+\textheight=9.0in
+\oddsidemargin=-.25in
+
+\newcommand{\ignore}[1]{}
+\newcommand{\mtt}[1]{\mbox{\tt #1}}
+
+\def\irule#1#2#3#4{
+\begin{tabbing}
+#2 \parbox{.75in}{\noindent \hrule ~} $#3$ \\ #4
+\end{tabbing}}
+\def\ant#1{$#1$ \\}
+\def\con#1{$#1$}
+
+\newcommand{\context}{\text{\emph{context}}}
+
+\title{McC: A Lisp-like extension of, and Environment for,  \\C Programming}
+\author{David McAllester}
+
+\begin{document}
+\maketitle
+
+\section{Universal Concrete Syntax}
+
+\bigskip
+\bigskip
+
+McC is a C extension intended to support language features, and the symbolic programming philosophy, of Lisp.  A fundamental
+aspect this philosophy is a notion of expression (symbolic expressions or s-expression) where the concrete syntax of expressions is orthogonal to
+(independent of) their semantics.  Lisp expressions are ``universal'' in the sense that they can be assigned the semantics of any desired language
+with any desired language features.  This is often done with macros built with the backquote feature of Lisp.  McC similarly supports a universal notion
+of expression with a universal concrete syntax defined by a reader mapping character strings to syntax trees.  McC also supports backquote and
+Lisp-like computed macros.  Unlike Lisp, however, the universal expressions of McC are largely compatible with the algebraic syntax of C.  Although no attempt is made to
+to make the McC reader replicate the C parser, the syntax is sufficiently similar to C that writing C preprocessors as Lip-like macros is easy.
+Perhaps most importantly, the mismatch between the simple universal reader of McC and the C parser is overcome by the fact that the reader preserves
+the string.  Rather than having the reader invert the printer, in McC the printer inverts the reader.  This means that the reader does loose
+information and, in particular, a valid C expression is preserved when read and then printed.  This is a much easier property to achieve than
+designing a reader that accurately parses all of C (or C++).
+The McC reader is also universal
+in the sense that it places minimal
+requirements on the character strings that can be parsed into expressions. The parser operates on strings of ASCII printable characters plus space, tab and newline,
+and requires only that quotation characters, parentheses, brackets and braces can be matched into open and close pairs.
+
+\section{Universal Concrete Syntax}
+
+For file inputs the UCS parser first passes the input character stream through a ``stream cleaner'' which removes C-style comments  and inserts null bytes at certain termination points.
+A terminating point occurs at the first character of a line that starts with a character other than whitespace, another newline, a parenthesis, bracket or brace.
+Such positions are assumed to be the start of a new top level expression in the file.
+The stream cleaner inserts the null character '$\backslash$0' at the beginning of any such line.
+
+The UCS parser operates on the cleaned input stream and is specified by the following properties.
+
+\begin{itemize}
+\item The UCS parser converts each maximal substring of alpha-numeric characters (upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar into a lexical token.
+
+\item The UCS Parser treats strings of the form ($e$), $\{e\}$, or $[e]$ has having both a syntax node for the expression $e$ as well as a seperate syntax node
+for the matched pair of parenthesis, brackets, or braces.
+
+\item The UCS parser recognizes the characters comma, space,
+  \{\mtt{=}, \mtt{$\sim$}, \mtt{<}, \mtt{>}\}, \{\mtt{|}, \mtt{\&}\}, \{\mtt{+}, \mtt{-}\}, \{\mtt{*}, \mtt{/}\}, \mtt{.}, \mtt{@}, \mtt{\^{}} and \mtt{:} as
+binary connectors (binary operation symbols).
+These connectors are outermost to innermost in the order given (low precedence to high precedence) where set brackets indicate same-precedence.
+The last four are left-associative and the others are right-associative.
+Any consecutive sequence of more than one of these binary connective characters (with no intervening white space) is taken to be a left-associative binary connective.
+Multi-character binary connectives
+are taken to be innermost to (higher precedence than) and single-character binary connectives.
+
+\item The UCS parser recognizes the characters !, \$, \#, `, $\backslash$, \%, and ? as prefix unary connectives.  These unary connectives are innermost to (higher precedence than)
+all binary connectives.
+
+\item Following C, the UCS parser recognizes the character ';' as a unary postfix connective.  This connective is outermost to (lower precedence than) all binary connectives.
+
+\item The null character '$\backslash$0' inserted by the cleaner at the beginning of new expressions (as defined above) terminates an expression.
+  An error is generated if '$\backslash$0' occurs inside parentheses, brackets, or braces.  The null character does not appear in parsed expressions but serves to separate
+  expressions in character streams containing multiple expressions.
+
+\item The UCS parser recognizes an alphanumeric constant followed by a parenthesis, bracket or brace as an application node.  The formation of application
+nodes is innermost to (higher precedence than) all connectives.
+
+\item The UCS parser inserts null arguments and space connectives as needed so as to be able to parse any well-balanced string.
+\end{itemize}
+
+\noindent Examples:
+
+\begin{enumerate}
+
+\item[\mtt{!foo(x)}] This parses as the unary operator \mtt{!} applied to the application \mtt{foo(x)}.
+
+\item[\mtt{A[x++]}] This parses as an application node with operator \mtt{A} and argument \mtt{x++}.  The node for \mtt{x++}
+is labeled with the connective \mtt{++} and has first child \mtt{x} and a null second
+child.
+
+\item[\mtt{\{[a](b)c\}}] This parses as a tree with a root node labeled with $\{\}$ with one child representing \mtt{[a](b)c}.  The node representing
+\mtt{[a](b)c} is labeled with the space connective and has first child \mtt{[a]} and second child \mtt{(b)c}.  The node representing \mtt{[a]}
+is labeled with \mtt{[]} and has one child labeled with \mtt{a}.
+The node representing \mtt{(b)c} is labeled with the space connective and has children \mtt{(b)} and \mtt{c}.  The space connective is right associative.
+
+\item[\mtt{f(x).a.b}] This parses as a node labeled with the dot connective and with first child \mtt{f(x).a} and with second child \mtt{b}.
+The node for \mtt{f(x).a} is labeled with a dot connective with first child \mtt{f(x)} and second child \mtt{a}.  The node for \mtt{f(a)} is an application node.
+The dot connective is left associative.
+\end{enumerate}
+
+\section{Pattern Matching Case Statement}
+
+UCC provides a pattern matching case statement.
+The general form of the case construct is the following.
+$$\mtt{ucase(e; \{<pattern1>\}:\{<statement1>\}; ... ;\{<patternn>\}:\{<statementn>\})}$$
+Variables are marked in patterns by \mtt{"!"}. For example we might write the following.
+
+\begin{code}
+int value(expptr e)\{
+  ucase(e;
+   \{!x+!y\}:\{return value(x)+value(y);\};
+   \{!x*!y\}:\{return value(x)*value(y);\};
+   \{!z\}:\{return atoi(string\_table[constructor(z)]);\})
+\}
+\end{code}
+
+In many cases the choice of the particular tree structure imposed by the UCS parser is unimportant.  For example, the expression \mtt{a+b+c} will match the pattern
+\mtt{!x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern \mtt{!x*!y}
+will not match the string \mtt{a+b*c} because \mtt{+} is above (outer to) \mtt{*} in the parse tree constructed by UCS. Note that the pattern \mtt{!x*!y} does match \mtt{(a+b)*c}.
+One can generally use parentheses, brackets or braces to force a desired tree structure.
+To evaluate an expression with parentheses, such as \mtt{(a+b)}, we can add the following clause to the evaluator.
+
+\begin{code}
+int value(expptr e)\{ucase(e; $\ldots$ \{(!x)\}:\{return value(x);\}; $\ldots$)\}
+\end{code}
+
+\section{Backquote}
+
+The UCS C extension provides Lisp-style backquote.
+In the simplest case the expression \mtt{`\{$e$\}} appearing as a C expression evaluates to a data structure which is the syntax tree for
+$e$.  For example, the UCC expression \mtt{`\{a+b+c\}}
+Evaluates to a data structure representing the expression (syntax tree) for \mtt{a+b+c}.  This is somewhat analogous to the more familiar
+notion of string constant such as \mtt{"a+b+c"}.
+
+Backquote can also be used for pattern instantiation.
+When computing the value of \mtt{`\{$e$\}} suexpression of $e$ of the form \mtt{\$$w$} are replaced by the value of the expression $w$.
+For example consider the following expression.
+\begin{equation}
+\label{bq1}
+`\{a+b+\$z\}
+\end{equation}
+If the value of variable \mtt{z} is the expression \mtt{c} then the value of expression (\ref{bq1}) is the expression \mtt{a+b+c}.
+The unary operator \mtt{\$} can be included in an expression constant by quoting it as in the following.
+\begin{equation}
+\label{bq2}
+`\{`\{a + \$y + \backslash\$z\}\}
+\end{equation}
+If the value of variable \mtt{y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
+Quotation expression can be included in the expression by adding another layer of quotation as in the following.
+\begin{equation}
+\label{bq3}
+`\{`\{`\{\$x + \backslash\$y + \backslash\backslash\$z\}\}\}
+\end{equation}
+If the value of variable \mtt{x} is the expression \mtt{a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
+
+
+\section{The UCS Pretty Printer}
+
+The printer converts an abstract syntax tree back into a byte string which includes newline bytes and space characters
+so that the expression is well formatted. The printer inverts the parser up to string equivalence (as defined by the parser).
+This emphasizes that we are thinking of the abstract syntax tree as a representation of a character string.
+
+\section{White Space Removal and Parser-Printer Inverse Properties}
+
+The white space characters are space, tab and newline.  White space characters are generally ignored.  There are two exceptions to this.
+First, white space between two alpha-numeric characters (upper and lower case letters and the numberals 0 to 9) causes two symbols to be parsed rather than one.
+Second, a newline that is followed by a character other than a white space character or a parenthesis character (one of '(', ')', '\{', '\}', '[' or ']'), but is not preceded by '$\backslash\backslash$', is
+treated as a ``hard stop''
+and forces the parser to finish on whatever character string precedes the newline.
+For any character string we define the white space normal form of $s$
+to be the result of removing all c-style comments and then removing all white space characters except for
+a single space character between two alpha-numeric characters and where hard stop newlines
+are not removed.
+
+The parser has the property that if string $s$ and $s'$ have the same white space normal form then the result of parsing
+$s$ is the same as the result of reading $s'$.  The printer inverts the parser
+in the sense that reading a string $s$ and then prining the result to get string $s'$ has the property that $s$ abnd $s'$ have the same white space normal form.
+These two properties imply that the parser inversts the printer in the sense that, if syntax tree $x$ can be represented by a string, then printing $x$ and reading the result gives back $x$.
+However, there are syntax trees which cannot be represented by a string.  For example we have that '+' is lower precidence than * and hence the tree
+\begin{verbatim}
+     *
+    / \
+   a   +
+      / \
+     b   c
+\end{verbatim}
+cannot be represneted by a string but can be created with {\tt `\{a * \$x\}} where $x$ is the result of parsing {\mtt b + c}.
+Note that parsing {\tt a * (b + c)} results in the tree
+\begin{verbatim}
+     *
+    / \
+   a   (.)
+        |
+        +
+       / \
+      b   c
+\end{verbatim}
+which is different.
+
+It is often more natural to think in terms of strings where tree structure exists only to disambiguate
+pattern matching in case expressions.  When constructing expressions with backquote it is aften advisable to insert
+parentheses around inserted values to ensure that the resulting expression is string-representable.  For example,
+rather than write {\tt `\{a * \$x\}} one should write {\tt `\{a * (\$x)\}}.
+\end{document}

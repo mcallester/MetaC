@@ -1,0 +1,39 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <math.h>
+#include <setjmp.h>
+#include <time.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/file.h>
+#include <fcntl.h>
+
+#include "mcc.h"
+
+umacro{cmacro(expptr e){
+    expptr evar = gensym(`e);
+    ucase{e;
+      {cmacro{!f(!arglist){!body}}}:{
+	return `{
+	  umacro{$#f(expptr $evar){
+	      ucase{$evar;
+		{$#f($arglist)}:{$body}
+		{!x}:{uerror(`{\$$evar fails to match $#f($arglist)});}}
+	      return NULL;}}};}
+      {cmacro{!f{!arglist}{!body}}}:{
+	return `{
+	  umacro{$#f{expptr $evar}{
+	      ucase{$evar;
+		{$#f{$arglist}}:{$body}
+		{!x}:{uerror(`{\$$evar fails to match $#f{$arglist}});}}
+	      return NULL;}}};}
+    }
+    return NULL;
+  }
+}
+
+initfun(mccC2_init)
+
+

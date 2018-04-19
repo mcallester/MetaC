@@ -1,0 +1,1137 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <math.h>
+#include <setjmp.h>
+#include <time.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/file.h>
+#include <fcntl.h>
+#include <string.h>
+#include "mcc.h"
+
+/** ========================================================================
+See mcc.h for catch, throw, catch-error, throw-error, and unwind_protect.
+========================================================================**/
+
+
+/** ========================================================================
+cbreak, berror and uerror
+========================================================================**/
+
+void cbreak(){};
+
+void berror(char *s){
+  fprintf(stderr,"%s\n",s);
+  if(current_definition != NULL){
+    fprintf(stderr,"in:\n\n");
+    pprint(current_definition,stderr,0);}
+  cbreak();
+  throw_error();}
+
+void uerror(expptr e){
+  pprint(e,stderr,0);
+  if(current_definition != NULL){
+    fprintf(stderr,"in:\n\n");
+    pprint(current_definition,stderr,0);}
+  cbreak();
+  throw_error();}
+
+/** ========================================================================
+push_stack_frame, pop_stack_frame, and stack_alloc
+========================================================================**/
+
+void * stack_alloc(int size){
+  if(stack_heap_freeptr + size > STACK_HEAP_DIM)berror("stack heap exhausted");
+  char * result = &stack_heap[stack_heap_freeptr];
+  stack_heap_freeptr += size;
+  return result;
+}
+
+void push_stack_frame(){
+  if(stack_frame_count >= STACK_DIM)berror("McC stack exhausted");
+  stack_restore[stack_frame_count++] = stack_heap_freeptr;
+}
+
+void push_stack_frame2(void * frame){
+  stack[stack_frame_count] = frame;
+  push_stack_frame();
+}
+
+void pop_stack_frame(){
+  if(stack_frame_count == 0)berror("attempt to pop base stack frame");
+  stack_heap_freeptr = stack_restore[--stack_frame_count];
+}
+
+void * current_frame(){
+  if(stack_frame_count == 0) return NULL;
+  return stack[stack_frame_count-1];
+}
+				 
+void init_stack_frames(){
+  stack_heap_freeptr = 0;
+  stack_frame_count = 0;
+}
+ 
+/** ========================================================================
+push_undo_frame, undo_alloc, undo_set, and pop_undo_frame.
+========================================================================**/
+
+#define UNDO_HEAP_DIM (1<<26)
+char undo_heap[UNDO_HEAP_DIM];
+int undo_heap_freeptr;
+float heap_reserve; // initialized to .1
+
+void * undo_alloc(int size){
+  if(undo_heap_freeptr + size > UNDO_HEAP_DIM*(1-heap_reserve)){
+    fprintf(stderr,"undo heap exhausted\n");
+    heap_reserve = heap_reserve/2;
+    cbreak();
+    throw_error();}
+  char * result = &undo_heap[undo_heap_freeptr];
+  undo_heap_freeptr += size;
+  return result;
+}
+
+typedef struct undopair{
+  void * * location;
+  void * oldval;
+}undopair;
+
+#define UNDO_TRAIL_DIM  (1 << 16)
+undopair undo_trail[UNDO_TRAIL_DIM];
+int undo_trail_freeptr;
+
+//in undo_set(p,v) it is important that sizeof(p) = sizeof(v) = 8 ----  8 bytes will be written at undo time.
+
+#define undo_set(p, v) {if(undo_trail_freeptr >= UNDO_TRAIL_DIM)berror("undo trail exhausted"); undo_trail[undo_trail_freeptr].location = (void *) &(p);undo_trail[undo_trail_freeptr++].oldval = (void *) p;p=v;}
+
+typedef struct freeptr_frame{
+  int undo_trail_freeptr;
+  int undo_heap_freeptr;
+}freeptr_frame;
+
+#define UNDO_RESTORE_DIM (1<<10)
+freeptr_frame undo_restore[UNDO_RESTORE_DIM];
+int undo_restore_freeptr;
+
+void push_undo_frame(){
+  if(undo_restore_freeptr >= UNDO_RESTORE_DIM)berror("undo freeptr stack exhausted");
+  undo_restore[undo_restore_freeptr].undo_trail_freeptr = undo_trail_freeptr;
+  undo_restore[undo_restore_freeptr].undo_heap_freeptr = undo_heap_freeptr;
+  undo_restore_freeptr++;
+}
+
+void pop_undo_frame(){
+  if(undo_restore_freeptr == 0)berror("attempt to pop base undo frame");
+
+  undo_restore_freeptr--;
+  int old_trail_freeptr = undo_restore[undo_restore_freeptr].undo_trail_freeptr;
+  while(undo_trail_freeptr != old_trail_freeptr){
+    undo_trail_freeptr--;
+    *(undo_trail[undo_trail_freeptr].location) = (void *) undo_trail[undo_trail_freeptr].oldval;
+  }
+
+  undo_heap_freeptr = undo_restore[undo_restore_freeptr].undo_heap_freeptr;
+}
+
+void init_undo_frames(){
+  undo_heap_freeptr = 0;
+  undo_restore_freeptr = 0;
+  undo_trail_freeptr = 0;
+}
+
+/** ========================================================================
+Interning strings see also mcc.h
+========================================================================**/
+
+#define STRING_HASH_DIM 10000
+char * string_hash_table[STRING_HASH_DIM];
+int string_count;
+
+char * copy_string_to_undo(char *s){
+  char * s2 = undo_alloc(strlen(s) + 1);
+  strcpy(s2,s);
+  return s2;
+}
+
+int preintern_string(char * s){
+  int i, key;
+
+  key=0;
+  for(i=0;s[i] != 0;i++){
+    key = (1458*key + s[i]);
+  }
+  key = key&(STRING_HASH_DIM-1);
+
+  while(string_hash_table[key] != NULL
+	&& strcmp(string_hash_table[key], s) != 0){
+    key++;
+    if(key==STRING_HASH_DIM)key=0;
+  }
+  return key;
+}
+
+char * intern_string(char * s){
+  int key = preintern_string(s);
+  if(string_hash_table[key]==NULL){
+    if(string_count >= (2*STRING_HASH_DIM)/3)berror("string hash table exhausted");
+    undo_set(string_hash_table[key],copy_string_to_undo(s));
+    string_count++;
+  }
+  return string_hash_table[key];
+}
+
+void init_strings(){
+  string_count = 0;
+  for(int i=0;i<STRING_HASH_DIM;i++)string_hash_table[i]=NULL;
+}
+
+ 
+/** ========================================================================
+interning expressions
+
+see mcc.h for the definitions of types plist and expptr.
+========================================================================**/
+
+#define EXP_HASH_DIM  (1 << 24)
+expptr exp_hash_table[EXP_HASH_DIM];
+int exp_count;
+
+expptr intern_exp(char constr, expptr a1, expptr a2){
+  expptr e;
+  unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & EXP_HASH_DIM-1;
+  expptr oldexp;
+  for(int i = j;1;i++){
+    if(i == EXP_HASH_DIM)i=0;
+    oldexp = exp_hash_table[i];
+    if(oldexp == NULL){
+      if(exp_count >= (2*EXP_HASH_DIM)/3)berror("expression heap exhausted");
+      exp_count++;
+      expptr newexp = (expptr) undo_alloc(sizeof(expstruct));
+      newexp->data = NULL;
+      newexp->constructor = constr;
+      newexp->arg1 = a1;
+      newexp->arg2 = a2;
+      undo_set(exp_hash_table[i],newexp);
+      return newexp;
+    }else{
+      if(oldexp -> constructor == constr && oldexp->arg1 == a1 && oldexp-> arg2 == a2)return oldexp;
+    }
+  }
+}
+
+void init_expressions(){
+  exp_count = 0;
+  for(int i=0;i<EXP_HASH_DIM;i++)exp_hash_table[i] = NULL;
+}
+
+int symbolp(expptr e){return constructor(e) == 'a';}
+
+int atomp(expptr e){
+  if(e == NULL)return 1;
+  char c = constructor(e);
+  return (c == 'a' || c=='o' ||c == '\"' ||c == '\'');
+}
+
+int containsp(expptr e1, expptr e2){ //this is a utility used in REPL
+  if(e1 == e2)return 1;
+  if(atomp(e1))return 0;
+  return (containsp(arg1(e1),e2) || containsp(arg2(e1),e2));
+}
+
+expptr make_app(expptr sym, expptr arg){
+  return intern_exp('A', sym, intern_exp('(',arg,NULL));
+}
+
+expptr intern_exp_op(char c, expptr a1, expptr a2){
+  ephemeral_buffer[0] = c;
+  ephemeral_buffer[1] = 0;
+  expptr op = intern_exp('o',(expptr) intern_string(ephemeral_buffer),NULL);
+  return intern_exp('O',op,intern_exp('p',a1,a2));
+}
+
+expptr string_symbol(char * s){
+  return intern_exp('a', (expptr) intern_string(s), NULL);
+}
+
+char * symbol_string(expptr s){
+  if(!(constructor(s) == 'a' || constructor(s) == 'o'))berror("attempt to convert non-symbol t string");
+  return (char *) arg1(s);
+}
+
+expptr make_argpair(expptr arg1, expptr arg2){
+  return intern_exp('p', arg1, arg2);
+}
+
+int semip(expptr e){
+  return (constructor(e) == 'O' && arg1(e) == semiop);}
+
+expptr exp_concat(expptr e1, expptr e2){
+  return intern_exp_op(' ',e1,e2);
+}
+
+expptr cons(expptr x, expptr y){
+  return intern_exp_op(',',intern_exp('{',x,NULL),y);
+}
+
+expptr strip_list(expptr l){
+  expptr result = NULL;
+  for(expptr rest = l; rest != nil; rest = arg2(arg2(rest))){
+    result = exp_concat(arg1(arg1(arg2(rest))),result);}
+  return result;
+}
+
+/** ========================================================================
+properties  see mcc.h for the definition of the type plist
+========================================================================**/
+
+plist getprop_cell(expptr e, expptr key){
+  for(plist p = data(e); p!= NULL; p=p->rest){
+    if(p->key == key) return p;}
+  return NULL;
+}
+
+expptr getprop(expptr e, expptr key, expptr defaultval){
+  if(e == NULL)berror("attempt to get a property of the null expression");
+  plist p = getprop_cell(e, key);
+  if(p == NULL)return defaultval;
+  return p -> data;
+}
+
+void addprop(expptr e, expptr key, expptr val){
+  if(e == NULL)berror("attempt to add a property of the null expression");
+  plist new = (plist) undo_alloc(sizeof(pliststruct));
+  new->key = key;
+  new->data = val;
+  new->rest = e->data;
+  undo_set(e-> data,new);
+}
+
+void setprop(expptr e, expptr key, expptr val){
+  if(e == NULL)berror("attempt to set a property of the null expression");
+  plist cell = getprop_cell(e, key);
+  if(cell != NULL){
+    undo_set(cell->data,val);
+    return;}
+  addprop(e,key,val);
+}
+
+
+/** ========================================================================
+character properties. The character '/n' has different properties
+when reading from files vs. the terminal.
+
+
+The character type tag on an expression has the following possible values:
+
+A --- the expression is a symbol application. The first argument is a symbol and the second argument is the argument.
+a --- the expression is a symbol.  The first argument is an interned string.
+o --- the expression is an operator symbol.  The first argument is an interned string.
+O --- an application of a binary operator.  arg1 is the oprtator and arg1(arg2(x)) and arg2(arg2(x)) are the arguments.
+p --- a pair that is the arg2 of an 'O' expression.
+/',/" ---  used for quoted strings.
+(,{,[ ---  used for balanced braces.
+unary --- arg1 is the argument and arg2 is NULL.
+========================================================================**/
+
+typedef struct comment_wrapper{
+  FILE * stream;
+  char next;
+  char next2;
+  char quotechar;} comment_wrapper, * wstream;
+
+wstream file_stream;
+wstream terminal_stream;
+wstream read_stream;
+
+int paren_level;
+
+int string_quotep(char x){return (x == '"' || x == '\'');}
+
+int unaryp(char c){
+  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '#' || c == '%' || c == '?';
+}
+
+int binaryp(char c){
+  return c == ' ' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.' ||c == ':'
+      || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^' || c == '|' || c == '&' || c == '~';
+}
+
+int openp(char x){return ((x)=='(' || (x)=='{' || (x) == '[');}
+
+int whitep(char x){return (x == ' ' || x == '\t' || (x == '\n' && (read_stream == file_stream || paren_level > 0)));}
+
+int closep(char x){return ((x)==')' || (x)=='}' || (x) == ']');}
+
+int terminatorp(char c){return closep(c) || c == EOF || c == ';' || c == '\0' || (c == '\n' && read_stream == terminal_stream && paren_level == 0) ;}
+
+char close_for(char o){
+  if(o == '(')return  ')';
+  if(o == '{')return  '}';
+  if(o == '[')return  ']';
+  berror("not an open in close_for");
+  return 'a';  // avoids compiler warning
+}
+
+int alphap(char c){
+  return  (c >= 'A' && c <= 'Z')
+    || (c >= 'a' && c <= 'z')
+    || (c >= '0' && c <= '9')
+    || (c == '_');
+}
+
+int precedence(char op){
+  if(op==',')return 2;
+  if(op==' ')return 3;
+  if(op=='=' || op=='<' || op=='>' || op =='~') return 4;
+  if(op=='|' || op =='&')return 5;
+  if(op=='+' || op=='-')return 6;
+  if(op=='*' || op=='/')return 7;
+  if(op == '^')return 8;
+  if(op=='@')return 9;
+  if(op=='.')return 10;
+  if(op==':')return 11;
+  berror("unknown character in precedence");
+  return 1; //avoids compiler warning
+}
+
+#define UNARY_PREC 30
+#define LEFT_THRESHOLD 8
+//operators with precidence >= LEFT_THRESHOLD are left associative.
+
+/** ========================================================================
+removing comments.
+
+advance_readchar yields a series of values of readchar with comments removed.
+
+Comments are removed from the terminal sting only in positions inside parantheses.
+
+the "lookahead" slots next and next2 are active for file input and for terminal
+input with paren_level > 0.
+========================================================================**/
+
+wstream cwrap_stream(FILE * f);
+void advance_readchar();
+
+void init_lookahead(wstream s){
+  s->quotechar = 0;
+  s->next = ' ';
+  s->next2 = ' ';
+}
+
+void open_input_file(char * source){
+  filein = fopen(source, "r");
+  if(filein == NULL)berror("attempt to open input file failed");
+  file_stream = cwrap_stream(filein);
+}
+
+void skipwhite(){while(whitep(readchar)){advance_readchar();}
+}
+
+void advance_readchar_past_white(){
+  advance_readchar();
+  skipwhite();
+}
+
+void indent(int i);
+
+char readchar;
+FILE * readstrm;
+
+wstream cwrap_stream(FILE * s){
+  wstream result = (wstream) malloc(sizeof(comment_wrapper));
+  result->stream = s;
+  init_lookahead(result);
+  return result;
+}
+
+void print_stream_state(){
+  fputc('|',stderr);
+  fputc((char) file_stream->next,stderr);
+  fputc((char) file_stream->next2,stderr);
+  fputc('|',stderr);
+}
+
+expptr mccread_arg(int);
+
+expptr read_from(wstream s){
+  read_stream = s;
+  paren_level = 0;
+  advance_readchar_past_white();
+  current_definition = NULL;
+  expptr e = mccread_arg(0);
+  current_definition = NULL;
+  return e;
+}
+
+expptr read_from_terminal(){return read_from(terminal_stream);}
+
+expptr read_from_file(){return read_from(file_stream);}
+
+void simple_advance_lookahead(){
+  char nextchar;
+  if(read_stream->next2 == EOF){nextchar = EOF;}
+  else {nextchar = fgetc(read_stream->stream);}
+  read_stream->next = read_stream->next2;
+  read_stream->next2 = nextchar;
+}
+
+void advance_lookahead(){
+  //here paren_level must be the level of the position immediately preceding read_stream->next
+  //it is important here that '\n' is not allowed in strings --- string typically contain '\\' followed by 'n'.
+  char nextchar;
+  if(read_stream->next2 == EOF){nextchar = EOF;}
+  else if(read_stream == terminal_stream
+	  && ((paren_level == 0 && read_stream->next == '\n')
+	      || (paren_level == 0 && read_stream->next2 == '\n' && !openp(read_stream->next))
+	      || (paren_level == 1 && closep(read_stream->next) && read_stream->next2 == '\n')))
+    {nextchar = ' ';}
+  else {nextchar = fgetc(read_stream->stream);}
+  read_stream->next = read_stream->next2;
+  read_stream->next2 = nextchar;
+}
+
+void advance_readchar(){
+  if(read_stream->quotechar == 0){
+    while(1){
+      if(read_stream->next == '/' && read_stream->next2 == '*'){
+	if(read_stream == terminal_stream && paren_level == 0)
+	  berror("comment from terminal outside of parens");
+	while(!(read_stream->next == '*' && read_stream->next2 == '/')){
+	  simple_advance_lookahead();
+	  if(read_stream->next2 == EOF)berror("end of file in comment");
+	}
+	advance_lookahead();
+	advance_lookahead();}
+      else if(read_stream->next == '/' && read_stream->next2 == '/'){
+	if(read_stream == terminal_stream && paren_level == 0)
+	  berror("comment from terminal outside of parens");
+	while(read_stream->next != '\n'){
+	  simple_advance_lookahead();
+	}
+	simple_advance_lookahead();}
+      else break;}}
+  readchar = read_stream->next;
+  advance_lookahead();
+  if(read_stream == file_stream
+     && read_stream->quotechar == 0
+     && readchar == '\n'
+     && !(read_stream->next == '\n'
+	  || read_stream->next == EOF
+	  || whitep(read_stream->next)
+	  || closep(read_stream->next)
+	  || openp(read_stream->next)))
+    {readchar = '\0';}
+  if(string_quotep(read_stream->next)){
+    if(read_stream->quotechar == 0){read_stream->quotechar = read_stream->next;}
+    else if(readchar != '\\' && read_stream->next == read_stream->quotechar){read_stream->quotechar = 0;}}
+}
+
+/** ========================================================================
+the reader on a comment-removed stream
+
+The entry point is mccread(0)
+
+In a call to mccread(p) we have that either p == 0 or p is the precedence of
+an operator that immediately precedes readchar.
+
+mccread_arg(p) returns two values with the second value returned in the
+variable readop.
+
+For (arg, readop) = mccread(p) we have one of the following
+
+*  readop is the null expression.  In this case readchar must be a close
+character, the terminator character ';' or the null byte terminator. If p ==0
+readchar must either be a close character or the null byte.
+
+*  readop is a binary operator that immediately follows arg and immediately
+precedes readchar and either has precedence less than p
+or precedence equal to p but large enugh that the operators are left-associative.
+
+All binary operations have precedence greater than 0 and hence mccreadarg(0)
+must returns with readop being null and readchar being either a close
+character or the null byte.
+========================================================================**/
+
+expptr mccread_arg(int i);
+
+expptr mccread_symbol(){ //readchar is alphap but not immediately preceeded by an alphap.
+  int i=0;
+  while(alphap(readchar)){
+    if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+    ephemeral_buffer[i++]=readchar;
+    advance_readchar();}
+  if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+  ephemeral_buffer[i]=0;
+  char * s  = intern_string(ephemeral_buffer);
+  skipwhite();
+  return intern_exp('a', (expptr) s, NULL);
+}
+
+expptr mccread_operator(){ //same as mccread_symbol but for strings of operator symbols.
+  int i=0;
+  while(readchar != ' ' && binaryp(readchar)){
+    if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+    ephemeral_buffer[i++]=readchar;
+    advance_readchar();}
+  if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+  ephemeral_buffer[i]=0;
+  char * s  = intern_string(ephemeral_buffer);
+  skipwhite();
+  return intern_exp('o', (expptr) s, NULL);
+}
+
+expptr op_arg1(expptr e){
+  if(constructor(e) != 'O')berror("illegal call to opertor");
+  return arg1(arg2(e));}
+
+expptr op_arg2(expptr e){
+  if(constructor(e) != 'O')berror("illegal call to opertor");
+  return arg2(arg2(e));}
+
+int precedence_op(expptr o){
+  char * s = (char *) arg1(o);
+  if(s[1] == '\0')return precedence(s[0]);
+  return 15;}
+
+expptr mccread_string(){ // readchar is either " or '
+  int i = 0;
+  char q = readchar;
+  advance_readchar();
+  int quoted = 0;
+  while(1){
+    if(readchar == q && !quoted)break;
+    if(readchar == EOF || readchar == '\0' || readchar == '\n')berror("unterminated string constant");
+    if(readchar == '\\' && !quoted) quoted = 1; else quoted = 0;
+    if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+    ephemeral_buffer[i++]=readchar;
+    advance_readchar();}
+  if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+  ephemeral_buffer[i]=0;
+  advance_readchar_past_white();
+  return intern_exp(q, (expptr) intern_string(ephemeral_buffer),NULL);
+}
+
+expptr last_exp;
+
+void declare_unmatched(){
+  fprintf(stderr,"unmatched parentheses after:\n\n");
+  pprint(last_exp,stderr,0);
+  if(read_stream == terminal_stream){
+      while(readchar != '\n')readchar = fgetc(stdin);}
+  else
+    berror("");
+}
+
+expptr mccread_open(){ // readchar is openp
+  char openchar = readchar;
+  char closechar = close_for(openchar);
+
+  paren_level++;
+  advance_readchar_past_white();
+  expptr e = mccread_arg(0);
+  if(readchar != closechar)declare_unmatched();
+  paren_level--;
+  
+  advance_readchar_past_white();
+  return intern_exp(openchar,e,NULL);
+}
+
+
+expptr mccread_arg2(int p);
+expptr mccread_arg3(int p, expptr e);
+expptr mccread_arg4(int p, expptr e);
+
+expptr mccread_arg(int p){
+  expptr val = mccread_arg2(p);
+  last_exp = val;
+  return val;
+}
+
+expptr mccread_arg2(int p){ 
+  expptr arg;
+  if(whitep(readchar))berror("mccread_arg at white character");
+  if(closep(readchar) && paren_level == 0)declare_unmatched();
+  if(terminatorp(readchar)){return mccread_arg3(p,NULL);}
+  if(string_quotep(readchar)){return mccread_arg3(p,mccread_string());}
+  if(openp(readchar)){return mccread_arg3(p,mccread_open());}
+  if(alphap(readchar)){
+    arg = mccread_symbol();
+    if(openp(readchar)){
+      expptr result = mccread_arg3(p,intern_exp('A',arg,mccread_open()));
+      if(current_definition == NULL)current_definition = result;
+      return result;}
+    else return mccread_arg3(p,arg);}
+  if(binaryp(readchar))return mccread_arg3(p,NULL);
+  if(unaryp(readchar)){
+    char op = readchar;
+    advance_readchar_past_white();
+    return mccread_arg4(p,intern_exp(op,mccread_arg(UNARY_PREC),NULL));} //sets readop
+  berror("unknown character in readarg");
+  return NULL; //avoids compiler warning
+}
+
+expptr readop;
+
+void set_readop(){
+  if(terminatorp(readchar)){readop = NULL; return;}
+  if(binaryp(readchar)){readop = mccread_operator(); return;}
+  readop = intern_exp('o',(expptr) intern_string(" "),NULL);
+}
+
+expptr mccread_arg3(int p, expptr arg){  //this sets readop
+  set_readop();
+  return mccread_arg4(p, arg);
+}
+
+// on entry to mccread_arg4 readop is set
+// operators with precendence >= LEFT_THRESHOLD are left-associative
+
+expptr mccread_arg4(int p, expptr arg){
+  while(readop != NULL
+	&& (precedence_op(readop) > p || (precedence_op(readop) == p && p < LEFT_THRESHOLD))){
+    expptr op = readop;
+    arg = intern_exp('O',op,intern_exp('p',arg,mccread_arg(precedence_op(op))));}
+  
+  if(p == 0 && readchar == ';'){
+    advance_readchar_past_white();
+    return mccread_arg3(0, intern_exp(';',arg, NULL));}
+  
+  return arg;
+}
+
+/** ========================================================================
+printing to a string
+========================================================================**/
+
+void putone(char c){
+  if(stack_heap_freeptr == STACK_HEAP_DIM)berror("stack heap exhausted");
+  stack_heap[stack_heap_freeptr++] = c;
+}
+
+void copy_to_stack_heap(char * s){
+  for(int i = 0;s[i] != '\0';i++){
+    putone(s[i]);}
+}
+  
+void print_to_stack_heap(expptr w){
+  if(w == NULL)return;
+  char c = constructor(w);
+  if(string_quotep(c)){
+    putone(c);
+    copy_to_stack_heap((char *) arg1(w));
+    putone(c);}
+  else if(c == 'a' || c == 'o'){
+    copy_to_stack_heap((char *) arg1(w));}
+  else if(openp(c)){
+    putone(c);
+    print_to_stack_heap(arg1(w));
+    putone(close_for(c));}
+  else if(c == 'A'){
+    print_to_stack_heap(arg1(w));
+    print_to_stack_heap(arg2(w));}
+  else if(c == 'O'){
+    print_to_stack_heap(arg1(arg2(w)));
+    print_to_stack_heap(arg1(w));
+    print_to_stack_heap(arg2(arg2(w)));}
+  else if(c == ';'){
+    print_to_stack_heap(arg1(w));
+    putone(';');}
+  else if(unaryp(c)){
+    putone(c);
+    print_to_stack_heap(arg1(w));}
+  else berror("unrecognized constructor in print_to_stack_heap");
+}
+
+char * exp_string(expptr e){
+  char * result = (char *) &stack_heap[stack_heap_freeptr];
+  print_to_stack_heap(e);
+  putone('\0');
+  return result;
+}
+
+/** ========================================================================
+section: pretty printing
+========================================================================**/
+
+#define PRINT_WIDTH 50
+expptr print_length_token; //has value `print_length
+FILE * writestrm;
+
+int plength(expptr);
+
+int compute_plength(expptr w){
+  char c = constructor(w);
+  if(string_quotep(c)){return (2 + strlen((char *) arg1(w)));}
+  if(c=='a' || c=='o'){return (strlen((char *) arg1(w)));}
+  if(c=='A'){return (plength(arg1(w)) + plength(arg2(w)));}
+  if(c=='O' || c == 'p'){return (plength(arg1(w)) + plength(arg2(w)));}
+  if(openp(c)){ return (2 + plength(arg1(w)));}
+  if(unaryp(c) || c == ';'){ return (1 + plength(arg1(w)));}
+  berror("unknown expression type in compute_plength");
+  return 1; //avoids compiler warning
+}
+
+int plength(expptr w){
+  if(w == NULL)return 0;
+  expptr negative_one = (expptr) ((long int) -1);
+  expptr explength = getprop(w,print_length_token, negative_one);
+  if(explength == negative_one){
+    int intlength = compute_plength(w);
+    addprop(w,print_length_token, (expptr) ((long int) intlength));
+    return intlength;}
+  return (int) explength;
+}
+
+void print_string(char * w){
+  fprintf(writestrm, "%s",w);
+}
+
+void indent(int column){
+  int i;
+  for(i=0;i<column;i++)fprintf(writestrm, " ");
+}
+
+void newline(){
+  fprintf(writestrm, "\n");
+}
+
+void print_exp_linear(expptr w){
+  if(w == NULL)return;
+  char c = constructor(w);
+  if(string_quotep(c)){
+    fputc(c,writestrm);
+    print_string((char *) arg1(w));
+    fputc(c,writestrm);}
+  else if(c == 'a' || c == 'o'){
+    print_string((char *) arg1(w));}
+  else if(openp(c)){
+    fputc(c,writestrm);
+    print_exp_linear(arg1(w));
+    fputc(close_for(c),writestrm);}
+  else if(c == 'A'){
+    print_exp_linear(arg1(w));
+    print_exp_linear(arg2(w));}
+  else if(c == 'O'){
+    print_exp_linear(arg1(arg2(w)));
+    print_exp_linear(arg1(w));
+    print_exp_linear(arg2(arg2(w)));}
+  else if(c == 'p'){berror("attempt to print pair");}
+  else if(unaryp(c)){
+    fputc(c,writestrm);
+    print_exp_linear(arg1(w));}
+  else if(c == ';'){
+    print_exp_linear(arg1(w));
+    fputc(';',writestrm);}
+  else berror("unrecognized constructor in pprint_exp");
+}
+
+
+void pprint_exp(expptr w, int column){
+//column is the current print column
+  if(w == NULL)return;
+  char c = constructor(w);
+  if(string_quotep(c) || c == 'a' || c == 'o' || plength(w) <= PRINT_WIDTH){
+    print_exp_linear(w);
+    return;}
+  else if(openp(c)){
+    fputc(c,writestrm);
+    pprint_exp(arg1(w),column+1);
+    fputc(close_for(c),writestrm);}
+  else if(c == 'A'){
+    print_string((char *) arg1(arg1(w)));
+    newline();
+    indent(column+1);
+    pprint_exp(arg2(w),column+1);}
+  else if(c == 'O'){
+    pprint_exp(arg1(arg2(w)), column);
+    print_exp_linear(arg1(w));
+    newline();
+    indent(column);
+    pprint_exp(arg2(arg2(w)), column);}
+  else if(c == 'p'){berror("attempt to print pair");}
+  else if(unaryp(c)){
+    fputc(c,writestrm);
+    pprint_exp(arg1(w),column+1);}
+  else if(c == ';'){
+    pprint_exp(arg1(w),column);
+    fputc(c,writestrm);}
+  else berror("unrecognized constructor in pprint_exp");
+}
+
+void pprint(expptr w, FILE * f, int col){
+  writestrm = f;
+  fprintf(f,"\n");
+  indent(col);
+  pprint_exp(w,col);
+  fprintf(f,"\n\n");
+}
+
+void gud_pprint(expptr e){
+  pprint(e,stdout,0);}
+
+/** ========================================================================
+section: mccexpand
+========================================================================**/
+
+void process_def(expptr e);
+
+void put_return(FILE * ws){
+  fputc('\n',ws);}
+
+void open_output_file(char * destination){
+  fileout = fopen(destination,"w");
+  if(fileout == NULL)berror("attempt to open output file failed");
+}
+
+void mccexpand(char * source, char * destination){
+  open_input_file(source);
+  open_output_file(destination);
+  
+  while(1){
+    expptr e = read_from_file();
+    process_def(e);
+    if(readchar == EOF)break;}
+  fclose(filein);
+  fclose(fileout);
+}
+
+expptr preamble;
+expptr init_forms;
+
+void add_preamble(expptr e){preamble = cons(e,preamble);}
+
+void add_init_form(expptr e){init_forms = cons(e,init_forms);}
+
+void set_current_definition(expptr e){
+  if(atomp(e))return;
+  if(constructor(e) == 'A'){current_definition = e; return;}
+  set_current_definition(arg1(e));
+  if(current_definition == NULL)set_current_definition(arg2(e));
+}
+
+void process_def(expptr e){
+  current_definition = NULL;
+  set_current_definition(e);
+  if(e==NULL)return;
+  preamble = nil;
+  expptr e2 = macroexpand(e);
+  pprint(strip_list(preamble),fileout,0);
+  pprint(e2,fileout,0);
+}
+
+void mccexpand1(char * source, char * destination){
+  open_input_file(source);
+  open_output_file(destination);
+  
+  while(readchar != EOF){
+    preamble = NULL;
+    expptr e2 = macroexpand1(read_from_file());
+    if(preamble != NULL){pprint(preamble,fileout,0);}
+    pprint(e2,fileout,0);}
+  
+  fclose(filein);
+  fclose(fileout);
+}
+
+/** ========================================================================
+section: macros
+========================================================================**/
+
+expptr macroexpand(expptr);
+
+expptr macroexpand_args(expptr e){
+  if(e == NULL || atomp(e)) berror("illegal call to macroexpand_args");
+  expptr a1 = macroexpand(arg1(e));
+  expptr a2 = macroexpand(arg2(e));
+  return intern_exp(constructor(e),a1,a2);
+}
+
+expptr macro_token; //has value `macro
+
+expptr macroexpand2(expptr name, expptr e){
+  expptr (*f)(expptr);
+  f = (expptr (*)(expptr)) getprop(name,macro_token,NULL);
+  if(f == NULL){return e;} else {return f(e);}
+}
+
+expptr macroexpand1(expptr e){
+  if(e==NULL)return NULL;
+  char c  = constructor(e);
+  if(c == 'a' || c == 'o' || string_quotep(c)) return e;
+  if(constructor(e) == '`'){return macroexpand2(string_symbol("backquote"),e);}
+  if(constructor(e) == 'A'){return macroexpand2(arg1(e),e);}
+  return e;
+}
+
+expptr macroexpand(expptr e){
+  expptr e2 = macroexpand1(e);
+  if(e2 != e) return macroexpand(e2);
+  if(atomp(e))return e;
+  return macroexpand_args(e);
+}
+
+void set_umacro(char * s, expptr f(expptr)){
+   setprop(string_symbol(s),macro_token, (expptr) f);
+}
+
+
+expptr bquote_code(expptr);  //this is the recursive backquote expander
+
+expptr bquote_code_macro(expptr e){ //this is the non-recursive entry point (the macro procedure) for backquote
+  expptr arg = arg1(e);
+  if(symbolp(arg)) return bquote_code(arg);
+  if(constructor(arg) != '{')berror("syntax error: backquote must be followed by curly braces");
+  return bquote_code(arg1(arg));
+}
+
+ expptr init_macro(expptr e){
+   expptr proc_name = arg1(arg2(e));
+   return intern_exp_op(' ',
+			string_symbol("void"),
+			intern_exp_op(' ',
+			       intern_exp('A',
+					  proc_name,
+					  intern_exp('(',NULL,NULL)),
+				      intern_exp('{',strip_list(init_forms),NULL)));
+ }
+
+ expptr umacro_macro(expptr e){
+   expptr def = arg1(arg2(e));
+   expptr head = op_arg1(def);
+   expptr body = op_arg2(def);
+   if(constructor(head) != 'A')berror("illegal syntax in umacro");
+   current_definition = head;
+   expptr name = arg1(head);
+   expptr arglist =arg2(head);
+   expptr pname = gensym(name);
+   add_init_form(intern_exp_op(';',
+			    intern_exp('A',
+				       string_symbol("set_umacro"),
+				       intern_exp('(',
+						  intern_exp_op(',',
+							     intern_exp('"',arg1(name),NULL),
+							     pname),
+						  NULL)),
+			    NULL));
+
+   expptr expanded_body = macroexpand(body);
+   
+   return intern_exp_op(' ',
+			string_symbol("expptr"),
+			intern_exp_op(' ',
+				   intern_exp('A',pname, intern_exp('(', arg1(arglist), NULL)),
+				      expanded_body));
+   
+}
+
+/** ========================================================================
+section: gensym
+========================================================================**/
+
+expptr int_exp(int i){
+  if(i < 0)berror("attempt to convert negative integer to expression");
+  sprintf(ephemeral_buffer,"%d",i);
+  return string_symbol(ephemeral_buffer);
+}
+
+int symbol_int(expptr s){
+  if(!symbolp(s)){berror("call to symbol_int on non-symbol");}
+  return atoi(symbol_string(s));
+}
+
+expptr gensym(expptr sym){
+  if(!symbolp(sym))berror("argument to gensym is not a symbol");
+  char * s = symbol_string(sym);
+  
+  for(int i=1;1;i++){
+    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_%s%d",s,i);
+    if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
+    int key = preintern_string(ephemeral_buffer);
+    if(string_hash_table[key]==NULL)break;}
+  return string_symbol(ephemeral_buffer);
+}
+
+/** ========================================================================
+section: backquote
+========================================================================**/
+
+expptr constructor_code(char c){
+  if(c == '\''){return intern_exp('\'', (expptr) intern_string("\\'"), NULL);}
+  if(c == '\\'){return intern_exp('\'', (expptr) intern_string("\\"), NULL);}
+  sprintf(ephemeral_buffer,"%c",c);
+  return intern_exp('\'', (expptr) intern_string(ephemeral_buffer) , NULL);
+}
+
+expptr intern_exp_code(char c, expptr a1, expptr a2){
+  return intern_exp('A',
+		    string_symbol("intern_exp"),
+		    intern_exp('(',
+			       intern_exp_op(',',
+					  constructor_code(c),
+					  intern_exp_op(',',a1,a2)),
+			       NULL));
+}
+
+expptr intern_string_code(char * s){
+  return intern_exp_op(' ',
+		       intern_exp('(', string_symbol("expptr"), NULL),
+		       make_app(string_symbol("intern_string"),
+				intern_exp('"', (expptr) intern_string(s), NULL)));
+}
+
+expptr bquote_code(expptr e){
+  if(e == NULL)return string_symbol("NULL");
+  char c = constructor(e);
+  if(c=='a' || c == 'o' || string_quotep(c))return intern_exp_code(c,intern_string_code((char *) arg1(e)),bquote_code(NULL));
+  if(c=='\\'){
+    char c2 = constructor(arg1(e));
+    if(!unaryp(c2))berror("illegal syntax of '\' in backquote --- '\' must be followed by a unary operator such as '$' or itself");
+    return intern_exp_code(c2, bquote_code(arg1(arg1(e))), bquote_code(NULL));}
+  if(c=='$'){
+    if(constructor(arg1(e)) == '#'){
+      if(constructor(arg1(arg1(e))) != 'A')berror("$# not followed by application");
+      return intern_exp_code('A',arg1(arg1(arg1(e))),bquote_code(arg2(arg1(arg1(e)))));}
+    return arg1(e);}
+  return intern_exp_code(c,bquote_code(arg1(e)),bquote_code(arg2(e)));
+}
+
+expptr quote_code(expptr e){ // this is used in mccB but is not used for backquote
+  if(e == NULL || constructor(e) == 'a' || constructor(e) == 'o' || string_quotep(constructor(e))) return bquote_code(e);
+  return intern_exp_code(constructor(e),quote_code(arg1(e)),quote_code(arg2(e)));
+}
+
+/**========================================================================
+section: initialization
+========================================================================**/
+
+
+void mccA_init(){
+  init_stack_frames();
+  init_undo_frames();
+  init_strings();
+  init_expressions();
+
+  print_length_token = string_symbol("print_length");
+  macro_token = string_symbol("macro");
+  heap_reserve = .1;
+
+  nil = string_symbol("nil");
+  init_forms = nil;
+  
+  readchar = ' ';
+  current_definition = NULL;
+  last_exp = NULL;
+  catch_freeptr = 0;
+  terminal_stream = cwrap_stream(stdin);
+  semiop = intern_exp('o',(expptr) intern_string(";"),NULL);
+  commaop = intern_exp('o',(expptr) intern_string(","),NULL);
+
+  set_umacro("backquote", bquote_code_macro);
+  set_umacro("initfun", init_macro);
+  set_umacro("umacro", umacro_macro);
+}
+
