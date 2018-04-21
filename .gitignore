@@ -1,0 +1,21 @@
+*.o
+*.so
+*~
+*.aux
+*.log
+*.gz
+
+# it seems that git refuses to ignore c files so the next four lines are meaingless.
+*.c
+!UCSA.c
+!UCSmainA.c
+!UCSmainB.c
+
+*.dSYM
+ExpandA
+expandB
+expandC
+expandC2
+expandD
+expandE
+REPL
