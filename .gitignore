@@ -4,6 +4,7 @@
 *.aux
 *.log
 *.gz
+*.txt
 
 # it seems that git refuses to ignore c files so the next four lines are meaingless.
 *.c
