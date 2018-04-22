@@ -80,7 +80,7 @@ These connectors are outermost to innermost in the order given (low precedence t
 The last four are left-associative and the others are right-associative.
 Any consecutive sequence of more than one of these binary connective characters (with no intervening white space) is taken to be a left-associative binary connective.
 Multi-character binary connectives
-are taken to be innermost to (higher precedence than) any single-character binary connectives.
+are taken to be innermost to (higher precedence than) any single-character binary connectives. ({\bf todo midification: colon (\mtt{/}:) should be innermost to all other conectives including composite binary operations})
 
 \item The UCS parser recognizes the characters !, \$, \#, `, $\backslash$, \%, and ? as prefix unary connectives.  These unary connectives are innermost to (higher precedence than)
 all binary connectives.
