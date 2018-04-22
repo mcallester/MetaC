@@ -393,7 +393,7 @@ int precedence(char op){
   if(op == '^')return 8;
   if(op=='@')return 9;
   if(op=='.')return 10;
-  if(op==':')return 11;
+  if(op==':')return 20;
   berror("unknown character in precedence");
   return 1; //avoids compiler warning
 }

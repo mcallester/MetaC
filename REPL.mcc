@@ -78,7 +78,7 @@ void read_eval_print(){
     int i;
     writestrm = stdout;
     indent(rep_column);
-    fprintf(stdout, "SymC>");
+    fprintf(stdout, "McC>");
     catch_error({
 	expptr e = read_from_terminal();
 	ucase{e;
