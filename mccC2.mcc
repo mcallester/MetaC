@@ -12,6 +12,14 @@
 
 #include "mcc.h"
 
+/** ========================================================================
+umacro is defined in mccA.mmc before ucase is defined.  Because of the
+difficulty of writing things without ucase, umacro is fairly limited.
+cmacro, defined here using ucase, expands more patterns and is more
+general and modifiable.  This is defined after mccC.mcc so that the more
+powerful version of ucase is available handling $#.
+==============================================================================**/
+
 umacro{cmacro(expptr e){
     expptr evar = gensym(`e);
     ucase{e;
