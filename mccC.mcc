@@ -12,6 +12,20 @@
 
 #include "mcc.h"
 
+/** ==================================================================
+This is a rewriting of mccB using ucase which is defined in mccB (bootstrapping).
+
+ucase, casecode1, and casecode1a all use ucase from mccB which makes them more readable and have better
+error cheking.
+
+The version of casecode2 here handles the pattern !f(!args) which is
+not handles in mccB.
+
+casecode2 does not use ucase so it seems the pattern !f(!args) could have been handled
+just as easily in mccB.  The code srtucture of casecode2 is different here but
+that seems to be just historical.
+ ================================================================== **/
+
 expptr casecode1(expptr,expptr,expptr);
 expptr casecode1a(expptr,expptr,expptr,expptr);
 expptr casecode2(expptr,expptr,expptr);

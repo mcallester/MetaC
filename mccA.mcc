@@ -334,8 +334,16 @@ O --- an application of a binary operator.  arg1 is the oprtator and arg1(arg2(x
 p --- a pair that is the arg2 of an 'O' expression.
 /',/" ---  used for quoted strings.
 (,{,[ ---  used for balanced braces.
-unary --- arg1 is the argument and arg2 is NULL.
+one of the unary modifier characters.  In this case arg1 is the argument and arg2 is NULL.
 ========================================================================**/
+
+expptr op_arg1(expptr e){
+  if(constructor(e) != 'O')berror("illegal call to op_arg1");
+  return arg1(arg2(e));}
+
+expptr op_arg2(expptr e){
+  if(constructor(e) != 'O')berror("illegal call to op_arg2");
+  return arg2(arg2(e));}
 
 typedef struct comment_wrapper{
   FILE * stream;
@@ -356,7 +364,7 @@ int unaryp(char c){
 }
 
 int binaryp(char c){
-  return c == ' ' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.' ||c == ':'
+  return c == ' ' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.'
       || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^' || c == '|' || c == '&' || c == '~';
 }
 
@@ -384,23 +392,28 @@ int alphap(char c){
 }
 
 int precedence(char op){
-  if(op==',')return 2;
-  if(op==' ')return 3;
-  if(op=='=' || op=='<' || op=='>' || op =='~') return 4;
-  if(op=='|' || op =='&')return 5;
-  if(op=='+' || op=='-')return 6;
-  if(op=='*' || op=='/')return 7;
-  if(op == '^')return 8;
-  if(op=='@')return 9;
-  if(op=='.')return 10;
-  if(op==':')return 20;
+  if(op==',')return 0;
+  if(op==' ')return 1;
+  if(op=='=' || op=='<' || op=='>' || op =='~') return 2;
+  if(op=='|' || op =='&')return 3;
+  if(op=='+' || op=='-')return 4;
+  if(op=='*' || op=='/')return 5;
+  if(op == '^')return 6;
+  if(op=='@')return 7;
+  if(op=='.')return 8;
   berror("unknown character in precedence");
   return 1; //avoids compiler warning
 }
 
-#define UNARY_PREC 30
-#define LEFT_THRESHOLD 8
+#define LEFT_THRESHOLD 6
 //operators with precidence >= LEFT_THRESHOLD are left associative.
+
+int op_precedence(expptr e){
+  if(e == NULL){return 0;}
+  if(constructor(e) != 'o')berror("illegal call to op_precedence");
+  char * s = (char *) arg1(e);
+  if(s[1] == '\0')return precedence(s[0]);
+  return 15;}
 
 /** ========================================================================
 removing comments.
@@ -531,34 +544,75 @@ void advance_readchar(){
 }
 
 /** ========================================================================
-the reader on a comment-removed stream
+the reader on a preprocessed stream
 
-The entry point is mccread(0)
+We note that for any triple ... op1 e op2 ..., where op1 and op2 are binary connectives, the
+priority of op1 and op2 determines whether e1 binds to the right or to the left.  A higher priority
+operator binds. If the priority is the same we have e1 binds left for left-assiative priories and
+binds right for right-associative priorities.
 
-In a call to mccread(p) we have that either p == 0 or p is the precedence of
-an operator that immediately precedes readchar.
+In mccread_tree(p1), p1 is the precedence of the connective to the left of readcar
+or zero if there is no such connective
 
-mccread_arg(p) returns two values with the second value returned in the
-variable readop.
+mccread_tree(p1) returns arg and op such that arg binds left
 
-For (arg, readop) = mccread(p) we have one of the following
+if there is no left operator then p1 == 0 which is weaker than all connectives other than the null connective.
+The null connective is only generated at terminator symbols (space connectives are inserted rather than the null connectives
+in the interior of the tree).
 
-*  readop is the null expression.  In this case readchar must be a close
-character, the terminator character ';' or the null byte terminator. If p ==0
-readchar must either be a close character or the null byte.
+Each of the following mccread functions can return NULL but in mccread_atom() followed by mccread_connective() one of
+the two must be non-null. the initial readcar must contribute to either an atom or a connective.
+==================================================================== **/
 
-*  readop is a binary operator that immediately follows arg and immediately
-precedes readchar and either has precedence less than p
-or precedence equal to p but large enugh that the operators are left-associative.
+expptr mccread_tree(int p);
+expptr mccread_atom();
+expptr mccread_connective();
 
-All binary operations have precedence greater than 0 and hence mccreadarg(0)
-must returns with readop being null and readchar being either a close
-character or the null byte.
-========================================================================**/
+expptr mccread_atom2();
+expptr mccread_string();
+expptr mccread_open();
 
-expptr mccread_arg(int i);
+expptr mccread_struct_symbol();
+expptr mccread_symbol();
+expptr mccread_unary();
 
-expptr mccread_symbol(){ //readchar is alphap but not immediately preceeded by an alphap.
+void declare_unmatched();
+expptr readop;
+expptr last_exp; //for printing errors
+
+expptr mccread_tree(int p1){
+  if(whitep(readchar))berror("whitespace visible to mccread_tree");
+  expptr arg1 = mccread_atom();
+  expptr op2 = mccread_connective();
+  int p2 = op_precedence(op2);
+  while(p2 > p1 || (p2 == p1 && p1 >= LEFT_THRESHOLD)){
+    expptr arg2 = mccread_tree(p2);
+    arg1 = intern_exp('O',op2,intern_exp('p',arg1,arg2));
+    op2 = readop;}
+  readop = op2;
+  return arg1;
+}
+
+expptr mccread_atom(){
+  expptr val = mccread_atom2();
+  last_exp = val; // for printing errors.
+  return val;
+}
+
+expptr mccread_atom2(){
+  if(string_quotep(readchar)){return mccread_string();}
+  if(openp(readchar)){return mccread_open();}
+  if(alphap(readchar) || unaryp(readchar) || readchar == ':'){
+    expptr arg = mccread_struct_symbol();
+    if(openp(readchar)){
+      expptr result = intern_exp('A',arg,mccread_open());
+      if(current_definition == NULL)current_definition = result; //for printing errors
+      return result;}}
+  return NULL;
+}
+  
+expptr mccread_symbol(){
+  if(!alphap(readchar))return NULL;
   int i=0;
   while(alphap(readchar)){
     if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
@@ -571,9 +625,11 @@ expptr mccread_symbol(){ //readchar is alphap but not immediately preceeded by a
   return intern_exp('a', (expptr) s, NULL);
 }
 
-expptr mccread_operator(){ //same as mccread_symbol but for strings of operator symbols.
+expptr mccread_connective(){ //same as mccread_symbol but for strings of operator symbols.
+  if(terminatorp(readchar)) return NULL;
+  if(!binaryp(readchar))return intern_exp('o',(expptr) intern_string(" "), NULL);
   int i=0;
-  while(readchar != ' ' && binaryp(readchar)){
+  while(binaryp(readchar)){
     if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
     ephemeral_buffer[i++]=readchar;
     advance_readchar();}
@@ -584,18 +640,23 @@ expptr mccread_operator(){ //same as mccread_symbol but for strings of operator 
   return intern_exp('o', (expptr) s, NULL);
 }
 
-expptr op_arg1(expptr e){
-  if(constructor(e) != 'O')berror("illegal call to opertor");
-  return arg1(arg2(e));}
+expptr mccread_unary(){
+   if(unaryp(readchar)){
+    char op = readchar;
+    advance_readchar_past_white();
+    return intern_exp(op,mccread_unary(),NULL);
+   }
+   return mccread_symbol();
+}
 
-expptr op_arg2(expptr e){
-  if(constructor(e) != 'O')berror("illegal call to opertor");
-  return arg2(arg2(e));}
-
-int precedence_op(expptr o){
-  char * s = (char *) arg1(o);
-  if(s[1] == '\0')return precedence(s[0]);
-  return 15;}
+expptr mccread_struct_symbol(){
+  expptr arg = mccread_unary();
+  while(readchar == ':'){
+    advance_readchar_past_white();
+    arg = intern_exp(':',arg,mccread_unary());
+  }
+  return arg;
+}
 
 expptr mccread_string(){ // readchar is either " or '
   int i = 0;
@@ -614,8 +675,6 @@ expptr mccread_string(){ // readchar is either " or '
   advance_readchar_past_white();
   return intern_exp(q, (expptr) intern_string(ephemeral_buffer),NULL);
 }
-
-expptr last_exp;
 
 void declare_unmatched(){
   fprintf(stderr,"unmatched parentheses after:\n\n");
@@ -638,69 +697,6 @@ expptr mccread_open(){ // readchar is openp
   
   advance_readchar_past_white();
   return intern_exp(openchar,e,NULL);
-}
-
-
-expptr mccread_arg2(int p);
-expptr mccread_arg3(int p, expptr e);
-expptr mccread_arg4(int p, expptr e);
-
-expptr mccread_arg(int p){
-  expptr val = mccread_arg2(p);
-  last_exp = val;
-  return val;
-}
-
-expptr mccread_arg2(int p){ 
-  expptr arg;
-  if(whitep(readchar))berror("mccread_arg at white character");
-  if(closep(readchar) && paren_level == 0)declare_unmatched();
-  if(terminatorp(readchar)){return mccread_arg3(p,NULL);}
-  if(string_quotep(readchar)){return mccread_arg3(p,mccread_string());}
-  if(openp(readchar)){return mccread_arg3(p,mccread_open());}
-  if(alphap(readchar)){
-    arg = mccread_symbol();
-    if(openp(readchar)){
-      expptr result = mccread_arg3(p,intern_exp('A',arg,mccread_open()));
-      if(current_definition == NULL)current_definition = result;
-      return result;}
-    else return mccread_arg3(p,arg);}
-  if(binaryp(readchar))return mccread_arg3(p,NULL);
-  if(unaryp(readchar)){
-    char op = readchar;
-    advance_readchar_past_white();
-    return mccread_arg4(p,intern_exp(op,mccread_arg(UNARY_PREC),NULL));} //sets readop
-  berror("unknown character in readarg");
-  return NULL; //avoids compiler warning
-}
-
-expptr readop;
-
-void set_readop(){
-  if(terminatorp(readchar)){readop = NULL; return;}
-  if(binaryp(readchar)){readop = mccread_operator(); return;}
-  readop = intern_exp('o',(expptr) intern_string(" "),NULL);
-}
-
-expptr mccread_arg3(int p, expptr arg){  //this sets readop
-  set_readop();
-  return mccread_arg4(p, arg);
-}
-
-// on entry to mccread_arg4 readop is set
-// operators with precendence >= LEFT_THRESHOLD are left-associative
-
-expptr mccread_arg4(int p, expptr arg){
-  while(readop != NULL
-	&& (precedence_op(readop) > p || (precedence_op(readop) == p && p < LEFT_THRESHOLD))){
-    expptr op = readop;
-    arg = intern_exp('O',op,intern_exp('p',arg,mccread_arg(precedence_op(op))));}
-  
-  if(p == 0 && readchar == ';'){
-    advance_readchar_past_white();
-    return mccread_arg3(0, intern_exp(';',arg, NULL));}
-  
-  return arg;
 }
 
 /** ========================================================================

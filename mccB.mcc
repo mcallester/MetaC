@@ -72,7 +72,6 @@ expptr casecode2(expptr pairs, expptr body, expptr donelabel){
     expptr var = arg1(pattern);
     if(var == NULL || constructor(var)!='a')berror("illegal variable in ucase pattern");
     return(`{expptr $var = $valvar;$casecode2(restpairs,body,donelabel)});}
-  if(c == '$')return `{if($valvar == $macroexpand(arg1(pattern))){$casecode2(restpairs,body,donelabel)}};
   if(c == 'a' || c == 'o' || string_quotep(c))return `{if($valvar == $quote_code(pattern)){$casecode2(restpairs,body,donelabel)}};
   expptr left = gensym(`leftval);
   expptr right = gensym(`rightval);

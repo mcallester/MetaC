@@ -27,7 +27,7 @@ int catch_freeptr;
 jmp_buf catch_stack[CATCH_DIM];
 int error_flg;
 
-expptr current_definition;
+expptr current_definition; //this is for printing where we are in debugging.  see uerror in mccA.mcc
 
 #define throw_check() {if(catch_freeptr == 0){berror( "throw without a catch");}}
 #define catch_check() {if(catch_freeptr == CATCH_DIM){berror("catch stack exhausted");}}
