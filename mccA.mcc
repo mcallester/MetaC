@@ -189,7 +189,6 @@ void init_strings(){
   for(int i=0;i<STRING_HASH_DIM;i++)string_hash_table[i]=NULL;
 }
 
- 
 /** ========================================================================
 interning expressions
 
@@ -327,14 +326,16 @@ when reading from files vs. the terminal.
 
 The character type tag on an expression has the following possible values:
 
-A --- the expression is a symbol application. The first argument is a symbol and the second argument is the argument.
-a --- the expression is a symbol.  The first argument is an interned string.
-o --- the expression is an operator symbol.  The first argument is an interned string.
-O --- an application of a binary operator.  arg1 is the oprtator and arg1(arg2(x)) and arg2(arg2(x)) are the arguments.
-p --- a pair that is the arg2 of an 'O' expression.
-/',/" ---  used for quoted strings.
-(,{,[ ---  used for balanced braces.
-one of the unary modifier characters.  In this case arg1 is the argument and arg2 is NULL.
+'a' --- a symbol.  The first argument is an interned string.
+a symbol tag --- a tagged symbol.
+'A' --- an application expression. The first argument is a structured symbol and the second argument is a parenthesis expression.
+'o' --- a binary connective. --- The first argument is an interned string.
+'O' --- a binary connective expression.  arg1 is the oprtator and arg2 is a pair expression.
+'p' --- a pair expression internal to a binary connective expression.
+/',/" ---  a string expression.
+(,{,[ ---  a parenthesis expression.
+';' --- a terminated expression.
+
 ========================================================================**/
 
 expptr op_arg1(expptr e){
@@ -360,11 +361,11 @@ int paren_level;
 int string_quotep(char x){return (x == '"' || x == '\'');}
 
 int unaryp(char c){
-  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '#' || c == '%' || c == '?';
+  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '%' || c == '?';
 }
 
 int binaryp(char c){
-  return c == ' ' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.'
+  return c == ' ' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ';' || c == ':'
       || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^' || c == '|' || c == '&' || c == '~';
 }
 
@@ -374,7 +375,7 @@ int whitep(char x){return (x == ' ' || x == '\t' || (x == '\n' && (read_stream =
 
 int closep(char x){return ((x)==')' || (x)=='}' || (x) == ']');}
 
-int terminatorp(char c){return closep(c) || c == EOF || c == ';' || c == '\0' || (c == '\n' && read_stream == terminal_stream && paren_level == 0) ;}
+int terminatorp(char c){return closep(c) || c == EOF || c == '\0' || (c == '\n' && read_stream == terminal_stream && paren_level == 0) ;}
 
 char close_for(char o){
   if(o == '(')return  ')';
@@ -392,28 +393,30 @@ int alphap(char c){
 }
 
 int precedence(char op){
-  if(op==',')return 0;
-  if(op==' ')return 1;
-  if(op=='=' || op=='<' || op=='>' || op =='~') return 2;
-  if(op=='|' || op =='&')return 3;
-  if(op=='+' || op=='-')return 4;
-  if(op=='*' || op=='/')return 5;
-  if(op == '^')return 6;
-  if(op=='@')return 7;
-  if(op=='.')return 8;
+  if(op == ';') return 1;
+  if(op==',')return 2;
+  if(op==' ')return 3;
+  if(op=='=' || op=='<' || op=='>' || op =='~') return 4;
+  if(op=='|' || op =='&')return 5;
+  if(op=='+' || op=='-')return 6;
+  if(op=='*' || op=='/')return 7;
+  if(op == '^')return 8;
+  if(op=='@')return 9;
+  if(op=='.')return 10;
+  if(op==':')return 12;
   berror("unknown character in precedence");
   return 1; //avoids compiler warning
 }
 
-#define LEFT_THRESHOLD 6
-//operators with precidence >= LEFT_THRESHOLD are left associative.
+#define LEFT_THRESHOLD 8
+//operators with precedence >= LEFT_THRESHOLD are left associative.
 
 int op_precedence(expptr e){
   if(e == NULL){return 0;}
   if(constructor(e) != 'o')berror("illegal call to op_precedence");
   char * s = (char *) arg1(e);
   if(s[1] == '\0')return precedence(s[0]);
-  return 15;}
+  return 11;}
 
 /** ========================================================================
 removing comments.
@@ -468,14 +471,14 @@ void print_stream_state(){
   fputc('|',stderr);
 }
 
-expptr mccread_arg(int);
+expptr mccread_tree(int p);
 
 expptr read_from(wstream s){
   read_stream = s;
   paren_level = 0;
   advance_readchar_past_white();
   current_definition = NULL;
-  expptr e = mccread_arg(0);
+  expptr e = mccread_tree(0);
   current_definition = NULL;
   return e;
 }
@@ -556,61 +559,64 @@ or zero if there is no such connective
 
 mccread_tree(p1) returns arg and op such that arg binds left
 
-if there is no left operator then p1 == 0 which is weaker than all connectives other than the null connective.
-The null connective is only generated at terminator symbols (space connectives are inserted rather than the null connectives
-in the interior of the tree).
+There are two versions of the null connective.  The null connective inserted to connect tree elements is the space connective --
+it has tag 'o' and is string " ".  When a terminator is reached mccread_connective returns NULL --- the true null connective.
+
+The space connective has priority higher than comma but lower than all other binary connectives.  This causes friendly tree structures
+for C argument lists.  The true null connective inserted at a terminator has priority below all other null connectives.
+
+If there is no left operator then p1 == 0 which is weaker than all connectives other than the true null connective
+inserted at terminators.  This causes mccread_tree(0) to return the tree between the current readchar and the next terminator.
 
 Each of the following mccread functions can return NULL but in mccread_atom() followed by mccread_connective() one of
-the two must be non-null. the initial readcar must contribute to either an atom or a connective.
+the two must be non-null --- the initial readcar must contribute to either an atom or a connective.
 ==================================================================== **/
 
-expptr mccread_tree(int p);
 expptr mccread_atom();
+expptr mccread_tagged();
 expptr mccread_connective();
-
-expptr mccread_atom2();
 expptr mccread_string();
 expptr mccread_open();
-
-expptr mccread_struct_symbol();
 expptr mccread_symbol();
-expptr mccread_unary();
-
 void declare_unmatched();
 expptr readop;
 expptr last_exp; //for printing errors
 
 expptr mccread_tree(int p1){
   if(whitep(readchar))berror("whitespace visible to mccread_tree");
-  expptr arg1 = mccread_atom();
+  expptr a1 = mccread_atom();
   expptr op2 = mccread_connective();
   int p2 = op_precedence(op2);
   while(p2 > p1 || (p2 == p1 && p1 >= LEFT_THRESHOLD)){
-    expptr arg2 = mccread_tree(p2);
-    arg1 = intern_exp('O',op2,intern_exp('p',arg1,arg2));
-    op2 = readop;}
+    expptr a2 = mccread_tree(p2);
+    a1 = intern_exp('O',op2,intern_exp('p',a1,a2));
+    op2 = readop;
+    p2 = op_precedence(op2);}
   readop = op2;
-  return arg1;
+  return a1;
 }
+
+void gud_pprint(expptr e);
 
 expptr mccread_atom(){
-  expptr val = mccread_atom2();
-  last_exp = val; // for printing errors.
-  return val;
-}
-
-expptr mccread_atom2(){
   if(string_quotep(readchar)){return mccread_string();}
   if(openp(readchar)){return mccread_open();}
-  if(alphap(readchar) || unaryp(readchar) || readchar == ':'){
-    expptr arg = mccread_struct_symbol();
-    if(openp(readchar)){
-      expptr result = intern_exp('A',arg,mccread_open());
-      if(current_definition == NULL)current_definition = result; //for printing errors
-      return result;}}
+  if(alphap(readchar) || unaryp(readchar)){
+    expptr arg = mccread_tagged();
+    if(openp(readchar)){return intern_exp('A',arg,mccread_open());}
+    return arg;}
   return NULL;
 }
-  
+
+expptr mccread_tagged(){
+  if(unaryp(readchar)){
+    char c = readchar;
+    advance_readchar_past_white();
+    if(alphap(readchar)) return intern_exp(c,mccread_symbol(),NULL);
+    return intern_exp(c,NULL,NULL);}
+  return mccread_symbol();
+}
+      
 expptr mccread_symbol(){
   if(!alphap(readchar))return NULL;
   int i=0;
@@ -638,24 +644,6 @@ expptr mccread_connective(){ //same as mccread_symbol but for strings of operato
   char * s  = intern_string(ephemeral_buffer);
   skipwhite();
   return intern_exp('o', (expptr) s, NULL);
-}
-
-expptr mccread_unary(){
-   if(unaryp(readchar)){
-    char op = readchar;
-    advance_readchar_past_white();
-    return intern_exp(op,mccread_unary(),NULL);
-   }
-   return mccread_symbol();
-}
-
-expptr mccread_struct_symbol(){
-  expptr arg = mccread_unary();
-  while(readchar == ':'){
-    advance_readchar_past_white();
-    arg = intern_exp(':',arg,mccread_unary());
-  }
-  return arg;
 }
 
 expptr mccread_string(){ // readchar is either " or '
@@ -691,16 +679,21 @@ expptr mccread_open(){ // readchar is openp
 
   paren_level++;
   advance_readchar_past_white();
-  expptr e = mccread_arg(0);
+  expptr e = mccread_tree(0);
   if(readchar != closechar)declare_unmatched();
   paren_level--;
   
   advance_readchar_past_white();
-  return intern_exp(openchar,e,NULL);
+  expptr val = intern_exp(openchar,e,NULL);
+  last_exp = val; // for printing errors.
+  return val;
 }
 
 /** ========================================================================
 printing to a string
+
+This is not used in ExpandA.  It is intended for returning values from undo frames
+and/or stack frames.  The stack heap is generally unused in mcc file expansion.
 ========================================================================**/
 
 void putone(char c){
@@ -731,7 +724,7 @@ void print_to_stack_heap(expptr w){
     print_to_stack_heap(arg2(w));}
   else if(c == 'O'){
     print_to_stack_heap(arg1(arg2(w)));
-    print_to_stack_heap(arg1(w));
+    print_to_stack_heap(arg1(w)); //this might be the space character.
     print_to_stack_heap(arg2(arg2(w)));}
   else if(c == ';'){
     print_to_stack_heap(arg1(w));
@@ -760,9 +753,10 @@ FILE * writestrm;
 int plength(expptr);
 
 int compute_plength(expptr w){
+  if(w == NULL)return 0;
   char c = constructor(w);
   if(string_quotep(c)){return (2 + strlen((char *) arg1(w)));}
-  if(c=='a' || c=='o'){return (strlen((char *) arg1(w)));}
+  if(c=='a' || c=='o'){return (strlen((char *) arg1(w)));} //
   if(c=='A'){return (plength(arg1(w)) + plength(arg2(w)));}
   if(c=='O' || c == 'p'){return (plength(arg1(w)) + plength(arg2(w)));}
   if(openp(c)){ return (2 + plength(arg1(w)));}
@@ -825,9 +819,7 @@ void print_exp_linear(expptr w){
   else berror("unrecognized constructor in pprint_exp");
 }
 
-
-void pprint_exp(expptr w, int column){
-//column is the current print column
+void pprint_exp(expptr w, int column){ //column is the current print column
   if(w == NULL)return;
   char c = constructor(w);
   if(string_quotep(c) || c == 'a' || c == 'o' || plength(w) <= PRINT_WIDTH){
@@ -838,23 +830,19 @@ void pprint_exp(expptr w, int column){
     pprint_exp(arg1(w),column+1);
     fputc(close_for(c),writestrm);}
   else if(c == 'A'){
-    print_string((char *) arg1(arg1(w)));
-    newline();
-    indent(column+1);
-    pprint_exp(arg2(w),column+1);}
+    pprint_exp(arg1(w),column);
+    pprint_exp(arg2(w),column);}
   else if(c == 'O'){
-    pprint_exp(arg1(arg2(w)), column);
+    pprint_exp(op_arg1(w), column);
     print_exp_linear(arg1(w));
-    newline();
-    indent(column);
-    pprint_exp(arg2(arg2(w)), column);}
+    if(op_arg2(w)){
+      newline();
+      indent(column);
+      pprint_exp(op_arg2(w), column);}}
   else if(c == 'p'){berror("attempt to print pair");}
   else if(unaryp(c)){
     fputc(c,writestrm);
     pprint_exp(arg1(w),column+1);}
-  else if(c == ';'){
-    pprint_exp(arg1(w),column);
-    fputc(c,writestrm);}
   else berror("unrecognized constructor in pprint_exp");
 }
 
@@ -902,17 +890,9 @@ void add_preamble(expptr e){preamble = cons(e,preamble);}
 
 void add_init_form(expptr e){init_forms = cons(e,init_forms);}
 
-void set_current_definition(expptr e){
-  if(atomp(e))return;
-  if(constructor(e) == 'A'){current_definition = e; return;}
-  set_current_definition(arg1(e));
-  if(current_definition == NULL)set_current_definition(arg2(e));
-}
-
 void process_def(expptr e){
-  current_definition = NULL;
-  set_current_definition(e);
   if(e==NULL)return;
+  current_definition = e;
   preamble = nil;
   expptr e2 = macroexpand(e);
   pprint(strip_list(preamble),fileout,0);
@@ -956,10 +936,9 @@ expptr macroexpand2(expptr name, expptr e){
 
 expptr macroexpand1(expptr e){
   if(e==NULL)return NULL;
+  if(atomp(e)) return e;
   char c  = constructor(e);
-  if(c == 'a' || c == 'o' || string_quotep(c)) return e;
-  if(constructor(e) == '`'){return macroexpand2(string_symbol("backquote"),e);}
-  if(constructor(e) == 'A'){return macroexpand2(arg1(e),e);}
+  if(c == 'A' || c == 'O'){return macroexpand2(arg1(e),e);}
   return e;
 }
 
@@ -970,29 +949,26 @@ expptr macroexpand(expptr e){
   return macroexpand_args(e);
 }
 
-void set_umacro(char * s, expptr f(expptr)){
-   setprop(string_symbol(s),macro_token, (expptr) f);
+void set_umacro(expptr sym, expptr f(expptr)){
+   setprop(sym, macro_token, (expptr) f);
 }
-
 
 expptr bquote_code(expptr);  //this is the recursive backquote expander
 
 expptr bquote_code_macro(expptr e){ //this is the non-recursive entry point (the macro procedure) for backquote
-  expptr arg = arg1(e);
-  if(symbolp(arg)) return bquote_code(arg);
-  if(constructor(arg) != '{')berror("syntax error: backquote must be followed by curly braces");
-  return bquote_code(arg1(arg));
+  if(constructor(arg2(e)) != '{')berror("syntax error: backquote must be followed by curly braces");
+  return bquote_code(arg1(arg2(e)));
 }
 
- expptr init_macro(expptr e){
-   expptr proc_name = arg1(arg2(e));
-   return intern_exp_op(' ',
-			string_symbol("void"),
-			intern_exp_op(' ',
-			       intern_exp('A',
-					  proc_name,
-					  intern_exp('(',NULL,NULL)),
-				      intern_exp('{',strip_list(init_forms),NULL)));
+expptr init_macro(expptr e){
+  expptr proc_name = arg1(arg2(e));
+  return intern_exp_op(' ',
+		       string_symbol("void"),
+		       intern_exp_op(' ',
+				     intern_exp('A',
+						proc_name,
+						intern_exp('(',NULL,NULL)),
+				     intern_exp('{',strip_list(init_forms),NULL)));
  }
 
  expptr umacro_macro(expptr e){
@@ -1009,7 +985,8 @@ expptr bquote_code_macro(expptr e){ //this is the non-recursive entry point (the
 				       string_symbol("set_umacro"),
 				       intern_exp('(',
 						  intern_exp_op(',',
-							     intern_exp('"',arg1(name),NULL),
+								intern_exp('A',string_symbol("string_symbol"),
+									   intern_exp('(',intern_exp('"',arg1(name),NULL),NULL)),
 							     pname),
 						  NULL)),
 			    NULL));
@@ -1083,16 +1060,21 @@ expptr bquote_code(expptr e){
   if(e == NULL)return string_symbol("NULL");
   char c = constructor(e);
   if(c=='a' || c == 'o' || string_quotep(c))return intern_exp_code(c,intern_string_code((char *) arg1(e)),bquote_code(NULL));
-  if(c=='\\'){
-    char c2 = constructor(arg1(e));
-    if(!unaryp(c2))berror("illegal syntax of '\' in backquote --- '\' must be followed by a unary operator such as '$' or itself");
-    return intern_exp_code(c2, bquote_code(arg1(arg1(e))), bquote_code(NULL));}
+  expptr a1 = arg1(e);
+  expptr a2 = arg2(e);
   if(c=='$'){
-    if(constructor(arg1(e)) == '#'){
-      if(constructor(arg1(arg1(e))) != 'A')berror("$# not followed by application");
-      return intern_exp_code('A',arg1(arg1(arg1(e))),bquote_code(arg2(arg1(arg1(e)))));}
-    return arg1(e);}
-  return intern_exp_code(c,bquote_code(arg1(e)),bquote_code(arg2(e)));
+    if(a1 != NULL && constructor(a1) == 'a'){return a1;}
+    berror("Illegal syntax for $");}
+  if(c=='\\'){
+    if(a1 == NULL)berror("Illegal syntax for backslash in backquote");
+    char c2 = constructor(a1);
+    if(!unaryp(c2))berror("illegal syntax of '\' in backquote --- '\' must be followed by a unary operator such as '$' or itself");
+    return intern_exp_code(c2, bquote_code(arg1(a1)), bquote_code(NULL));}
+  if(c == 'A' && constructor(a1) == '$'){ // for const = 'A' both arguments are guaranteed to be non-null.
+    if(arg1(a1) == NULL)return arg1(a2);
+    else
+      return intern_exp_code('A',arg1(a1),bquote_code(arg2(a1)));}
+  return intern_exp_code(c,bquote_code(a1),bquote_code(a2));
 }
 
 expptr quote_code(expptr e){ // this is used in mccB but is not used for backquote
@@ -1126,8 +1108,8 @@ void mccA_init(){
   semiop = intern_exp('o',(expptr) intern_string(";"),NULL);
   commaop = intern_exp('o',(expptr) intern_string(","),NULL);
 
-  set_umacro("backquote", bquote_code_macro);
-  set_umacro("initfun", init_macro);
-  set_umacro("umacro", umacro_macro);
+  set_umacro(intern_exp('`',NULL,NULL), bquote_code_macro);
+  set_umacro(string_symbol("initfun"), init_macro);
+  set_umacro(string_symbol("umacro"), umacro_macro);
 }
 

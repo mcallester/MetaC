@@ -162,7 +162,7 @@ void put_return(FILE * ws);
 /** ========================================================================
 macros
 ========================================================================**/
-void set_umacro(char * s, expptr f(expptr));
+void set_umacro(expptr sym, expptr f(expptr));
 expptr macroexpand(expptr e);
 expptr macroexpand1(expptr e);
 void add_preamble(expptr e);

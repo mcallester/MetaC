@@ -22,7 +22,7 @@
 
 \bigskip
 \bigskip
-
+†
 McC is a C extension supporting the symbolic programming features of Lisp and the interactive programming environment of scripting languages such as Python.
 
 The fundamental language features of interest are pattern matching\footnote{Pattern matching is not a feature of Lisp but is easily implemented given backquote and computed macros},
@@ -61,40 +61,66 @@ An expression is defined recursively to one of the following.
 
 \begin{itemize}
 \item A symbol.  A symbol represents a string of alpha-numeric characters (upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar).
-  For example {\bf foo\_bar1}.
-\item A structored symbol.  A structured symbol is built from symbols, prefix symbol modifier characters, and the symbol connective {\bf :}.  For example we have the structured symbols {\bf ?foo}, {\bf foo:bar}
-  and {\bf ?foo:bar} where modifier characters bind more tightly than the connecive {\bf :}.  We can pattern-match into the structure of structured symbols.
-  The symbol prefix modifiers are the characters {\bf !}, {\bf \$}, {\bf \#}, {\bf `}, {\bf $\backslash$}, {\bf \%}, and {\bf ?}.
-\item A quoted string.  For example {\bf \tt "!:\&?;"} or {\tt 'a'}.  In UAS there is no distinction between {\bf "foo''} and {\bf 'foo'}.  To avoid confusion newline characters are not allowed in strings (the two character sequence {\bf /n} is ok).
+  For example {\bf  foo\_bar1}.
+\item A tagged symbol.  A tagged symbol consists of a symbol-tag followed by a symbol.  The symbol tag characters are {\bf \$}, {\bf $\backslash$}, {\bf `}, {\bf !}, {\bf ?}, {\bf \#} and {\bf \%}.
+  For example we have the tagged symbols {\bf ?foo} and {\bf !foo}.
+\item A quoted string.  For example {\bf \tt "!:\&?;"} or {\tt 'a'}.  In UAS there is no distinction between {\bf "foo"} and {\bf 'foo'}.  To avoid confusion newline characters are not allowed in strings (the two character sequence {\bf /n} is ok).
 \item A parenthesis expression.  This is an expression of the form ($e$), $\{e\}$, or $[e]$ where $e$ is an expression.  In McC $(e)$ is always a different expression from $e$.
 \item An application expression.  This is a structured symbol followed by a parenthesis expression.  For example {\bf foo(x)}.
 The binding of structured symbols to parenthesis expressions to form application expressions is tighter than (higher precedence than) the formation of binary connective expressions.
-\item A terminated expression.  This is an expression followed by the terminator by the character {\bf ;}. For example {\bf x=3;}.\footnote{There is near-universal consensus that it is more reasonable to treat {\bf ;}
-  as a connective rather than a terminator.  However, the primary application of UAS is a representation of C and making {\bf ;} a terminator simplifies the manipulation of C code.}  The termination symbol {\bf ;} binds more
-  weakly (has lower precedence) than all binary connectives.
 \item A binary connective expression.  For example {\bf x=3} is the binary connective expression with connective {\bf =} and symbol arguments {\bf x} and {\bf 3}.  Binary conectives are described in more detail below.
-\item The null expression and the null connective. In order to ensure that the UAS reader can read any parenthesis-balanced string we can use the null expression as arguments and the null connective
-  to combine pairs of adjacent expressions.
-  We also allow a null binary connective.  For example {\bf (foo bar)} is a parenthesis expression containing the two symbols {\bf foo} and {\bf bar} connected by the null connective.
-  We have that {\bf \{x=1;y=2;\}} is a parenthesis expression containing the two terminated expressions {\bf x=1;} and {\bf x=2;} connected by the null connective.  We have that {\bf \{?=\}} is a parenthesis expression containing the symbol modifier {\bf ?} applied to the null expression
-  and the connective expression {\bf =} applied to two null expressions and where these two expressions are connected with the null connective.
+\item The null expression and the null connective. In order to ensure that the UAS reader can read any parenthesis-balanced string we can use the null
+  expression as arguments and the null connective to combine pairs of adjacent expressions.  This is described in more detail below.
 \end{itemize}
 
-The binary connectives consist of the null connective and all non-empty strings over the characters comma, \{\mtt{=}, \mtt{$\sim$}, \mtt{<}, \mtt{>}\}, \{\mtt{|}, \mtt{\&}\}, \{\mtt{+},
-\mtt{-}\}, \{\mtt{*}, \mtt{/}\}, \mtt{.}, \mtt{@}, and \mtt{\^{}}.  All binary connectives are infix.
+{\bf Binary connectives.} The binary connectives consist of all non-empty strings over the characters {\bf ;}, comma, \{{\bf =}, {\bf $\sim$}, {\bf <}, {\bf >}\}, \{\mtt{|}, {\bf \&}\}, \{{\bf +},
+{\bf -}\}, \{{\bf *}, {\bf /}\}, {\bf .}, {\bf @}, and \mtt{$\hat{~}$}.
 Single-character connectives are outermost to innermost in the order given (low
-precedence to high precedence) where set brackets indicate same-precedence.  The last three single-chracter connectives are left-associative and the
+precedence to high precedence) where set brackets indicate same-precedence.    All binary connectives are infix.  The last four single-chracter connectives are left-associative and the
 others are right-associative. For example {\bf f(x).a.b} reads as {\bf f(x).a} and {\bf b} connected with dot.  Multi-character connectives are
 innermost to (higher precedence than) all single character binary connectives except {\bf :} which is the innermost binary connective. All multi-character binary connectives have the same
-precedence.  Multi-character connectives are left associative.  The null connective is right associative and is outermost to (lower precedence) than all other binary connectives
-except comma --- the null connective binds more tightly than comma (this causes argument lists to have a friendly tree structure).
+precedence which is higher precedence (innermost) to all single character connectives other than {\bf :}.  Multi-character connectives are left associative.  The null connective is right associative and is outermost to (lower precedence) than all other binary connectives
+except {\bf;} and comma --- the null connective binds more tightly than comma (this causes argument lists to have a friendly tree structure).
 
+{\bf Null arguments and the null connective.}  We can draw expressions as trees where null arguments and connectives are drawn as empty nodes.
+For example {\bf (foo bar)} is a the expression.
+\begin{verbatim}
+   ( )
+
+    |
+      
+  /   \
+foo   bar
+\end{verbatim}
+  
+{\bf \{x=1;y=2;\}} is the expression
+\begin{verbatim}
+   { }
+    |
+    ;   
+  /    \
+ =       ;
+/ \     / \
+x  1   =
+      / \
+     y   2
+\end{verbatim}
+{\bf \{?=\}} is  the expression
+\begin{verbatim}
+   { }
+    |
+
+  /   \
+ ?     =
+ |   /   \
+\end{verbatim}
+Since any parenthesis-balanced string reads as an expression, we can think of expressions as structured representations of strings.
 \section{Pattern Matching Case Statement}
 
 McC provides a pattern matching case statement.
 The general form of the case construct is the following.
-$$\mtt{ucase(e; \{<pattern1>\}:\{<statement1>\}; ... ;\{<patternn>\}:\{<statementn>\})}$$
-Variables are marked in patterns by \mtt{"!"}. For example we might write the following.
+$${\bf ucase(e; \{<pattern1>\}:\{<statement1>\}; ... ;\{<patternn>\}:\{<statementn>\})}$$
+Variables are marked in patterns by {\bf"!"}. For example we might write the following.
 
 \begin{code}
 int value(exp e)\{
@@ -106,39 +132,46 @@ int value(exp e)\{
 \}
 \end{code}
 
-In many cases the choice of the particular tree structure imposed by the McC reader is unimportant.  For example, the expression \mtt{a+b+c} will match the pattern
-\mtt{!x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern \mtt{!x*!y}
-will not match the string \mtt{a+b*c} because \mtt{+} is above (outer to) \mtt{*} in the parse tree constructed by McC. Note that the pattern \mtt{!x*!y} does match \mtt{(a+b)*c}.
+In many cases the choice of the particular tree structure imposed by the McC reader is unimportant.  For example, the expression {\bf a+b+c} will match the pattern
+{\bf !x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\bf !x*!y}
+will not match the string {\bf a+b*c} because {\bf +} is above (outer to) {\bf *} in the parse tree constructed by McC. Note that the pattern {\bf !x*!y} does match {\bf (a+b)*c}.
 
-Structured symbols are expressions with tree structure.  The pattern {\bf !x:bar} matches the structured symbol {\bf foo:bar:gritch} with {\bf $x$} binding to {\bf foo:bar}.
+Structured symbols are expressions with tree structure.  The pattern {\bf !x:gritch} matches the structured symbol {\bf foo:bar:gritch} with {\bf x} bound to the structured symbol {\bf foo:bar}.
 
 \section{Backquote}
 
 McC provides Lisp-style backquote.
-In the simplest case the expression {\bf `\{$e$\}} (now an McC code expression) evaluates to a data structure which is the UAS syntax tree for
-the string $e$.  For example, the McC expression \mtt{`\{a+b+c\}}
+In the simplest case {\bf `\{$e$\}} evaluates to a data structure which is the UAS syntax tree for
+the string $e$.  For example, the McC expression {\bf `\{a+b+c\}}
 evaluates to the expression {\bf a+b+c}.
 
 Backquote can also be used for pattern instantiation.
-When computing the value of \mtt{`\{$e$\}} suexpression of $e$ of the form \mtt{\$$w$} are replaced by the value of the expression $w$.
+When computing the value of {\bf `\{$e$\}} suexpression of $e$ of the form {\bf \$$w$} are replaced by the value of the expression $w$.
 For example consider the following expression.
 \begin{equation}
 \label{bq1}
 `\{a+b+\$z\}
 \end{equation}
-If the value of variable \mtt{z} is the expression \mtt{c} then the value of expression (\ref{bq1}) is the expression \mtt{a+b+c}.
-The unary operator \mtt{\$} can be included in an expression constant by quoting it as in the following.
+If the value of variable {\bf z} is the expression {\bf c} then the value of expression (\ref{bq1}) is the expression {\bf a+b+c}.
+
+Structured symbols are expressions and structured symbols can be constructed by substitution into parts of the symbol.
+For example, if {\bf x} is bound to {\bf foo} then {\bf `\{\$x:bar\}} evaluates to the structures symbol {\bf foo:bar}.
+
+We allow for expression evaluation inside backquote by writing applications of {\bf \$}.  For example if the procedure call {\bf f(x)} evaluates to the symbol {\bf world} then
+{\bf `\{hello \$\{f(x)\})\}} evaluates to {\bf hello world}.
+
+The unary operator {\bf \$} can be included in an expression constant by quoting it as in the following.
 \begin{equation}
 \label{bq2}
 `\{`\{a + \$y + \backslash\$z\}\}
 \end{equation}
-If the value of variable \mtt{y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
+If the value of variable {\bf y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
 Quotation expression can be included in the expression by adding another layer of quotation as in the following.
 \begin{equation}
 \label{bq3}
 `\{`\{`\{\$x + \backslash\$y + \backslash\backslash\$z\}\}\}
 \end{equation}
-If the value of variable \mtt{x} is the expression \mtt{a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
+If the value of variable {\bf x} is the expression {\bf a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
 
 
 \section{The McC Pretty Printer}
@@ -150,19 +183,19 @@ This emphasizes that we are thinking of the abstract syntax tree as a representa
 \section{Reader-Printer Inverse Properties}
 
 The white space characters are space, tab and newline.  White space characters are generally ignored.  There are two exceptions to this.
-First, white space between two alpha-numeric characters (upper and lower case letters and the numberals 0 to 9) causes two symbols to be parsed rather than one.
-Second, a newline that is followed by a character other than a white space character or a parenthesis character (one of "(", ")", "\{", "\}", "[" or "]"), but is not preceded by "$\backslash\backslash$", is
-treated as a ``hard stop''
-and forces the reader to finish on whatever character string precedes the newline.
+First, white space between two alpha-numeric characters (upper and lower case letters and the numberals 0 to 9) causes two symbols to be read rather than one.
+Second, a newline that is not preceded by the quotation character '//' and is not followed by a white space character is
+treated as a file segment terminator.  Parentheses must be balanced within each file segments.
+
 For any character string we define the white space normal form of $s$
 to be the result of removing all c-style comments and then removing all white space characters except for
-a single space character between two alpha-numeric characters and where hard stop newlines
-are not removed.
+a single space character between two alpha-numeric characters and where segment terminator newlines
+are replaced by null bytes.
 
-The reader has the property that if string $s$ and $s'$ have the same white space normal form then the result of parsing
+The reader has the property that if string $s$ and $s'$ have the same white space normal form then the result of reading
 $s$ is the same as the result of reading $s'$.  The printer inverts the reader
 in the sense that reading a string $s$ and then prining the result to get string $s'$ has the property that $s$ abnd $s'$ have the same white space normal form.
-These two properties imply that the reader inversts the printer in the sense that, if syntax tree $x$ can be represented by a string, then printing $x$ and reading the result gives back $x$.
+Conversely, the reader inversts the printer in the sense that, if syntax tree $x$ can be represented by a string, then printing $x$ and reading the result gives back $x$.
 However, there are syntax trees which cannot be represented by a string.  For example we have that "+" is lower precidence than * and hence the tree
 \begin{verbatim}
      *
@@ -171,7 +204,7 @@ However, there are syntax trees which cannot be represented by a string.  For ex
       / \
      b   c
 \end{verbatim}
-cannot be represneted by a string but can be created with {\tt `\{a * \$x\}} where $x$ is the result of parsing {\mtt b + c}.
+cannot be represneted by a string. It can, however, be created with {\tt `\{a * \$x\}} where $x$ is the result of reading {\mtt b + c}.
 Note that parsing {\tt a * (b + c)} results in the tree
 \begin{verbatim}
      *
