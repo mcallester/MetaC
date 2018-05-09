@@ -29,7 +29,7 @@ expandB : mccB.o expandB.c
 #expandC
 
 mccC.c : expandB mccC.mcc
-	 ./expandB mccC.mcc mccC.c
+	./expandB mccC.mcc mccC.c
 
 mccC.o : mccC.c
 	gcc -g mccC.c -c
@@ -38,65 +38,37 @@ expandC.c : expandB expandC.mcc
 	./expandB expandC.mcc expandC.c
 
 expandC : mccC.o expandC.c
-	gcc -g -o expandC mccA.o mccC.o expandC.c -ldl -lm
-
-#expandC2
-
-mccC2.c : expandC mccC2.mcc
-	 ./expandC mccC2.mcc mccC2.c
-
-mccC2.o : mccC2.c
-	gcc -g mccC2.c -c
-
-expandC2.c : expandC expandC2.mcc
-	./expandC expandC2.mcc expandC2.c
-
-expandC2 : mccC2.o expandC2.c
-	gcc -g -o expandC2 mccA.o mccC.o mccC2.o expandC2.c -ldl -lm
-
-#expandD
-
-mccD.c : mccD.mcc expandC2
-	./expandC2 mccD.mcc mccD.c
-
-mccD.o : mccD.c
-	gcc -g mccD.c -c
-
-expandD.c : expandC2 expandD.mcc
-	./expandC2 expandD.mcc expandD.c
-
-expandD : mccD.o expandD.c
-	gcc -g -o expandD mccA.o mccC.o mccC2.o mccD.o expandD.c -ldl -lm
+	gcc -g -o expandC mccA.o mccB.o mccC.o expandC.c -ldl -lm
 
 #test
 
-test.c : expandD test.mcc
-	./expandD test.mcc test.c
+test.c : expandC test.mcc
+	./expandC test.mcc test.c
 
 test.o : test.c
 	gcc -g test.c -c
 
-#expandE
+#expandD
 
-mccE.c : mccE.mcc expandD
-	./expandD mccE.mcc mccE.c
+mccD.c :  expandC mccD.mcc
+	./expandC mccD.mcc mccD.c
 
-mccE.o : mccE.c
-	gcc -g mccE.c -c
+mccD.o : mccD.c
+	gcc -g mccD.c -c
 
-expandE.c : expandE.mcc expandD
-	./expandD expandE.mcc expandE.c
+expandD.c :  expandC expandD.mcc
+	./expandC expandD.mcc expandD.c
 
-expandE : mccE.o expandE.c
-	gcc -g -o expandE mccA.o mccC.o mccC2.o mccD.o mccE.o expandE.c -ldl -lm
+expandD : mccD.o expandD.c
+	gcc -g -o expandD mccA.o mccB.o mccC.o mccD.o expandD.c -ldl -lm
 
 #mccrep
 
-REPL.c : REPL.mcc expandE base_decls.h
-	./expandE REPL.mcc REPL.c
+REPL.c : REPL.mcc expandD base_decls.h
+	./expandD REPL.mcc REPL.c
 
 REPL.o : REPL.c
 	gcc -g REPL.c -c
 
 REPL : REPL.o
-	gcc -g -o REPL mccA.o mccC.o mccC2.o mccD.o mccE.o REPL.o -ldl -lm
+	gcc -g -o REPL mccA.o mccB.o mccC.o mccD.o REPL.o -ldl -lm
