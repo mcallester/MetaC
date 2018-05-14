@@ -49,13 +49,20 @@ expptr ucase_macro(expptr e){
 
 expptr casecode1(expptr rules, expptr topvar, expptr donelabel){
   if(rules == NULL)return `{case_error();};
-  if(constructor(rules) != 'O' || arg1(rules) != spaceop)case_error();
-  expptr rule = op_arg1(rules);
-  if(constructor(rule) != 'O' || arg1(rule) != colonop)case_error();
-  if(constructor(op_arg1(rule)) != '{' || constructor(op_arg2(rule)) != '{')case_error();
+  if(constructor(rules) != 'O')case_error();
+  expptr  op = arg1(rules);
+  expptr rule,rest;
+  if(op == spaceop){
+    rule = op_arg1(rules);
+    rest = op_arg2(rules);}
+  else if(op == colonop){
+    rule = rules;
+    rest = NULL;}
+  else case_error();
+  if(constructor(rule) != 'O' || arg1(rule) != colonop || constructor(op_arg1(rule)) != '{' || constructor(op_arg2(rule)) != '{')case_error();
   expptr pattern = arg1(op_arg1(rule));
   expptr body = arg1(op_arg2(rule));
-  expptr elseform = casecode1(op_arg2(rules),topvar,donelabel);
+  expptr elseform = casecode1(rest,topvar,donelabel);
   return(`{${casecode2(cons(cons(pattern,topvar),NULL),
 		       macroexpand(body),
 		       donelabel)}

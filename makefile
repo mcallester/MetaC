@@ -26,11 +26,10 @@ expandB.c : expandA expandB.mcc
 expandB : mccB.o expandB.c
 	gcc -g -o expandB mccA.o mccB.o expandB.c -ldl -lm
 
-
 #test
 
 test.c : expandB test.mcc
-	./expandBshel test.mcc test.c
+	./expandB test.mcc test.c
 
 test.o : test.c
 	gcc -g test.c -c
