@@ -27,8 +27,6 @@ int catch_freeptr;
 jmp_buf catch_stack[CATCH_DIM];
 int error_flg;
 
-expptr current_definition; //this is for printing where we are in debugging.  see uerror in mccA.mcc
-
 #define throw_check() {if(catch_freeptr == 0){berror( "throw without a catch");}}
 #define catch_check() {if(catch_freeptr == CATCH_DIM){berror("catch stack exhausted");}}
 
@@ -47,14 +45,19 @@ expptr current_definition; //this is for printing where we are in debugging.  se
 
 
 /** ========================================================================
-cbreak, berror and uerror
+cbreak, berror and macro_error
 
+see berror and macro_error in mccA.mcc
 ========================================================================**/
 void cbreak();
 
 void berror(char *s);
 
-void uerror(expptr e);
+void macro_error();
+
+void push_dbg_expression(expptr e);
+
+void pop_dbg_stack();
 
 #define EPHEMERAL_DIM (1<<10)
 char ephemeral_buffer[EPHEMERAL_DIM];
@@ -103,6 +106,10 @@ static inline expptr arg2(expptr e){
   if(e == NULL)berror("attempt to take arg2 of a null expression");
   return e-> arg2;}
 
+expptr op_arg1(expptr e);
+expptr op_arg2(expptr e);
+expptr intern_exp_op(char c, expptr a1, expptr a2);
+
 static inline plist data(expptr e){
   if(e == NULL)berror("attempt to take data of null expression");
   return e -> data;}
@@ -118,7 +125,7 @@ int symbol_int(expptr s);
 charptr exp_string(expptr e);
 expptr make_app(expptr sym, expptr arg);
 expptr quote_code(expptr e);
-void case_error(expptr topexp);
+void case_error();
 
 /** ========================================================================
 gensym
@@ -156,18 +163,22 @@ char readchar;  //this is used in mccD, in file_expressions, for detecting end o
 expptr read_from_terminal();
 expptr read_from_file();
 void pprint(expptr e, FILE * f, int i);
+void gud_pprint(expptr e);
 void put_return(FILE * ws);
 
 
 /** ========================================================================
 macros
 ========================================================================**/
-void set_umacro(expptr sym, expptr f(expptr));
+void set_macro(expptr sym, expptr f(expptr));
 expptr macroexpand(expptr e);
 expptr macroexpand1(expptr e);
 void add_preamble(expptr e);
 void add_init_form(expptr e);
 expptr args_variables(expptr args);
+
+void case_error();
+expptr top_symbol(expptr e);
 
 /** ========================================================================
 utilities
@@ -176,6 +187,8 @@ utilities
 int containsp(expptr e1, expptr e2);
 
 expptr cons(expptr x, expptr y);
+expptr car(expptr x);
+expptr cdr(expptr x);
 expptr mapcar(expptr f(expptr), expptr l);
 
 expptr file_expressions(expptr fname);
@@ -186,7 +199,8 @@ void indent(int i);
 
 expptr semiop;
 expptr commaop;
-expptr nil;
+expptr colonop;
+expptr spaceop;
 
 /** ========================================================================
 dynamic linking

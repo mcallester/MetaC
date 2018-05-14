@@ -15,59 +15,64 @@
 expptr casecode1(expptr,expptr,expptr);
 expptr casecode1a(expptr,expptr,expptr,expptr);
 expptr casecode2(expptr,expptr,expptr);
-expptr op_arg1(expptr e);
-expptr op_arg2(expptr e);
-expptr intern_exp_op(char c, expptr a1, expptr a2);
 expptr constructor_code(char c);
 
-void case_error(expptr topexp){
-  fprintf(stderr,"unknown syntax in ucase:\n");
-  pprint(topexp,stderr,0);
-  berror("");
+void case_error(){
+  berror("unrecognized syntax ");
 }
 
-umacro{
-  ucase(expptr e){
-    expptr arglist = arg1(arg2(e));
-    expptr topexp = arg1(op_arg1(arglist));
-    expptr rules = op_arg2(arglist);
-    
-    expptr donelabel = gensym(`{done});
-    expptr topvar = gensym(`{top});
-    expptr val = `{expptr ${topvar} = ${topexp};
-		   ${casecode1(rules, topvar, donelabel)}
-		   ${donelabel}: ;};
-    return val;
-  }
+/** =============================================
+pattern matching.
+
+the syntax for ucase is
+
+ucase{<expresson>;
+   {<pattern1>}:{<statement>}
+   ...
+   {<atternk>}:{<statementk>}}
+
+Statements can be in brackets or terminated with semicolon.
+================================================= **/
+
+expptr ucase_macro(expptr e){
+  if(constructor(e) != 'A' || constructor(arg2(e)) != '{')case_error();
+  expptr arglist = arg1(arg2(e));
+  if(constructor(arglist) != 'O' || arg1(arglist) != semiop)case_error();
+  expptr topexp = op_arg1(arglist);
+  expptr rules = op_arg2(arglist);
+  expptr donelabel = gensym(`{done});
+  expptr topvar = gensym(`{top});
+  return `{{expptr ${topvar} = ${topexp};
+    ${casecode1(rules, topvar, donelabel)}
+    ${donelabel}: ;}};
 }
 
 expptr casecode1(expptr rules, expptr topvar, expptr donelabel){
-  if(constructor(rules) != 'O')uerror(`{illegal rules value $rules});
-  char * s = symbol_string(arg1(rules));
-  if(s[0] == ' '){
-    return casecode1a(op_arg1(rules),topvar,donelabel,casecode1(op_arg2(rules),topvar,donelabel));}
-  return casecode1a(rules,topvar,donelabel,`{case_error(${topvar});});
-}
-
-expptr casecode1a(expptr rule, expptr topvar, expptr donelabel, expptr elseform){
+  if(rules == NULL)return `{case_error();};
+  if(constructor(rules) != 'O' || arg1(rules) != spaceop)case_error();
+  expptr rule = op_arg1(rules);
+  if(constructor(rule) != 'O' || arg1(rule) != colonop)case_error();
+  if(constructor(op_arg1(rule)) != '{' || constructor(op_arg2(rule)) != '{')case_error();
   expptr pattern = arg1(op_arg1(rule));
   expptr body = arg1(op_arg2(rule));
-  return(`{${casecode2(intern_exp_op(' ',intern_exp_op(':',pattern,topvar),NULL),
-		      macroexpand(body),
+  expptr elseform = casecode1(op_arg2(rules),topvar,donelabel);
+  return(`{${casecode2(cons(cons(pattern,topvar),NULL),
+		       macroexpand(body),
 		       donelabel)}
       ${elseform}});
 }
 
 expptr casecode2(expptr pairs, expptr body, expptr donelabel){
   if(pairs==NULL)return`{${body} ; goto ${donelabel} ;};
-  expptr restpairs = op_arg2(pairs);
-  expptr pattern = op_arg1(op_arg1(pairs));
-  expptr valvar = op_arg2(op_arg1(pairs));
+  expptr restpairs = cdr(pairs);
+  expptr thispair = car(pairs);
+  expptr pattern = car(thispair);
+  expptr valvar = cdr(thispair);
   if(pattern == NULL)return `{if(${valvar} == NULL){${casecode2(restpairs,body,donelabel)}}};
   char c = constructor(pattern);
   if(c == '!'){
     expptr var = arg1(pattern);
-    if(var == NULL || constructor(var)!='a')berror("illegal variable in ucase pattern");
+    if(var == NULL)case_error();
     return(`{expptr ${var} = ${valvar};${casecode2(restpairs,body,donelabel)}});}
   if(c == 'a' || c == 'o' || string_quotep(c))return `{if(${valvar} == ${quote_code(pattern)}){${casecode2(restpairs,body,donelabel)}}};
   expptr left = gensym(`{leftval});
@@ -75,7 +80,11 @@ expptr casecode2(expptr pairs, expptr body, expptr donelabel){
   return `{if(constructor(${valvar}) == ${constructor_code(c)}){
       expptr ${left} = arg1(${valvar});
       expptr ${right} = arg2(${valvar});
-      ${casecode2(`{${arg1(pattern)}:${left} ${arg2(pattern)}:${right} ${restpairs}},body,donelabel)}}};
+      ${casecode2(cons(cons(arg1(pattern),left), cons(cons(arg2(pattern),right), restpairs)),
+		  body,
+		  donelabel)}}};
 }
 
-initfun(mccB_init)
+void mccB_init(){
+  set_macro(`{ucase},ucase_macro);
+}

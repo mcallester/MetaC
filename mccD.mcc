@@ -9,358 +9,205 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 #include <fcntl.h>
-#include <string.h>
 #include "mcc.h"
 
-expptr file_preamble;
-expptr env_syms;
-
-expptr decl_symbol(expptr decl);
-expptr strip_body(expptr e);
-int procedurep(expptr sym);
-int arrayp(expptr sym);
-int assignedp(expptr sym);
-void add_to_file_preamble(expptr form);
-int preamblep(expptr form);
-void write_preamble(expptr forms);
-expptr internal_symbol(expptr sym);
-expptr args_variables(expptr args);
-expptr args_types(expptr args);
-
-void preprocess(expptr decl);
-void write_new_definitions();
-expptr hybernations();
-voidptr compile_load_file(charptr fname);
-
-void write_declarations();
-expptr array_awakenings();
-expptr install_current_frame(expptr form);
-
 /** ========================================================================
-The evaluator environment: hybernations and array_awakenings
+catch-return{type,statement}
 
-The evaluator environment assigns a value to each symbol in the list env_syms.
-
-The stored value of symbol sym is symbol_value[symbol_index(sym)].
-
-During loading, a newly defined symbol is installed on env_syms before it is assigned a value.
-So at some times during loading, some symbols on env_syms do not have assigned values.
-A change in a procedure definition during load causes the previous value to be invalid.
-
-assignedp(sym) = 1 if there is a valid stored value for sym.  We cannot use the value slot itself
-to indicate whether a value is stored because any value, such as NULL, is a legal value.
-
-A "hybernation" sets the values of the variables in the environment to the values of the
-corresponding c variables.
-
-An "awakening" sets the values of the C variables in a dynamic library
-to the appropriate values in the stored environment. This installs the "callbacks".
-
-The macro set_base_values() expands to a hybernation.  It is called from main
-in mccrep to initialize the environment.
+This is an expression where the statement returns a value of the stated type.
 ========================================================================**/
 
-int symbol_count;
-
-int symbol_index(expptr sym){
-  int index = (int) getprop(sym, `index, (expptr) ((long int) -1));
-  if(index == -1){
-    if(symbol_count == SYMBOL_DIM){berror("McC symbol table exhausted");}
-    index = symbol_count++;
-    setprop(sym,`index, (expptr) ((long int) index));
-  }
-  return index;
-}
-
-int assignedp(expptr sym){
-  return getprop(sym,`assigned,NULL) == `true;
-}
-
-int processedp(expptr sym){
-  return getprop(sym,`processed,NULL) == `true;
-}
-
-
-
-expptr hybernations(){
-  expptr body = NULL;
-  dolist{{sym, env_syms}{
-      if(!assignedp(sym)) body = `{$body symbol_value[$int_exp(symbol_index(sym))] = (voidptr) $sym;};}}
-  return body;
-}
-
-cmacro{set_base_values(){return hybernations();}}
-
-expptr array_awakenings(){
-  expptr body = NULL;
-  dolist{{sym, env_syms}{
-      if(assignedp(sym)){
-	ucase{getprop(sym,`declaration,NULL);
-	  {!type !var[!dimensions];}:{
-	    body = `{$body
-		     $sym = ($type *) symbol_value[$int_exp(symbol_index(sym))];};}
-	  {!x}:{}}}}}
-  return body;
-}
-
-expptr install_current_frame(expptr form){
-  if(stack_frame_count == 0) return NULL;
-  void * * frame = (void * *) stack[stack_frame_count-1];
-  expptr f = (expptr) * frame;
-  expptr decl = strip_body(getprop(f,`declaration,NULL));
-  ucase{decl;
-    {!type !f(!args);}:{
-      expptr frametype = getprop(f,`frametype,NULL);
-      expptr framevar = gensym(`frame);
-      expptr result = `{$frametype $framevar = ($frametype) current_frame();};
-      expptr restargs = args;
-      while(1){
-	ucase{restargs;
-	  {!type !var, !rest}:{
-	    if(containsp(form,var)) result = `{$result $type $var = $framevar -> args.$var;};
-	    restargs = rest;}
-	  {!type !var}:{
-	    if(containsp(form,var))return `{$result $type $var = $framevar -> args.$var;};
-	    return result;}
-	}}}}
-  return `void;
-}
-
-/** ========================================================================
-eval and load
-========================================================================**/
-
-int compilecount;
-
-expptr init_forms;
-expptr preamble;
-expptr strip_list(expptr);
-
-void load(expptr forms){
-  
-  init_forms = nil;
-  
-  dolist{{form,forms}{
-      preamble = nil;
-      preprocess(macroexpand(form));
-      while(preamble != nil){
-	ucase{preamble;
-	  {{!first},!rest}:{
-	    preamble = rest;
-	    preprocess(macroexpand(first));}}}
-    }}
-
-  compilecount++;
-  char * s = sformat("TEMP%d.c",compilecount);
-  fprintf(stdout,"compiling and loading %s\n", s);
-  open_output_file(s);
-  write_preamble(file_preamble);
-  write_declarations();
-  
-  write_new_definitions();
-  
-  expptr doproc = `_doproc;
-  pprint(`{
-      void $#doproc(voidptr * symbol_value){
-	internal_symbol_value = symbol_value;
-	$array_awakenings();
-	$strip_list(mapcar(macroexpand,init_forms));
-	$hybernations()}},
-    fileout,0);
-  fclose(fileout);
-  
-  void * header = compile_load_file(sformat("TEMP%d",compilecount));
-  expptr (* doload)(voidptr *);
-  doload = dlsym(header,symbol_string(doproc));
-  (*doload)(symbol_value);
-  
-  dolist{{sym, env_syms}{setprop(sym,`assigned,`true);}};
-}
-
-expptr eval(expptr form){
-  compilecount++;
-  char* s = sformat("TEMP%d.c",compilecount);
-  fprintf(stdout,"compiling and loading %s\n", s);
-  open_output_file(s);
-  write_preamble(file_preamble);
-  write_declarations();
-  
-  expptr doproc = `_doproc;
-  
-  pprint(`{
-      expptr $#doproc(voidptr * symbol_value){
-	internal_symbol_value = symbol_value;
-	$array_awakenings();
-	$install_current_frame(form);
-	$form;
-	return $macroexpand(`{`void});}},
-    fileout,0);
-  fclose(fileout);
-
-  void * header = compile_load_file(sformat("TEMP%d",compilecount));
-  expptr (* doeval)(voidptr *);
-  doeval = dlsym(header,symbol_string(doproc));
-  expptr result = (* doeval)(symbol_value);
-  dlclose(header);
-
-  return result;
-}
-
-/** ========================================================================
-preprocessing
-
-This installs symbols on env_symbols.
-========================================================================**/
-
-void preprocess(expptr form){
-  if(preamblep(form)){
-    if(!processedp(form)){
-      push{form,file_preamble};
-      setprop(form,`processed,`true);}}
-  else{
-    expptr symbol = decl_symbol(form);
-    expptr old_decl = getprop(symbol,`declaration,NULL);
-    if(old_decl == NULL){
-      push{symbol, env_syms}; symbol_index(symbol);
-      setprop(symbol,`declaration,form);
-      return;}
-    if(procedurep(symbol) && (form != old_decl)){
-      setprop(symbol,`declaration,form);
-      setprop(symbol,`assigned, NULL);
-      return;}
-    if(form != old_decl)uerror(`{attempt to dynamically change declaration $old_decl});}
-}
-
-expptr decl_symbol(expptr decl){
-  ucase{decl;
-    {!type !X[!dim];}:{
-      if(dim == NULL)uerror(`{Array declaration $decl must specify a dimension});
-      if(!symbolp(dim))uerror(`{Array declaration $decl must be one dimensional});
-      if(!symbolp(X))uerror(`{Array declaration $decl has non-symbol array name.});
-      return X;}
-    {!type !f(!args);}:{
-      if(!symbolp(type))uerror(`{(the type is not a symbol in) $decl});
-      if(!symbolp(f))uerror(`{(procedure $f is not a symbol in) ($decl)});
-      return f;}
-    {!type !f(!args){!body}}:{
-      if(!symbolp(type))uerror(`{(the type is not a symbol in) $decl});
-      if(!symbolp(f))uerror(`{(procedure $f is not a symbol in) ($decl)});
-      return f;}
-    {!x}:{uerror(`{(top level declaration $decl) (is not of the form) (<type f(args){body}> or <type X[dim];>)});}}
+expptr replace_returns(expptr var, expptr donelabel, expptr s){
+  ucase{s;
+    {return(!e)}:{
+      return `{{$var = $e; goto $donelabel;}};}
+    {!x}:{
+      if(atomp(s)) return s;
+      return intern_exp(constructor(s),
+			replace_returns(var, donelabel, arg1(s)),
+			replace_returns(var, donelabel, arg2(s)));}}
   return NULL;
 }
 
+umacro{catch_return{!type, {!statement}}{
+    expptr result = gensym(`result);
+    expptr donelabel = gensym(`done);
+    return `{({
+	  $type $result;
+	  $replace_returns(result,donelabel,statement)
+	    $donelabel: $result;})};
+  }
+}
+
+
 /** ========================================================================
-writing the file.
+Lists.  We represent a list if exoressions x1, x2, ..., xn by the expression {x1},{x2}, ... ,{xn},nil.
+This guarantees that list expression is properly represented by its print string  --- is print-invertable
+--- provided that each xi is print-invertable.
 ========================================================================**/
 
-void write_preamble(expptr forms){
-  ucase{forms;
-    {nil}:{return;}
+umacro{push{!x,!y}{
+  if(!symbolp(y))berror("illegal syntax in push");
+  return `{$y = cons($x,$y)};
+  }
+}
+
+umacro{dolist{{!x,!y}{!body}}{
+    expptr yval = gensym(`yval);
+    expptr rest = gensym(`rest);
+    return `{{
+	expptr $yval = $y;
+	while($yval != nil){
+	  ucase{$yval;
+	    {{!$x}, !$rest}:{
+	      {$body}
+	      $yval = $rest;}}}}};
+  }
+}
+
+umacro{mapc(!f,!list){
+    expptr x = gensym(`x);
+    return `{dolist{{$x, $list}{$#f($x);}}};
+  }
+}
+
+expptr mapcar(expptr f(expptr), expptr l){
+  if(l == nil) return nil;
+  ucase{l;
     {{!first},!rest}:{
-      write_preamble(rest);
-      ucase{first;
-	{#define !x !val}:{
-	  fprintf(fileout,"#define %s %s\n\n",exp_string(x), exp_string(val));}
-	{#define !x(!val)}:{
-	  fprintf(fileout,"#define %s (%s)\n\n",exp_string(x), exp_string(val));}
-	{!x}:{fprintf(fileout, "%s\n\n", exp_string(first));}}}}
+      return `{{$f(first)},$mapcar(f,rest)};}}
+  return `void;
+}
+      
+/** ========================================================================
+file_expressions
+========================================================================**/
+
+expptr file_exps_helper(){
+  if(readchar == EOF) return nil;
+  expptr next = read_from_file();
+  if(next == NULL){return file_exps_helper();}
+  return cons(next, file_exps_helper());
 }
 
-void write_declarations(){
-  pprint(`{voidptrptr internal_symbol_value;},fileout,0);
-  dolist{{sym, env_syms}{
-      expptr decl = getprop(sym,`declaration,NULL);
-      if(procedurep(sym)){
-	decl = strip_body(decl);
-	ucase{decl;
-	  {!type !f(!args);}:{
-	    if(assignedp(sym)){
-	      expptr g = gensym(f);
-	      if(type == `void){
-		pprint(`{
-		    $type $#f($args){
-		      $#type (* $g)($args);
-		      $g = internal_symbol_value[$int_exp(symbol_index(f))];
-		      (* $g)($args_variables(args));}
-		  },
-		  fileout,0);}
-	      
-	      else{
-		pprint(`{
-		    $type $#f($args){
-		      $#type (* $g)($args);
-		      $g = internal_symbol_value[$int_exp(symbol_index(f))];
-		      return (* $g)($args_variables(args));}
-		  },
-		  fileout,0);}}
-	    else {
-	      pprint(decl,fileout,0);}}}}
-      else if(arrayp(sym) && assignedp(sym)){
-	ucase{decl;
-	  {!type !A[!dimention];}:{pprint(`{$type * $A;},fileout,0);}}}
-      else{pprint(decl,fileout,0);}}}
+expptr file_expressions(expptr fname){
+  open_input_file(exp_string(fname));
+  expptr result = file_exps_helper();
+  fclose(fileout);
+  return result;
 }
 
-void write_new_definitions(){
-  dolist{{sym, env_syms}{
-      if(!assignedp(sym))pprint(getprop(sym,`declaration,NULL),fileout,0);}}
+
+/** ========================================================================
+A nice string format macro
+========================================================================**/
+
+//warning --- this replicates the arguments and hence the arguments should be variables.
+//this is hard to fix because the argument types are very difficult to determine.
+
+umacro{sformat(!args){
+    return `{
+      catch_return{charptr, {
+	  int needed_size = snprintf(NULL,0,$args);
+	  char * buffer = (char *) stack_alloc(needed_size+1);
+	  sprintf(buffer,$args);
+	  return(buffer);}}};
+  }
 }
 
 /** ========================================================================
-utilities
+stack frames for the debugger;
 ========================================================================**/
+void sframe_error();
+expptr args_struct(expptr args);
+expptr stack_frame_code(expptr frame_ptr_type, expptr frame_struct_type, expptr f, expptr args);
+expptr install_args_code(expptr framevar, expptr args);
 
-voidptr compile_load_file(charptr fstring){
-  int flg;
-  char * s1 = sformat("cc -g -fPIC -Wall -c %s.c -o %s.o",fstring,fstring);
-  flg = system(s1);
-  if(flg != 0)throw_error();
-  char * s2 = sformat("cc -g -fPIC -shared -Wl -lm %s.o -o %s.so",fstring,fstring);
-  flg = system(s2);
-  if(flg != 0)throw_error();
-  char * s3 = sformat("%s.so",fstring);
-  voidptr header = dlopen(s3, RTLD_LAZY|RTLD_GLOBAL);
-  if(header == NULL)throw_error();
-  return header;
+umacro{sframe(!type !f(!args){!body}){
+    if(!symbolp(f))uerror(`{
+	(illegal syntax in sframe)
+	  ($f is not a symbol in ($type $#f($args)))});
+    expptr frame_ptr_type = gensym(`frame_ptr_type);
+    expptr frame_struct_type = gensym(`frame_struct_type);
+    add_preamble(`{typedef struct {expptr fname; struct {$args_struct(args)} args;}$frame_struct_type, * $frame_ptr_type;});
+    if(type == `void){
+      return `{$type $#f($args){
+	  $stack_frame_code(frame_ptr_type,frame_struct_type,f,args);
+	  $body;
+	  pop_stack_frame();}};}
+    else{
+      expptr g = gensym(`body_fun);
+      expptr result = gensym(`result);
+      add_preamble(`{$type $#g($args){$body}});
+      return `{
+	$type $#f($args){
+	  $stack_frame_code(frame_ptr_type,frame_struct_type,f,args);
+	  $type $result = $#g($args_variables(args));
+	  pop_stack_frame();
+	  return $result;}};}}
 }
 
-expptr strip_body(expptr e){
-  ucase{e;
-    {!type !f(!x) {!body}}:{
-      if(symbolp(f))return `{$type $#f($x);};}
-    {!x}:{}}
-  return e;
+expptr args_struct(expptr args){
+  ucase{args;
+    {!type !var, !rest}:{
+      if (!symbolp(var)) sframe_error(args);
+      return `{$type $var; $args_struct(rest)};}
+    {!type !var}:{
+      if (!symbolp(var))sframe_error(args);
+      return `{$type $var;};}
+    {!x}:{
+      sframe_error(args);
+      return `void;
+    }
+  }
 }
 
-int procedurep(expptr sym){
-  ucase{getprop(sym,`declaration,NULL);
-    {!type !f(!args);}:{return 1;}
-    {!type !f(!args){!body}}:{return 1;}
-    {!x}:{return 0;}}
+expptr stack_frame_code(expptr frame_ptr_type, expptr frame_struct_type, expptr f, expptr args){
+  
+  expptr framestruct = gensym(`framestruct);
+  expptr bq_cache = gensym(`backquote_cache);
+  add_preamble(`{expptr $#bq_cache[1];});
+  add_init_form(`{* $bq_cache = `$f;});
+  add_init_form(`{setprop(`$f,`frametype,`$frame_ptr_type);});
+  return `{
+    $frame_ptr_type $framestruct = ($frame_ptr_type) stack_alloc(sizeof($frame_struct_type));
+    $framestruct->fname = * $bq_cache;
+    $install_args_code(framestruct, args);
+    push_stack_frame2($framestruct);};
 }
 
-int arrayp(expptr sym){
-  ucase{getprop(sym,`declaration,NULL);
-    {!type !A[!dim];}:{return 1;}
-    {!x}:{return 0;}}
+expptr install_args_code(expptr framevar, expptr args){
+  ucase{args;
+    {!type !var, !rest}:{
+      return `{$framevar->args.$var = $var; $install_args_code(framevar,rest);};}
+    {!type !var}:{
+      return `{$framevar->args.$var = $var;};}}
+  return `void;
 }
 
-int preamblep(expptr form){
-  ucase{form;
-    {typedef !def;}:{return 1;}
-    {typedef !def1,!def2;}:{return 1;}
-    {#define !def}:{return 1;}
-    {#include < !file >}:{return 1;}
-    {#include !x}:{return 1;}
-    {!x}:{return 0;}}
+expptr args_variables(expptr args){
+  ucase{args;
+    {}:{return `{};}
+    {!type !var(!types), !rest}:{return `{$var, $args_variables(rest)};}
+    {!type !var(!types)}:{return var;}
+    {!type !var, !rest}:{return `{$var, $args_variables(rest)};}
+    {!type !var}:{return var;}
+    {!x}:{uerror(`{the argument list $args should use only single-symbol types});}}
+  return NULL;
 }
 
-initfun(mccE_init1)
-
-void mccE_init2(){
-  env_syms = nil;
-  file_preamble = nil;
-  compilecount = 0;
-  symbol_count = 0;
+void sframe_error(expptr args){
+  {uerror(`{
+	(argument list syntax)
+	  ($args)
+	  (not recognized by sframe)
+	  (types should be single symbols)});}
 }
+
+initfun(mccD_init)
+
+
+
+ 
+
+  
