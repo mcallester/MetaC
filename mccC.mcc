@@ -11,29 +11,35 @@
 #include <fcntl.h>
 #include "mcc.h"
 
+expptr init_forms;
+
 void add_init_form(expptr form){
-  init_forms = cons(macroexpand(fom),init_forms);
+  init_forms = cons(macroexpand(form),init_forms);
 }
 
-exptr init_form_macro(expptr e){
+expptr init_form_macro(expptr e){
   ucase{e; {init_form(!form)}:{add_init_form(form); return NULL;}}
+  return NULL;
 }
 
 expptr umacro_macro(expptr e){
   ucase{e;
 	 {umacro{!pattern}{!body}}:{
-	   expptr name = topsymbol(pattern);
+	   expptr name = top_symbol(pattern);
 	   if(name == NULL)case_error();
-	   fname = gensym(name);
+	   expptr fname = gensym(name);
 	   add_init_form(`{set_umacro(`{${name}},${fname})});
-	   return `{expptr ${gensym(name)}(expptr e){ucase{e;{${pattern}}:{${macroexpand(body)}}}}});
-  }}
+	   return `{expptr ${gensym(name)}(expptr e){ucase{e;{${pattern}}:{${macroexpand(body)}}}}}}}
+  return NULL;
+}
 
-expptr init_fun_macro(expptr fname){
+expptr init_fun_macro(expptr e){
   ucase{e; {init_fun(!fname)}:{
-      return `{void ${fname}(){${init_forms}}};}}}
+      return `{void ${fname}(){${init_forms}}};}}
+  return NULL;}
 
 void mccC_init(){
+  init_forms = NULL;
   set_macro(`{umacro},umacro_macro);
   set_macro(`{init_form}, init_form_macro);
   set_macro(`{init_fun}, init_fun_macro);

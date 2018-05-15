@@ -368,7 +368,7 @@ int unaryp(char c){
 }
 
 int binaryp(char c){
-  return c == ' ' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ';' || c == ':'
+  return c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ';' || c == ':'
       || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^' || c == '|' || c == '&' || c == '~';
 }
 
@@ -1025,8 +1025,6 @@ void mccexpand(char * source, char * destination){
 }
 
 expptr preamble;
-expptr init_forms;
-
 void add_preamble(expptr e){preamble = cons(e,preamble);}
 
 void process_def(expptr e){
@@ -1056,7 +1054,6 @@ void mccA_init(){
   macro_token = string_symbol("macro");
   heap_reserve = .1;
 
-  init_forms = NULL;
   last_parens = NULL;
   
   readchar = ' ';
