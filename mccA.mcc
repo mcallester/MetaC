@@ -261,6 +261,14 @@ expptr intern_exp_op(char c, expptr a1, expptr a2){
   return intern_exp('O',op,intern_exp(' ',a1,a2));
 }
 
+expptr op_arg1(expptr e){
+  if(constructor(e) != 'O')berror("illegal call to op_arg1");
+  return arg1(arg2(e));}
+
+expptr op_arg2(expptr e){
+  if(constructor(e) != 'O')berror("illegal call to op_arg2");
+  return arg2(arg2(e));}
+
 expptr string_symbol(char * s){
   return intern_exp('a', (expptr) intern_string(s), NULL);
 }
@@ -353,26 +361,6 @@ a symbol tag --- a tagged symbol.
 
 ========================================================================**/
 
-expptr op_arg1(expptr e){
-  if(constructor(e) != 'O')berror("illegal call to op_arg1");
-  return arg1(arg2(e));}
-
-expptr op_arg2(expptr e){
-  if(constructor(e) != 'O')berror("illegal call to op_arg2");
-  return arg2(arg2(e));}
-
-typedef struct comment_wrapper{
-  FILE * stream;
-  char next;
-  char next2;
-  char quotechar;} comment_wrapper, * wstream;
-
-wstream file_stream;
-wstream terminal_stream;
-wstream read_stream;
-
-int paren_level;
-
 int string_quotep(char x){return (x == '"' || x == '\'');}
 
 int unaryp(char c){
@@ -386,11 +374,11 @@ int binaryp(char c){
 
 int openp(char x){return ((x)=='(' || (x)=='{' || (x) == '[');}
 
-int whitep(char x){return (x == ' ' || x == '\t' || (x == '\n' && (read_stream == file_stream || paren_level > 0)));}
+int whitep(char x){return (x == ' ' || x == '\t' || x == '\n');}
 
 int closep(char x){return ((x)==')' || (x)=='}' || (x) == ']');}
 
-int terminatorp(char c){return closep(c) || c == EOF || c == '\0' || (c == '\n' && read_stream == terminal_stream && paren_level == 0) ;}
+int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
 
 char close_for(char o){
   if(o == '(')return  ')';
@@ -434,15 +422,31 @@ int op_precedence(expptr e){
   return 11;}
 
 /** ========================================================================
-removing comments.
+proprocessing
 
 advance_readchar yields a series of values of readchar with comments removed.
 
-Comments are removed from the terminal sting only in positions inside parantheses.
+preprocessing REPL inputs behaves differently from preprocessing files.
+
+Comments are removed from REPL inputs only in positions inside parantheses.
 
 the "lookahead" slots next and next2 are active for file input and for terminal
 input with paren_level > 0.
+
+mccread_open maintains the invariant that when advance_readchar is called we have that paren_level is the level of the position immediately preceding read_stream->next
 ========================================================================**/
+
+typedef struct comment_wrapper{
+  FILE * stream;
+  char next;
+  char next2;
+  char quotechar;} comment_wrapper, * wstream;
+
+wstream file_stream;
+wstream terminal_stream;
+wstream read_stream;
+
+int paren_level;
 
 wstream cwrap_stream(FILE * f);
 void advance_readchar();
@@ -459,15 +463,13 @@ void open_input_file(char * source){
   file_stream = cwrap_stream(filein);
 }
 
-void skipwhite(){while(whitep(readchar)){advance_readchar();}
+void skipwhite(){while(whitep(readchar) && !(readchar == '\n' && read_stream == terminal_stream && paren_level == 0)){advance_readchar();}
 }
 
 void advance_readchar_past_white(){
   advance_readchar();
   skipwhite();
 }
-
-void indent(int i);
 
 char readchar;
 FILE * readstrm;
@@ -486,38 +488,9 @@ void print_stream_state(){
   fputc('|',stderr);
 }
 
-expptr mccread_tree(int p);
-
-expptr read_from(wstream s){
-  read_stream = s;
-  paren_level = 0;
-  advance_readchar_past_white();
-  expptr e = mccread_tree(0);
-  return e;
-}
-
-expptr read_from_terminal(){return read_from(terminal_stream);}
-
-expptr read_from_file(){return read_from(file_stream);}
-
-void simple_advance_lookahead(){
-  char nextchar;
-  if(read_stream->next2 == EOF){nextchar = EOF;}
-  else {nextchar = fgetc(read_stream->stream);}
-  read_stream->next = read_stream->next2;
-  read_stream->next2 = nextchar;
-}
-
 void advance_lookahead(){
-  //here paren_level must be the level of the position immediately preceding read_stream->next
-  //it is important here that '\n' is not allowed in strings --- string typically contain '\\' followed by 'n'.
   char nextchar;
   if(read_stream->next2 == EOF){nextchar = EOF;}
-  else if(read_stream == terminal_stream
-	  && ((paren_level == 0 && read_stream->next == '\n')
-	      || (paren_level == 0 && read_stream->next2 == '\n' && !openp(read_stream->next))
-	      || (paren_level == 1 && closep(read_stream->next) && read_stream->next2 == '\n')))
-    {nextchar = ' ';}
   else {nextchar = fgetc(read_stream->stream);}
   read_stream->next = read_stream->next2;
   read_stream->next2 = nextchar;
@@ -530,7 +503,7 @@ void advance_readchar(){
 	if(read_stream == terminal_stream && paren_level == 0)
 	  berror("comment from terminal outside of parens");
 	while(!(read_stream->next == '*' && read_stream->next2 == '/')){
-	  simple_advance_lookahead();
+	  advance_lookahead();
 	  if(read_stream->next2 == EOF)berror("end of file in comment");
 	}
 	advance_lookahead();
@@ -539,21 +512,17 @@ void advance_readchar(){
 	if(read_stream == terminal_stream && paren_level == 0)
 	  berror("comment from terminal outside of parens");
 	while(read_stream->next != '\n'){
-	  simple_advance_lookahead();
+	  advance_lookahead();
 	}
-	simple_advance_lookahead();}
+	advance_lookahead();}
       else break;}}
   readchar = read_stream->next;
   advance_lookahead();
   if(read_stream == file_stream
      && read_stream->quotechar == 0
-     && readchar == '\n'
-     && !(read_stream->next == '\n'
-	  || read_stream->next == EOF
-	  || whitep(read_stream->next)
-	  || closep(read_stream->next)
-	  || openp(read_stream->next)))
-    {readchar = '\0';}
+     && read_stream->next == '\n'
+     && (read_stream->next2 == '#' || (readchar == '\n' && !whitep(read_stream->next2) && !closep(read_stream->next2))))
+    {read_stream->next = '\0';}
   if(string_quotep(read_stream->next)){
     if(read_stream->quotechar == 0){read_stream->quotechar = read_stream->next;}
     else if(readchar != '\\' && read_stream->next == read_stream->quotechar){read_stream->quotechar = 0;}}
@@ -570,7 +539,7 @@ binds right for right-associative priorities.
 In mccread_tree(p1), p1 is the precedence of the connective to the left of readcar
 or zero if there is no such connective
 
-mccread_tree(p1) returns arg and op such that arg binds left
+mccread_tree(p1) returns arg and op such that arg binds left.  The operator argument is returned in the variable readop.
 
 There are two versions of the null connective.  The null connective inserted to connect tree elements is the space connective --
 it has tag 'o' and is string " ".  When a terminator is reached mccread_connective returns NULL --- the true null connective.
@@ -585,6 +554,7 @@ Each of the following mccread functions can return NULL but in mccread_atom() fo
 the two must be non-null --- the initial readcar must contribute to either an atom or a connective.
 ==================================================================== **/
 
+expptr mccread_tree(int p);
 expptr mccread_atom();
 expptr mccread_tagged();
 expptr mccread_connective();
@@ -593,7 +563,18 @@ expptr mccread_open();
 expptr mccread_symbol();
 void declare_unmatched();
 expptr readop;
-expptr last_exp; //for printing errors
+
+expptr read_from(wstream s){
+  read_stream = s;
+  paren_level = 0;
+  advance_readchar_past_white();
+  expptr e = mccread_tree(0);
+  return e;
+}
+
+expptr read_from_terminal(){return read_from(terminal_stream);}
+
+expptr read_from_file(){return read_from(file_stream);}
 
 expptr mccread_tree(int p1){
   if(whitep(readchar))berror("whitespace visible to mccread_tree");
@@ -643,7 +624,7 @@ expptr mccread_symbol(){
 }
 
 expptr mccread_connective(){ //same as mccread_symbol but for strings of operator symbols.
-  if(terminatorp(readchar)) return NULL;
+  if(terminatorp(readchar) || (readchar == '\n' && read_stream == terminal_stream && paren_level == 0)) return NULL;
   if(!binaryp(readchar))return intern_exp('o',(expptr) intern_string(" "), NULL);
   int i=0;
   while(binaryp(readchar)){
@@ -675,9 +656,11 @@ expptr mccread_string(){ // readchar is either " or '
   return intern_exp(q, (expptr) intern_string(ephemeral_buffer),NULL);
 }
 
+expptr last_parens;
+
 void declare_unmatched(){
   fprintf(stderr,"unmatched parentheses after:\n\n");
-  pprint(last_exp,stderr,0);
+  pprint(last_parens,stderr,0);
   if(read_stream == terminal_stream){
       while(readchar != '\n')readchar = fgetc(stdin);}
   else
@@ -696,7 +679,7 @@ expptr mccread_open(){ // readchar is openp
   
   advance_readchar_past_white();
   expptr val = intern_exp(openchar,e,NULL);
-  last_exp = val; // for printing errors.
+  last_parens = val;
   return val;
 }
 
@@ -1074,6 +1057,7 @@ void mccA_init(){
   heap_reserve = .1;
 
   init_forms = NULL;
+  last_parens = NULL;
   
   readchar = ' ';
   catch_freeptr = 0;
