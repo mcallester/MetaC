@@ -214,8 +214,8 @@ initialization
 ========================================================================**/
 
 void mccA_init();
+void mccB_init();
 void mccC_init();
-void mccC2_init();
 void mccD_init();
 void mccE_init1();
 void mccE_init2();
