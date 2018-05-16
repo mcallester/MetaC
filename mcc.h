@@ -55,9 +55,16 @@ void berror(char *s);
 
 void macro_error();
 
+#define DBG_DIM 10000
+
+expptr dbg_stack[DBG_DIM];
+int dbg_freeptr;
+
 void push_dbg_expression(expptr e);
 
 void pop_dbg_stack();
+
+void match_failure();
 
 #define EPHEMERAL_DIM (1<<10)
 char ephemeral_buffer[EPHEMERAL_DIM];

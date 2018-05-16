@@ -61,25 +61,37 @@ An expression is defined recursively to one of the following.
   For example {\bf  foo\_bar1}.
 \item A tagged symbol.  A tagged symbol consists of a symbol-tag followed by a symbol.  The symbol tag characters are {\bf \$}, {\bf $\backslash$}, {\bf `}, {\bf !}, {\bf ?}, {\bf \#} and {\bf \%}.
   For example we have the tagged symbols {\bf ?foo} and {\bf !foo}.
-\item A quoted string.  For example {\bf \tt "!:\&?;"} or {\tt 'a'}.  In UAS there is no distinction between {\bf "foo"} and {\bf 'foo'}.  To avoid confusion newline characters are not allowed in strings (the two character sequence {\bf /n} is ok).
+\item A quoted string.  For example {\bf \tt "!:\&?;"} or {\tt 'a'}.  In UAS there is no distinction between {\bf "foo"} and {\bf 'foo'} other than the choice of the quotation character (which must match).
+  To avoid confusion newline characters are not allowed in strings (the two character sequence {\bf /n} is ok).
 \item A parenthesis expression.  This is an expression of the form ($e$), $\{e\}$, or $[e]$ where $e$ is an expression.  In MetaC $(e)$ is always a different expression from $e$.
-\item An application expression.  This is a structured symbol followed by a parenthesis expression.  For example {\bf foo(x)}.
-The binding of structured symbols to parenthesis expressions to form application expressions is tighter than (higher precedence than) the formation of binary connective expressions.
+\item An application expression.  This is a tagged symbol followed by a parenthesis expression or an application expression followed by a parenthesis expression.  For example {\bf foo(x)} or {\bf foo(x)(y)}.
+The formation of application expressions is tighter than (higher precedence than) the formation of binary connective expressions.
 \item A binary connective expression.  For example {\bf x=3} is the binary connective expression with connective {\bf =} and symbol arguments {\bf x} and {\bf 3}.  Binary conectives are described in more detail below.
 \item The null expression and the null connective. In order to ensure that the UAS reader can read any parenthesis-balanced string we can use the null
   expression as arguments and the null connective to combine pairs of adjacent expressions.  This is described in more detail below.
 \end{itemize}
 
-{\bf Binary connectives.} The binary connectives consist of all non-empty strings over the characters {\bf ;}, comma, \{{\bf =}, {\bf $\sim$}, {\bf <}, {\bf >}\}, \{\mtt{|}, {\bf \&}\}, \{{\bf +},
+{\bf Binary connectives.} The binary connectives consist of all non-empty strings over the characters {\bf ;}, comma, \{{\bf =}, {\bf $\sim$}, {\bf $<$}, {\bf $>$}\}, \{\mtt{|}, {\bf \&}\}, \{{\bf +},
 {\bf -}\}, \{{\bf *}, {\bf /}\}, {\bf .}, {\bf @}, and \mtt{$\hat{~}$}.
 Single-character connectives are outermost to innermost in the order given (low
 precedence to high precedence) where set brackets indicate same-precedence.    All binary connectives are infix.  The last four single-chracter connectives are left-associative and the
-others are right-associative. For example {\bf f(x).a.b} reads as {\bf f(x).a} and {\bf b} connected with dot.  Multi-character connectives are
-innermost to (higher precedence than) all single character binary connectives except {\bf :} which is the innermost binary connective. All multi-character binary connectives have the same
-precedence which is higher precedence (innermost) to all single character connectives other than {\bf :}.  Multi-character connectives are left associative.  The null connective is right associative and is outermost to (lower precedence) than all other binary connectives
-except {\bf;} and comma --- the null connective binds more tightly than comma (this causes argument lists to have a friendly tree structure).
+others are right-associative. For example {\bf f(x).a.b} reads as
+\begin{verbatim}
+       .   
+      / \
+     .   b
+    / \
+   /\  a
+  f ( )
+     |
+     x
+\end{verbatim}
+All multi-character binary connectives have the same
+precedence which is higher than (innermost to) all single character connectives other than {\bf :}.
+Multi-character connectives are left associative.  The null connective, described below, is right associative and is outermost to (lower precedence) than all other binary connectives
+except {\bf;} and comma.  This precedence of the null connective causes C argument lists and C statement sequences to have friendly tree structure.
 
-{\bf Null arguments and the null connective.}  We can draw expressions as trees where null arguments and connectives are drawn as empty nodes.
+{\bf The null expression and the null connective.}  We can draw expressions as trees where the null expression and the null connective are drawn as empty nodes.
 For example {\bf (foo bar)} is a the expression.
 \begin{verbatim}
    ( )
@@ -111,6 +123,29 @@ x  1   =
  ?     =
  |   /   \
 \end{verbatim}
+
+{\bf \{?\$foo\}} is  the expression
+\begin{verbatim}
+   { }
+    |
+
+  /   \
+ ?     $
+ |     |
+      foo
+\end{verbatim}
+
+{\bf \{\$\{foo\}\}} is  the expression
+\begin{verbatim}
+   { }
+    |
+
+  /   \
+ $    { }
+ |     |
+      foo
+\end{verbatim}
+
 Since any parenthesis-balanced string reads as an expression, we can think of expressions as structured representations of strings.
 
 \section{Pattern Matching}
@@ -118,7 +153,7 @@ Since any parenthesis-balanced string reads as an expression, we can think of ex
 MetaC provides a pattern matching case statement.
 The general form of the case construct is the following.
 $${\bf ucase(e; \{<pattern1>\}:\{<statement1>\}; ... ;\{<patternn>\}:\{<statementn>\})}$$
-Variables are marked in patterns by {\bf"!"}. For example we might write the following.
+Variables are marked in patterns by the symbol tag {\bf !}. For example we might write the following.
 
 \begin{code}
 int value(exp e)\{
@@ -133,8 +168,6 @@ int value(exp e)\{
 In many cases the choice of the particular tree structure imposed by the MetaC reader is unimportant.  For example, the expression {\bf a+b+c} will match the pattern
 {\bf !x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\bf !x*!y}
 will not match the string {\bf a+b*c} because {\bf +} is above (outer to) {\bf *} in the parse tree constructed by MetaC. Note that the pattern {\bf !x*!y} does match {\bf (a+b)*c}.
-
-Structured symbols are expressions with tree structure.  The pattern {\bf !x:gritch} matches the structured symbol {\bf foo:bar:gritch} with {\bf x} bound to the structured symbol {\bf foo:bar}.
 
 \section{Backquote}
 

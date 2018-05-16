@@ -20,7 +20,7 @@ This is an expression where the statement returns a value of the stated type.
 expptr replace_returns(expptr var, expptr donelabel, expptr s){
   ucase{s;
     {return(!e)}:{
-      return `{{$var = $e; goto $donelabel;}};}
+      return `{${var} = ${e}; goto ${donelabel};}};}
     {!x}:{
       if(atomp(s)) return s;
       return intern_exp(constructor(s),
@@ -30,12 +30,12 @@ expptr replace_returns(expptr var, expptr donelabel, expptr s){
 }
 
 umacro{catch_return{!type, {!statement}}{
-    expptr result = gensym(`result);
-    expptr donelabel = gensym(`done);
+    expptr result = gensym(`{result});
+    expptr donelabel = gensym(`{done});
     return `{({
-	  $type $result;
-	  $replace_returns(result,donelabel,statement)
-	    $donelabel: $result;})};
+	  ${type} ${result};
+	  ${replace_returns(result,donelabel,statement)}
+	  ${donelabel}: ${result};})};
   }
 }
 
@@ -48,26 +48,26 @@ This guarantees that list expression is properly represented by its print string
 
 umacro{push{!x,!y}{
   if(!symbolp(y))berror("illegal syntax in push");
-  return `{$y = cons($x,$y)};
+  return `{${y} = cons(${x},${y})};
   }
 }
 
 umacro{dolist{{!x,!y}{!body}}{
-    expptr yval = gensym(`yval);
-    expptr rest = gensym(`rest);
+    expptr yval = gensym(`{yval});
+    expptr rest = gensym(`{rest});
     return `{{
-	expptr $yval = $y;
-	while($yval != nil){
-	  ucase{$yval;
-	    {{!$x}, !$rest}:{
-	      {$body}
-	      $yval = $rest;}}}}};
+	expptr ${yval} = ${y};
+	while(${yval} != nil){
+	  ucase{${yval};
+	    {{!${x}}, !${rest}}:{
+	      {${body}}
+	      ${yval} = ${rest};}}}}};
   }
 }
 
 umacro{mapc(!f,!list){
-    expptr x = gensym(`x);
-    return `{dolist{{$x, $list}{$#f($x);}}};
+    expptr x = gensym(`{x});
+    return `{dolist{{${x}, ${list}}{${f}(${x});}}};
   }
 }
 
@@ -75,8 +75,8 @@ expptr mapcar(expptr f(expptr), expptr l){
   if(l == nil) return nil;
   ucase{l;
     {{!first},!rest}:{
-      return `{{$f(first)},$mapcar(f,rest)};}}
-  return `void;
+      return `{{${f(first)}},${mapcar(f,rest)}};}}
+  return `{void};
 }
       
 /** ========================================================================
@@ -108,9 +108,9 @@ A nice string format macro
 umacro{sformat(!args){
     return `{
       catch_return{charptr, {
-	  int needed_size = snprintf(NULL,0,$args);
+	  int needed_size = snprintf(NULL,0,${args});
 	  char * buffer = (char *) stack_alloc(needed_size+1);
-	  sprintf(buffer,$args);
+	  sprintf(buffer,${args});
 	  return(buffer);}}};
   }
 }
@@ -126,80 +126,80 @@ expptr install_args_code(expptr framevar, expptr args);
 umacro{sframe(!type !f(!args){!body}){
     if(!symbolp(f))uerror(`{
 	(illegal syntax in sframe)
-	  ($f is not a symbol in ($type $#f($args)))});
-    expptr frame_ptr_type = gensym(`frame_ptr_type);
-    expptr frame_struct_type = gensym(`frame_struct_type);
-    add_preamble(`{typedef struct {expptr fname; struct {$args_struct(args)} args;}$frame_struct_type, * $frame_ptr_type;});
-    if(type == `void){
-      return `{$type $#f($args){
-	  $stack_frame_code(frame_ptr_type,frame_struct_type,f,args);
-	  $body;
+	  (${f} is not a symbol in (${type} ${f}(${args})))});
+    expptr frame_ptr_type = gensym(`{frame_ptr_type});
+    expptr frame_struct_type = gensym(`{frame_struct_type});
+    add_preamble(`{typedef struct {expptr fname; struct {${args}_struct(args)} args;}${frame_struct_type}, * ${frame_ptr_type};});
+    if(type == `{void}){
+      return `{${type} ${f}(${args}){
+	  ${stack_frame_code(frame_ptr_type,frame_struct_type,f,args)};
+	  ${body};
 	  pop_stack_frame();}};}
     else{
-      expptr g = gensym(`body_fun);
-      expptr result = gensym(`result);
-      add_preamble(`{$type $#g($args){$body}});
+      expptr g = gensym(`{body_fun});
+      expptr result = gensym(`{result});
+      add_preamble(`{${type} ${g}(${args}){${body}}});
       return `{
-	$type $#f($args){
-	  $stack_frame_code(frame_ptr_type,frame_struct_type,f,args);
-	  $type $result = $#g($args_variables(args));
+	${type} ${f}(${args}){
+	  ${stack_frame_code(frame_ptr_type,frame_struct_type,f,args)};
+	  ${type} ${result} = ${g}(${args_variables(args)});
 	  pop_stack_frame();
-	  return $result;}};}}
+	  return ${result};}};}}
 }
 
 expptr args_struct(expptr args){
   ucase{args;
     {!type !var, !rest}:{
       if (!symbolp(var)) sframe_error(args);
-      return `{$type $var; $args_struct(rest)};}
+      return `{${type} ${var}; ${args_struct}(rest)};}
     {!type !var}:{
       if (!symbolp(var))sframe_error(args);
-      return `{$type $var;};}
+      return `{${type} ${var};};}
     {!x}:{
       sframe_error(args);
-      return `void;
+      return `{void};
     }
   }
 }
 
 expptr stack_frame_code(expptr frame_ptr_type, expptr frame_struct_type, expptr f, expptr args){
   
-  expptr framestruct = gensym(`framestruct);
-  expptr bq_cache = gensym(`backquote_cache);
-  add_preamble(`{expptr $#bq_cache[1];});
-  add_init_form(`{* $bq_cache = `$f;});
-  add_init_form(`{setprop(`$f,`frametype,`$frame_ptr_type);});
+  expptr framestruct = gensym(`{framestruct});
+  expptr bq_cache = gensym(`{backquote_cache});
+  add_preamble(`{expptr ${bq_cache}[1];});
+  add_init_form(`{* ${bq_cache} = `{${f}};});
+  add_init_form(`{setprop(`{${f}},`{frametype},`{${frame_ptr_type}});});
   return `{
-    $frame_ptr_type $framestruct = ($frame_ptr_type) stack_alloc(sizeof($frame_struct_type));
-    $framestruct->fname = * $bq_cache;
-    $install_args_code(framestruct, args);
-    push_stack_frame2($framestruct);};
+    ${frame_ptr_type} ${framestruct} = (${frame_ptr_type}) stack_alloc(sizeof(${frame_struct_type}));
+    ${framestruct}->fname = * ${bq_cache};
+    ${install_args_code(framestruct, args)};
+    push_stack_frame2(${framestruct});};
 }
 
 expptr install_args_code(expptr framevar, expptr args){
   ucase{args;
     {!type !var, !rest}:{
-      return `{$framevar->args.$var = $var; $install_args_code(framevar,rest);};}
+      return `{${framevar}->args.${var} = ${var}; ${install_args_code}(framevar,rest);};}
     {!type !var}:{
-      return `{$framevar->args.$var = $var;};}}
-  return `void;
+      return `{${framevar}->args.${var} = ${var};};}}
+  return `{void};
 }
 
 expptr args_variables(expptr args){
   ucase{args;
     {}:{return `{};}
-    {!type !var(!types), !rest}:{return `{$var, $args_variables(rest)};}
+    {!type !var(!types), !rest}:{return `{${var}, ${args_variables(rest)}};}
     {!type !var(!types)}:{return var;}
-    {!type !var, !rest}:{return `{$var, $args_variables(rest)};}
+    {!type !var, !rest}:{return `{${var}, ${args_variables(rest)}};}
     {!type !var}:{return var;}
-    {!x}:{uerror(`{the argument list $args should use only single-symbol types});}}
+    {!x}:{uerror(`{the argument list ${args} should use only single-symbol types});}}
   return NULL;
 }
 
 void sframe_error(expptr args){
   {uerror(`{
 	(argument list syntax)
-	  ($args)
+	  (${args})
 	  (not recognized by sframe)
 	  (types should be single symbols)});}
 }

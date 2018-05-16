@@ -23,11 +23,6 @@ cbreak, berror
 
 void cbreak(){};
 
-#define DBG_DIM 10000
-
-expptr dbg_stack[DBG_DIM];
-int dbg_freeptr;
-
 void push_dbg_expression(expptr e){
   if(dbg_freeptr == DBG_DIM)berror("debugging stack exhausted");
   dbg_stack[dbg_freeptr++] = e;
@@ -594,9 +589,10 @@ expptr mccread_atom(){
   if(string_quotep(readchar)){return mccread_string();}
   if(openp(readchar)){return mccread_open();}
   if(alphap(readchar) || unaryp(readchar)){
-    expptr arg = mccread_tagged();
-    if(openp(readchar)){return intern_exp('A',arg,mccread_open());}
-    return arg;}
+    expptr f = mccread_tagged();
+    while(openp(readchar)){
+      f = intern_exp('A',f,mccread_open());}
+    return f;}
   return NULL;
 }
 
