@@ -13,81 +13,54 @@
 #include "mcc.h"
 
 expptr casecode1(expptr,expptr,expptr,expptr);
-expptr casecode1a(expptr,expptr,expptr,expptr);
 expptr casecode2(expptr,expptr,expptr);
 expptr constructor_code(char c);
 
-void case_error(char * s){
-  fprintf(stderr,"%s \n", s);
-  if(dbg_freeptr > 0){
-    fprintf(stderr,"in \n");
-    expptr e = dbg_stack[dbg_freeptr-1];
-    gud_pprint(e);
-    if(constructor(e) == 'O'){
-      fprintf(stderr, "top connective %s\n", (char *) arg1(arg1(e)));}}
-  cbreak();
-  throw_error();}
-
-void match_failure(expptr topvar, expptr patterns){
+void match_failure(expptr value, expptr patterns){
   fprintf(stderr,"match error: the value \n");
-  gud_pprint(topvar);
+  gud_pprint(value);
   fprintf(stderr,"Does not match any of\n");
   gud_pprint(patterns);
   berror("");
 }
 
-/** =============================================
-pattern matching.
-
-the syntax for ucase is
-
-ucase{<expresson>;
-   {<pattern1>}:{<statement>}
-   ...
-   {<atternk>}:{<statementk>}}
-
-Clauses must not be followed by semicolons.
-================================================= **/
-
 expptr ucase_macro(expptr e){
-  if(constructor(e) != 'A' || constructor(arg2(e)) != '{')case_error("illegal top level ucase structure");
+  expptr pattern = `{{ucase{!exp;!rules}}};
+  if(constructor(e) != 'A' || constructor(arg2(e)) != '{')match_failure(e,pattern);
   expptr arglist = arg1(arg2(e));
-  if(constructor(arglist) != 'O' || arg1(arglist) != semiop)case_error("illegal clause list in ucase");
-  expptr topexp = op_arg1(arglist);
+  if(constructor(arglist) != 'O' || arg1(arglist) != spaceop || constructor(op_arg1(arglist)) != ';')match_failure(e,pattern);
+  expptr exp = arg1(op_arg1(arglist));
   expptr rules = op_arg2(arglist);
+  
   expptr donelabel = gensym(`{done});
   expptr topvar = gensym(`{top});
   return `{
-    {expptr ${topvar} = ${topexp};
+    {expptr ${topvar} = ${exp};
       ${casecode1(rules, topvar, donelabel, NULL)}
       ${donelabel}: ;}};
 }
 
 expptr casecode1(expptr rules, expptr topvar, expptr donelabel, expptr patterns){
-  if(rules == NULL)case_error("illegal clause list in ucase");
-  push_dbg_expression(rules);
-  if(constructor(rules) != 'O')case_error("illegal clause list in ucase");
+  expptr rules_patterns =`{{!pattern:!body !rest} {!pattern:!body}};
+  if(rules == NULL || constructor(rules) != 'O')match_failure(rules,rules_patterns);
   expptr  op = arg1(rules);
   expptr rule,elseform;
   if(op == spaceop){
     rule = op_arg1(rules);
-    if(constructor(rule) != 'O')case_error("illegal clause list in ucase");
+    if(constructor(rule) != 'O')match_failure(rules,rules_patterns);
     elseform = casecode1(op_arg2(rules),topvar,donelabel,cons(op_arg1(rule),patterns));}
   else if(op == colonop){
     rule = rules;
     elseform = `{match_failure(${topvar},`{${cons(op_arg1(rule),patterns)}});};}
-  else case_error("illegal clause list in ucase");
-  push_dbg_expression(rule);
-  if(constructor(rule) != 'O' || arg1(rule) != colonop || constructor(op_arg1(rule)) != '{' || constructor(op_arg2(rule)) != '{')case_error("illegal clause in ucase");
+  else match_failure(rules,rules_patterns);
+  if(constructor(rule) != 'O' || arg1(rule) != colonop || constructor(op_arg1(rule)) != '{' || constructor(op_arg2(rule)) != '{')match_failure(rules,rules_patterns);
   expptr pattern = arg1(op_arg1(rule));
   expptr body = arg1(op_arg2(rule));
-  expptr val = `{${casecode2(cons(cons(pattern,topvar),NULL),
-			     macroexpand(body),
-			     donelabel)}
-		 ${elseform}};
-  pop_dbg_stack();
-  pop_dbg_stack();
-  return val;
+  return `{
+    ${casecode2(cons(cons(pattern,topvar),NULL),
+		       macroexpand(body),
+		       donelabel)}
+    ${elseform}};
 }
 
 expptr casecode2(expptr pairs, expptr body, expptr donelabel){
@@ -98,10 +71,12 @@ expptr casecode2(expptr pairs, expptr body, expptr donelabel){
   expptr valvar = cdr(thispair);
   if(pattern == NULL)return `{if(${valvar} == NULL){${casecode2(restpairs,body,donelabel)}}};
   char c = constructor(pattern);
-  if(c == '!'){
+  if(c == '!' || c == '?'){
     expptr var = arg1(pattern);
-    if(var == NULL)case_error("illegal use of exclamation point in ucase");
-    return(`{expptr ${var} = ${valvar};${casecode2(restpairs,body,donelabel)}});}
+    if(var == NULL)berror("illegal use of exclamation point or question mark in ucase pattern");
+    expptr rest = casecode2(restpairs,body,donelabel);
+    if(c =='?') rest = `{if(constructor(${var}) == 'a'){${rest}}};
+    return `{expptr ${var} = ${valvar};${rest}};}
   if(c == 'a' || c == 'o' || string_quotep(c))return `{if(${valvar} == ${quote_code(pattern)}){${casecode2(restpairs,body,donelabel)}}};
   expptr left = gensym(`{leftval});
   expptr right = gensym(`{rightval});

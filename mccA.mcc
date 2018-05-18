@@ -273,17 +273,6 @@ char * symbol_string(expptr s){
   return (char *) arg1(s);
 }
 
-expptr make_argpair(expptr arg1, expptr arg2){
-  return intern_exp(' ', arg1, arg2);
-}
-
-int semip(expptr e){
-  return (constructor(e) == 'O' && arg1(e) == semiop);}
-
-expptr exp_concat(expptr e1, expptr e2){
-  return intern_exp_op(' ',e1,e2);
-}
-
 expptr cons(expptr x, expptr y){
   return intern_exp(' ',x,y);
 }
@@ -294,12 +283,6 @@ expptr car(expptr x){
 expptr cdr(expptr x){
   return arg2(x);}
 
-expptr strip_list(expptr l){
-  expptr result = NULL;
-  for(expptr rest = l; rest != NULL; rest = cdr(rest)){
-    result = exp_concat(car(rest),result);}
-  return result;
-}
 
 /** ========================================================================
 properties  see mcc.h for the definition of the type plist
@@ -345,15 +328,17 @@ when reading from files vs. the terminal.
 The character type tag on an expression has the following possible values:
 
 'a' --- a symbol.  The first argument is an interned string.
-a symbol tag --- a tagged symbol.
+a symbol tag (a unary character) --- a tagged symbol.
 'A' --- an application expression. The first argument is a structured symbol and the second argument is a parenthesis expression.
 'o' --- a binary connective. --- The first argument is an interned string.
-'O' --- a binary connective expression.  arg1 is the oprtator and arg2 is a pair expression.
-' ' --- a pair expression internal to a binary connective expression.
+'O' --- a connective expression.  arg1 is the oprtator and arg2 is a the pair of arguments.
+' ' --- a pair expression.  This is used as the second argument to a connective expression and also for cons cells.
+        When a pair expression is passed directly to the printer, as opposed to being the second argument of a binary connective expression,
+        The printer prints the space as a binary connective.
+        Space can also appear as the connective of a connective expression.
 /',/" ---  a string expression.
 (,{,[ ---  a parenthesis expression.
-';' --- a terminated expression.
-
+';' --- a semicolon terminated expression.
 ========================================================================**/
 
 int string_quotep(char x){return (x == '"' || x == '\'');}
@@ -363,7 +348,7 @@ int unaryp(char c){
 }
 
 int binaryp(char c){
-  return c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ';' || c == ':'
+  return c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
       || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^' || c == '|' || c == '&' || c == '~';
 }
 
@@ -373,7 +358,7 @@ int whitep(char x){return (x == ' ' || x == '\t' || x == '\n');}
 
 int closep(char x){return ((x)==')' || (x)=='}' || (x) == ']');}
 
-int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
+int terminatorp(char c){return (closep(c) || c == EOF || c == '\0' || c == ';');}
 
 char close_for(char o){
   if(o == '(')return  ')';
@@ -391,7 +376,6 @@ int alphap(char c){
 }
 
 int precedence(char op){
-  if(op == ';') return 1;
   if(op==',')return 2;
   if(op==' ')return 3;
   if(op=='=' || op=='<' || op=='>' || op =='~') return 4;
@@ -417,7 +401,7 @@ int op_precedence(expptr e){
   return 11;}
 
 /** ========================================================================
-proprocessing
+preprocessing
 
 advance_readchar yields a series of values of readchar with comments removed.
 
@@ -538,6 +522,8 @@ mccread_tree(p1) returns arg and op such that arg binds left.  The operator argu
 
 There are two versions of the null connective.  The null connective inserted to connect tree elements is the space connective --
 it has tag 'o' and is string " ".  When a terminator is reached mccread_connective returns NULL --- the true null connective.
+This distinction is important so that the reader inverts the printer --- the space character prints as space while the null connective does not print.
+Having the space connective print as space guarantees that adjacent symbols remain separated in the printed string.
 
 The space connective has priority higher than semicolon and comma but lower than all other binary connectives.  This causes friendly tree structures
 for C argument lists and statement lists.  The true null connective inserted at a terminator has priority below all other null connectives.
@@ -576,11 +562,17 @@ expptr mccread_tree(int p1){
   expptr a1 = mccread_atom();
   expptr op2 = mccread_connective();
   int p2 = op_precedence(op2);
-  while(p2 > p1 || (p2 == p1 && p1 != 0 && p1 < LEFT_THRESHOLD)){
-    expptr a2 = mccread_tree(p2);
-    a1 = intern_exp('O',op2,intern_exp(' ',a1,a2));
-    op2 = readop;
-    p2 = op_precedence(op2);}
+  while(p2 > p1 || (p2 == p1 && p1 != 0 && p1 < LEFT_THRESHOLD) || (p1 == 0 && readchar ==';')){
+    if(p1 == 0 && readchar == ';'){ //op2 == NULL in this case
+      a1 = intern_exp(';',a1,NULL);
+      advance_readchar_past_white();
+      op2 = mccread_connective();
+      p2 = op_precedence(op2);}
+    else {
+      expptr a2 = mccread_tree(p2);
+      a1 = intern_exp('O',op2,intern_exp(' ',a1,a2));
+      op2 = readop;
+      p2 = op_precedence(op2);}}
   readop = op2;
   return a1;
 }
@@ -684,6 +676,8 @@ printing to a string
 
 This is not used in ExpandA.  It is intended for returning values from undo frames
 and/or stack frames.  The stack heap is generally unused in mcc file expansion.
+
+This has not been maintained (as of May 17, 2018).
 ========================================================================**/
 
 void putone(char c){
@@ -804,6 +798,9 @@ void print_exp_linear(expptr w){
     print_exp_linear(arg1(w));
     fputc(' ',writestrm);
     print_exp_linear(arg2(w));}
+  else if(c == ';'){
+    print_exp_linear(arg1(w));
+    fputc(';',writestrm);}
   else if(unaryp(c)){
     fputc(c,writestrm);
     print_exp_linear(arg1(w));}
@@ -837,6 +834,9 @@ void pprint_exp(expptr w, int column){ //column is the current print column
       newline();
       indent(column);
       pprint_exp(arg2(w), column);}}
+  else if(c == ';'){
+    pprint_exp(arg1(w), column);
+    fputc(';',writestrm);}
   else if(unaryp(c)){
     fputc(c,writestrm);
     pprint_exp(arg1(w),column+1);}
@@ -848,89 +848,11 @@ void pprint(expptr w, FILE * f, int col){
   fprintf(f,"\n");
   indent(col);
   pprint_exp(w,col);
-  fprintf(f,"\n\n");
 }
 
 void gud_pprint(expptr e){
   pprint(e,stdout,0);}
 
-
-/** ========================================================================
-section: macroexpand
-========================================================================**/
-expptr macro_token; //has value `{macro}
-
-void set_macro(expptr sym, expptr f(expptr)){
-   setprop(sym, macro_token, (expptr) f);
-}
-
-expptr macroexpand(expptr);
-
-expptr macroexpand_args(expptr e){
-  if(e == NULL || atomp(e)) berror("illegal call to macroexpand_args");
-  expptr a1 = macroexpand(arg1(e));
-  expptr a2 = macroexpand(arg2(e));
-  return intern_exp(constructor(e),a1,a2);
-}
-
-
-expptr macroexpand2(expptr name, expptr e){
-  expptr (*f)(expptr);
-  f = (expptr (*)(expptr)) getprop(name,macro_token,NULL);
-  if(f == NULL){return e;}
-  push_dbg_expression(e);
-  expptr val = f(e);
-  pop_dbg_stack();
-  return val;
-}
-
-expptr top_symbol(expptr e){
-  if(atomp(e)) return NULL;
-  char c  = constructor(e);
-  if(c == 'O' && (arg1(e) == spaceop || arg1(e) == NULL) && constructor(op_arg1(e)) == 'a')return op_arg1(e);
-  if(c == 'A' || c == 'O'){return arg1(e);}
-  return NULL;
-}
-  
-expptr macroexpand1(expptr e){
-  expptr s = top_symbol(e);
-  if(s == NULL)return e;
-  return macroexpand2(s,e);
-}
-
-expptr macroexpand(expptr e){
-  expptr e2 = macroexpand1(e);
-  if(e2 != e) return macroexpand(e2);
-  if(atomp(e))return e;
-  return macroexpand_args(e);
-}
-
-/** ========================================================================
-section: gensym
-========================================================================**/
-
-expptr int_exp(int i){
-  if(i < 0)berror("attempt to convert negative integer to expression");
-  sprintf(ephemeral_buffer,"%d",i);
-  return string_symbol(ephemeral_buffer);
-}
-
-int symbol_int(expptr s){
-  if(!symbolp(s)){berror("call to symbol_int on non-symbol");}
-  return atoi(symbol_string(s));
-}
-
-expptr gensym(expptr sym){
-  if(!symbolp(sym))berror("argument to gensym is not a symbol");
-  char * s = symbol_string(sym);
-  
-  for(int i=1;1;i++){
-    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_%s%d",s,i);
-    if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
-    int key = preintern_string(ephemeral_buffer);
-    if(string_hash_table[key]==NULL)break;}
-  return string_symbol(ephemeral_buffer);
-}
 
 /** ========================================================================
 section: backquote
@@ -975,9 +897,8 @@ expptr bquote_code(expptr e){
     if(!unaryp(c2))berror("illegal syntax of '\' in backquote --- '\' must be followed by a unary operator such as '$' or itself");
     return intern_exp_code(c2, bquote_code(arg1(a1)), bquote_code(NULL));}
   if(c == 'A' && constructor(a1) == '$'){ // for const = 'A' both arguments are guaranteed to be non-null.
-    if(arg1(a1) == NULL)return arg1(a2);
-    else
-      return intern_exp_code('A',arg1(a1),bquote_code(arg2(a1)));}
+    if(arg1(a1) == NULL) return arg1(a2);
+    berror("$ must be followed by curly braces");}
   return intern_exp_code(c,bquote_code(a1),bquote_code(a2));
 }
 
@@ -987,11 +908,86 @@ expptr quote_code(expptr e){ // this is used in mccB but is not used for backquo
 }
 
 expptr bquote_macro(expptr e){ //this is the non-recursive entry point (the macro procedure) for backquote
-  push_dbg_expression(e);
   if(constructor(arg2(e)) != '{')berror("syntax error: backquote must be followed by curly braces");
-  expptr val = bquote_code(arg1(arg2(e)));
+ return  bquote_code(arg1(arg2(e)));
+}
+
+/** ========================================================================
+section: macroexpand
+========================================================================**/
+expptr macro_token; //has value `{macro}
+
+void set_macro(expptr sym, expptr f(expptr)){
+   setprop(sym, macro_token, (expptr) f);
+}
+
+expptr macroexpand(expptr);
+
+expptr macroexpand_args(expptr e){
+  if(e == NULL || atomp(e)) berror("illegal call to macroexpand_args");
+  expptr a1 = macroexpand(arg1(e));
+  expptr a2 = macroexpand(arg2(e));
+  return intern_exp(constructor(e),a1,a2);
+}
+
+expptr macroexpand2(expptr name, expptr e){
+  expptr (*f)(expptr);
+  f = (expptr (*)(expptr)) getprop(name,macro_token,NULL);
+  if(f == NULL){return e;}
+  push_dbg_expression(e);
+  expptr val = f(e);
   pop_dbg_stack();
   return val;
+}
+
+expptr top_symbol(expptr e){
+  if(e == NULL)return NULL;
+  char c  = constructor(e);
+  if(c == 'a' || unaryp(c))return e;
+  if(c == 'A' || c == ';')return top_symbol(arg1(e));
+  if(c == 'O')return arg1(e);
+  return NULL;
+}
+  
+expptr macroexpand1(expptr e){
+  if(atomp(e))return e;
+  expptr s = top_symbol(e);
+  if(s == NULL)return e;
+  return macroexpand2(s,e);
+}
+
+expptr macroexpand(expptr e){
+  expptr e2 = macroexpand1(e);
+  if(e2 != e) return macroexpand(e2);
+  if(atomp(e))return e;
+  return macroexpand_args(e);
+}
+
+/** ========================================================================
+section: gensym
+========================================================================**/
+
+expptr int_exp(int i){
+  if(i < 0)berror("attempt to convert negative integer to expression");
+  sprintf(ephemeral_buffer,"%d",i);
+  return string_symbol(ephemeral_buffer);
+}
+
+int symbol_int(expptr s){
+  if(!symbolp(s)){berror("call to symbol_int on non-symbol");}
+  return atoi(symbol_string(s));
+}
+
+expptr gensym(expptr sym){
+  if(!symbolp(sym))berror("argument to gensym is not a symbol");
+  char * s = symbol_string(sym);
+  
+  for(int i=1;1;i++){
+    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_%s%d",s,i);
+    if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
+    int key = preintern_string(ephemeral_buffer);
+    if(string_hash_table[key]==NULL)break;}
+  return string_symbol(ephemeral_buffer);
 }
 
 /** ========================================================================
@@ -1028,7 +1024,8 @@ void process_def(expptr e){
   push_dbg_expression(e);
   preamble = NULL;
   expptr e2 = macroexpand(e);
-  pprint(preamble,fileout,0);
+  if(preamble)pprint(preamble,fileout,0);
+  else fputc('\n',fileout);
   pprint(e2,fileout,0);
   pop_dbg_stack();
 }

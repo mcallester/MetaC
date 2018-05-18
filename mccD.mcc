@@ -19,8 +19,8 @@ This is an expression where the statement returns a value of the stated type.
 
 expptr replace_returns(expptr var, expptr donelabel, expptr s){
   ucase{s;
-    {return(!e)}:{
-      return `{${var} = ${e}; goto ${donelabel};}};}
+    {return !e ;}:{
+      return `{${var} = ${e}; goto ${donelabel};}}
     {!x}:{
       if(atomp(s)) return s;
       return intern_exp(constructor(s),
@@ -29,54 +29,44 @@ expptr replace_returns(expptr var, expptr donelabel, expptr s){
   return NULL;
 }
 
-umacro{catch_return{!type, {!statement}}{
-    expptr result = gensym(`{result});
-    expptr donelabel = gensym(`{done});
-    return `{({
-	  ${type} ${result};
-	  ${replace_returns(result,donelabel,statement)}
-	  ${donelabel}: ${result};})};
-  }
+umacro{catch_return{?var !statement}}{
+  expptr donelabel = gensym(`{done});
+  return `{({
+	expptr ${var};
+	${replace_returns(var,donelabel,statement)}
+	${donelabel}:})};
 }
 
-
-/** ========================================================================
-Lists.  We represent a list if exoressions x1, x2, ..., xn by the expression {x1},{x2}, ... ,{xn},nil.
-This guarantees that list expression is properly represented by its print string  --- is print-invertable
---- provided that each xi is print-invertable.
-========================================================================**/
-
-umacro{push{!x,!y}{
-  if(!symbolp(y))berror("illegal syntax in push");
-  return `{${y} = cons(${x},${y})};
-  }
+umacro{push{!x,?y};}{
+  return `{${y} = cons(${x},${y});};
 }
 
-umacro{dolist{{!x,!y}{!body}}{
-    expptr yval = gensym(`{yval});
-    expptr rest = gensym(`{rest});
-    return `{{
-	expptr ${yval} = ${y};
-	while(${yval} != nil){
-	  ucase{${yval};
-	    {{!${x}}, !${rest}}:{
-	      {${body}}
-	      ${yval} = ${rest};}}}}};
-  }
+umacro{dolist{?x,!y}{!body}}{
+  expptr yval = gensym(`{yval});
+  return `{
+    {expptr ${yval} = ${y};
+      while(${yval} != NULL){
+	${x} = car(${yval});
+	${body}
+	${yval} = cdr(${yval});}}}
 }
 
-umacro{mapc(!f,!list){
-    expptr x = gensym(`{x});
-    return `{dolist{{${x}, ${list}}{${f}(${x});}}};
-  }
+umacro{mapc(!f,!list)}{
+  expptr x = gensym(`{x});
+  return `{dolist{{${x}, ${list}}{${f}(${x});}}};
 }
 
 expptr mapcar(expptr f(expptr), expptr l){
-  if(l == nil) return nil;
+  if(l == NULL) return NULL;
   ucase{l;
     {{!first},!rest}:{
       return `{{${f(first)}},${mapcar(f,rest)}};}}
   return `{void};
+}
+
+int length(expptr l){
+  if(l == NULL || constructor(l) != ' ') return 0;
+  return length(arg2(l)) + 1;
 }
       
 /** ========================================================================
@@ -84,7 +74,7 @@ file_expressions
 ========================================================================**/
 
 expptr file_exps_helper(){
-  if(readchar == EOF) return nil;
+  if(readchar == EOF) return NULL;
   expptr next = read_from_file();
   if(next == NULL){return file_exps_helper();}
   return cons(next, file_exps_helper());
@@ -97,114 +87,69 @@ expptr file_expressions(expptr fname){
   return result;
 }
 
-
 /** ========================================================================
-A nice string format macro
+sformat is like sprintf but stack-allocates the buffer rather than take a buffer argument.
+It returns the string pointer.
+
+warning --- this replicates the arguments and hence the arguments should be variables.
+this is hard to fix because the argument types are very difficult to determine.
 ========================================================================**/
 
-//warning --- this replicates the arguments and hence the arguments should be variables.
-//this is hard to fix because the argument types are very difficult to determine.
-
-umacro{sformat(!args){
-    return `{
-      catch_return{charptr, {
-	  int needed_size = snprintf(NULL,0,${args});
-	  char * buffer = (char *) stack_alloc(needed_size+1);
-	  sprintf(buffer,${args});
-	  return(buffer);}}};
-  }
+umacro{sformat(!args)}{
+  return `{
+    catch_return{charptr, {
+	int needed_size = snprintf(NULL,0,${args});
+	char * buffer = (char *) stack_alloc(needed_size+1);
+	sprintf(buffer,${args});
+	return(buffer);}}};
 }
 
 /** ========================================================================
 stack frames for the debugger;
-========================================================================**/
-void sframe_error();
-expptr args_struct(expptr args);
-expptr stack_frame_code(expptr frame_ptr_type, expptr frame_struct_type, expptr f, expptr args);
-expptr install_args_code(expptr framevar, expptr args);
+======================================================================== **/
 
-umacro{sframe(!type !f(!args){!body}){
-    if(!symbolp(f))uerror(`{
-	(illegal syntax in sframe)
-	  (${f} is not a symbol in (${type} ${f}(${args})))});
-    expptr frame_ptr_type = gensym(`{frame_ptr_type});
-    expptr frame_struct_type = gensym(`{frame_struct_type});
-    add_preamble(`{typedef struct {expptr fname; struct {${args}_struct(args)} args;}${frame_struct_type}, * ${frame_ptr_type};});
-    if(type == `{void}){
-      return `{${type} ${f}(${args}){
-	  ${stack_frame_code(frame_ptr_type,frame_struct_type,f,args)};
-	  ${body};
-	  pop_stack_frame();}};}
-    else{
-      expptr g = gensym(`{body_fun});
-      expptr result = gensym(`{result});
-      add_preamble(`{${type} ${g}(${args}){${body}}});
-      return `{
-	${type} ${f}(${args}){
-	  ${stack_frame_code(frame_ptr_type,frame_struct_type,f,args)};
-	  ${type} ${result} = ${g}(${args_variables(args)});
-	  pop_stack_frame();
-	  return ${result};}};}}
-}
+expptr args_variables(expptr args);
+expptr args_assignments(expptr args);
 
-expptr args_struct(expptr args){
-  ucase{args;
-    {!type !var, !rest}:{
-      if (!symbolp(var)) sframe_error(args);
-      return `{${type} ${var}; ${args_struct}(rest)};}
-    {!type !var}:{
-      if (!symbolp(var))sframe_error(args);
-      return `{${type} ${var};};}
-    {!x}:{
-      sframe_error(args);
-      return `{void};
-    }
-  }
-}
-
-expptr stack_frame_code(expptr frame_ptr_type, expptr frame_struct_type, expptr f, expptr args){
-  
-  expptr framestruct = gensym(`{framestruct});
-  expptr bq_cache = gensym(`{backquote_cache});
-  add_preamble(`{expptr ${bq_cache}[1];});
-  add_init_form(`{* ${bq_cache} = `{${f}};});
-  add_init_form(`{setprop(`{${f}},`{frametype},`{${frame_ptr_type}});});
-  return `{
-    ${frame_ptr_type} ${framestruct} = (${frame_ptr_type}) stack_alloc(sizeof(${frame_struct_type}));
-    ${framestruct}->fname = * ${bq_cache};
-    ${install_args_code(framestruct, args)};
-    push_stack_frame2(${framestruct});};
-}
-
-expptr install_args_code(expptr framevar, expptr args){
-  ucase{args;
-    {!type !var, !rest}:{
-      return `{${framevar}->args.${var} = ${var}; ${install_args_code}(framevar,rest);};}
-    {!type !var}:{
-      return `{${framevar}->args.${var} = ${var};};}}
-  return `{void};
-}
+umacro{sframe{?type ?f(!args){!body}}}{
+  if(type == `{void}){
+    return `{${type} ${f}(${args}){
+	push_dbg_expression(`{${f}(${args})});
+	${args_assignments(args_variables(args))}
+	${body};
+	pop_dbg_stack();}};}
+  expptr var = gensym(`{result});
+  return `{${type} ${f}(${args}){
+      push_dbg_expression(`{${f}(${args})});
+      ${args_assignments(args_variables(args))}
+      ${type} ${var};
+      catch_return(${var} ${body})
+      pop_dbg_stack();
+      return ${var};
+    }}}
 
 expptr args_variables(expptr args){
   ucase{args;
-    {}:{return `{};}
-    {!type !var(!types), !rest}:{return `{${var}, ${args_variables(rest)}};}
-    {!type !var(!types)}:{return var;}
-    {!type !var, !rest}:{return `{${var}, ${args_variables(rest)}};}
-    {!type !var}:{return var;}
-    {!x}:{uerror(`{the argument list ${args} should use only single-symbol types});}}
+    {?type1 ?var(?type2), !rest}:{return cons(var, args_variables(rest))}
+    {?type1 ?var(?type2)}:{return cons(var, NULL);}
+    {?type ?var, !rest}:{return `{${var}, ${args_variables(rest)}};}
+    {?type ?var}:{return cons(var, NULL);}}
   return NULL;
 }
 
-void sframe_error(expptr args){
-  {uerror(`{
-	(argument list syntax)
-	  (${args})
-	  (not recognized by sframe)
-	  (types should be single symbols)});}
+expptr args_assignments(expptr args){
+  if(length(args) > DBG_DIM_ARGS)berror("sframe with too many arguments");
+  int i = 0;
+  expptr result = NULL;
+  while(args != NULL){
+    expptr arg = car(args);
+    result = cons(`{dbg_stack_args[dgb_freeptr,int_exp[i]] = ${car(args)};},result);
+    i++;
+    args = cdr(args);}
+  return result;
 }
 
-initfun(mccD_init)
+init_fun(mccD_init)
 
 
 

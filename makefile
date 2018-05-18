@@ -62,28 +62,14 @@ expandD.c :  expandC expandD.mcc
 expandD : mccD.o expandD.c
 	gcc -g -o expandD mccA.o mccB.o mccC.o mccD.o expandD.c -ldl -lm
 
-#expandE
+#REPL
 
-mccE.c :  expandD mccE.mcc
-	./expandD mccE.mcc mccE.c
-
-mccE.o : mccE.c
-	gcc -g mccE.c -c
-
-expandE.c :  expandC expandE.mcc
-	./expandC expandE.mcc expandE.c
-
-expandE : mccE.o expandE.c
-	gcc -g -o expandE mccA.o mccB.o mccC.o mccD.o mccE.o expandE.c -ldl -lm
-
-#mccrep
-
-REPL.c : REPL.mcc expandE base_decls.h
-	./expandE REPL.mcc REPL.c
+REPL.c : REPL.mcc expandD base_decls.h
+	./expandD REPL.mcc REPL.c
 
 REPL.o : REPL.c
 	gcc -g REPL.c -c
 
 REPL : REPL.o
-	gcc -g -o REPL mccA.o mccB.o mccC.oshell
+	gcc -g -o REPL mccA.o mccB.o mccC.o mccD.o REPL.o -ldl -lm
 

@@ -14,8 +14,8 @@
 
 int main(int argc, char **argv){
   mccA_init();
-  mccC_init(); //mccC is bootstrapped on mccB and replaces it.
-  mccC2_init();
+  mccB_init();
+  mccC_init();
   mccD_init();
   catch_error({mccexpand(argv[1], argv[2]);});
   return error_flg;

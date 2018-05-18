@@ -155,19 +155,33 @@ The general form of the case construct is the following.
 $${\bf ucase(e; \{<pattern1>\}:\{<statement1>\}; ... ;\{<patternn>\}:\{<statementn>\})}$$
 Variables are marked in patterns by the symbol tag {\bf !}. For example we might write the following.
 
-\begin{code}
-int value(exp e)\{
+\begin{verbatim}
+int value(exp e){
   ucase(e;
-   \{!x+!y\}:\{return value(x)+value(y);\};
-   \{!x*!y\}:\{return value(x)*value(y);\};
-   \{(!x)\}:\{return value(x);\};
-   \{!z\}:\{return symbol\_int(z)]);\})
-\}
-\end{code}
+   {!x+!y}:{return value(x)+value(y);};
+   {!x*!y}:{return value(x)*value(y);};
+   {(!x)}:{return value(x);};
+   {!z}:{return symbol_int(z)]);})
+}
+\end{verbatim}
 
-In many cases the choice of the particular tree structure imposed by the MetaC reader is unimportant.  For example, the expression {\bf a+b+c} will match the pattern
+Here pattern symbols tagged with {\bf !} are bound to expressions. In many cases the choice of the particular tree structure imposed by the MetaC reader is unimportant.  For example, the expression {\bf a+b+c} will match the pattern
 {\bf !x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\bf !x*!y}
 will not match the string {\bf a+b*c} because {\bf +} is above (outer to) {\bf *} in the parse tree constructed by MetaC. Note that the pattern {\bf !x*!y} does match {\bf (a+b)*c}.
+
+Repeated variable, such as the pattern {\bf \{!x + !x\}} are not supported (and not checked for).  If variables are repeated the variable will be matched at its last occurrences under depth-first traversal.
+
+Pattern symbols can also be tagged with {\bf ?} in which case they must be bound to symbols.  For example, in the following {\bf ?x} must bind to a symbol.
+
+\begin{verbatim}
+ucase{e;
+   {dolist{?x !L}!body}:{
+     rest = gensym(`{rest});
+     return `{for(list ${rest} = ${L};
+                  ${rest} != NULL;
+                  ${rest} = cdr(${rest});)
+               ${body}}}
+\end{verbatim}
 
 \section{Backquote}
 

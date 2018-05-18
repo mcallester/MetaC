@@ -56,8 +56,10 @@ void berror(char *s);
 void macro_error();
 
 #define DBG_DIM 10000
+#define DBG_DIM_ARGS 5
 
 expptr dbg_stack[DBG_DIM];
+expptr dbg_stack_args[DBG_DIM][DBG_DIM_ARGS];
 int dbg_freeptr;
 
 void push_dbg_expression(expptr e);
@@ -132,7 +134,6 @@ int symbol_int(expptr s);
 charptr exp_string(expptr e);
 expptr make_app(expptr sym, expptr arg);
 expptr quote_code(expptr e);
-void case_error();
 
 /** ========================================================================
 gensym

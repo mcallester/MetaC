@@ -26,10 +26,10 @@ expptr umacro_macro(expptr e){
   ucase{e;
 	 {umacro{!pattern}{!body}}:{
 	   expptr name = top_symbol(pattern);
-	   if(name == NULL)case_error();
+	   if(name == NULL)berror("illegal pattern in umacro");
 	   expptr fname = gensym(name);
-	   add_init_form(`{set_umacro(`{${name}},${fname})});
-	   return `{expptr ${gensym(name)}(expptr e){ucase{e;{${pattern}}:{${macroexpand(body)}}}}}}}
+	   add_init_form(`{set_macro(`{${name}},${fname});});
+	   return `{expptr ${fname}(expptr e){ucase{e;{${pattern}}:{${macroexpand(body)}}} return NULL;}}}}
   return NULL;
 }
 
