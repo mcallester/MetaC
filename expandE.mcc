@@ -9,14 +9,32 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 #include <fcntl.h>
-
+#include <string.h>
 #include "mcc.h"
+
+
+
+/** ========================================================================
+loading a set of declarations and procedure definitions.
+========================================================================**/
+
+expptr preamble;
+expptr env_syms;
+int REPdef_count;
+
+void load(expptr forms);
+void eval(expptr statement);
+void preprocess(expptr form);
 
 int main(int argc, char **argv){
   mccA_init();
-  mccC_init(); //mccC is bootstrapped on mccB and replaces it.
-  mccC2_init();
+  mccB_init();
+  mccC_init();
   mccD_init();
+  mccE_init1();
+  mccE_init2();
+  catch_error(mapc(install,file_expressions(`{base_decls.h})));
+  if(error_flg != 0)return error_flg;
   catch_error({mccexpand(argv[1], argv[2]);});
   return error_flg;
 }

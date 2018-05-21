@@ -53,8 +53,6 @@ void cbreak();
 
 void berror(char *s);
 
-void macro_error();
-
 #define DBG_DIM 10000
 #define DBG_DIM_ARGS 5
 
@@ -66,7 +64,7 @@ void push_dbg_expression(expptr e);
 
 void pop_dbg_stack();
 
-void match_failure();
+void match_failure(expptr,expptr);
 
 #define EPHEMERAL_DIM (1<<10)
 char ephemeral_buffer[EPHEMERAL_DIM];
@@ -171,6 +169,7 @@ char readchar;  //this is used in mccD, in file_expressions, for detecting end o
 expptr read_from_terminal();
 expptr read_from_file();
 void pprint(expptr e, FILE * f, int i);
+void print_line(expptr e, FILE * f);
 void gud_pprint(expptr e);
 void put_return(FILE * ws);
 
@@ -181,8 +180,13 @@ macros
 void set_macro(expptr sym, expptr f(expptr));
 expptr macroexpand(expptr e);
 expptr macroexpand1(expptr e);
+
+expptr preamble;
 void add_preamble(expptr e);
+
+expptr init_forms;
 void add_init_form(expptr e);
+
 expptr args_variables(expptr args);
 
 void case_error();
@@ -198,6 +202,8 @@ expptr cons(expptr x, expptr y);
 expptr car(expptr x);
 expptr cdr(expptr x);
 expptr mapcar(expptr f(expptr), expptr l);
+expptr append(expptr,expptr);
+expptr reverse(expptr);
 
 expptr file_expressions(expptr fname);
 

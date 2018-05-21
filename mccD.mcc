@@ -37,7 +37,7 @@ umacro{catch_return{?var !statement}}{
 	${donelabel}:})};
 }
 
-umacro{push{!x,?y};}{
+umacro{push(!x,?y);}{
   return `{${y} = cons(${x},${y});};
 }
 
@@ -70,21 +70,36 @@ int length(expptr l){
 }
       
 /** ========================================================================
-file_expressions
+file_expressions  This returns a list of macro-expanded expressions in the order they appear
+in the file with each expression preceeded by its preamble and followed by its forms.
 ========================================================================**/
 
-expptr file_exps_helper(){
-  if(readchar == EOF) return NULL;
-  expptr next = read_from_file();
-  if(next == NULL){return file_exps_helper();}
-  return cons(next, file_exps_helper());
-}
+void add_expression(expptr);
+expptr full_expansion(expptr);
+
+expptr file_exps; //this contains the reverse of the file expressions.  Consing onto this is like writing an output expression.
 
 expptr file_expressions(expptr fname){
   open_input_file(exp_string(fname));
-  expptr result = file_exps_helper();
-  fclose(fileout);
-  return result;
+  file_exps = NULL;
+  while(readchar != EOF){add_expression(read_from_file());}
+  fclose(filein);
+  return reverse(file_exps);
+}
+
+void add_expression(expptr e){
+  ucase{e;
+    {!first !rest}:{
+      add_expression(first);
+      add_expression(rest);}
+    {!x}:{file_exps = append(reverse(full_expansion(e)),file_exps);}}
+}
+
+expptr full_expansion(expptr e){//every element of the returned list is fully macro-expanded.
+  preamble = NULL;
+  init_forms = NULL;
+  expptr e2 = macroexpand(e);
+  return append(preamble,cons(e2,init_forms));
 }
 
 /** ========================================================================

@@ -26,13 +26,13 @@ expandB.c : expandA expandB.mcc
 expandB : mccB.o expandB.c
 	gcc -g -o expandB mccA.o mccB.o expandB.c -ldl -lm
 
-#test
+#testB
 
-test.c : expandB test.mcc
-	./expandB test.mcc test.c
+testB.c : expandB testB.mcc
+	./expandB testB.mcc testB.c
 
-test.o : test.c
-	gcc -g test.c -c
+testB.o : testB.c
+	gcc -g testB.c -c
 
 #expandC
 
@@ -48,6 +48,14 @@ expandC.c : expandB expandC.mcc
 expandC : mccC.o expandC.c
 	gcc -g -o expandC mccA.o mccB.o mccC.o expandC.c -ldl -lm
 
+#testC
+
+testC.c : expandB testC.mcc
+	./expandB testC.mcc testC.c
+
+testC.o : testC.c
+	gcc -g testC.c -c
+
 #expandD
 
 mccD.c :  expandC mccD.mcc
@@ -61,6 +69,36 @@ expandD.c :  expandC expandD.mcc
 
 expandD : mccD.o expandD.c
 	gcc -g -o expandD mccA.o mccB.o mccC.o mccD.o expandD.c -ldl -lm
+
+#testD
+
+testD.c : expandB testD.mcc
+	./expandB testD.mcc testD.c
+
+testD.o : testD.c
+	gcc -g testD.c -c
+
+#expandE
+
+mccE.c :  expandD mccE.mcc
+	./expandD mccE.mcc mccE.c
+
+mccE.o : mccE.c
+	gcc -g mccE.c -c
+
+expandE.c :  expandD expandE.mcc
+	./expandD expandE.mcc expandE.c
+
+expandE : mccE.o expandE.c
+	gcc -g -o expandE mccA.o mccB.o mccC.o mccD.o mccE.o expandE.c -ldl -lm
+
+#testE
+
+testE.c : expandB testE.mcc
+	./expandB testE.mcc testE.c
+
+testE.o : testE.c
+	gcc -g testE.c -c
 
 #REPL
 

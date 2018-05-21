@@ -41,8 +41,6 @@ void berror(char *s){
   cbreak();
   throw_error();}
 
-void macro_error(){berror("macro expansion error ");}
-
 /** ========================================================================
 push_stack_frame, pop_stack_frame, and stack_alloc
 ========================================================================**/
@@ -283,6 +281,19 @@ expptr car(expptr x){
 expptr cdr(expptr x){
   return arg2(x);}
 
+expptr append(expptr l1, expptr l2){
+  if(l1 == NULL)return l2;
+  return cons(car(l1), append(cdr(l1),l2));
+}
+
+expptr reverse(expptr l){
+  expptr result = NULL;
+  while(l != NULL){
+    result = cons(car(l), result);
+    l = cdr(l);
+  }
+  return result;
+}
 
 /** ========================================================================
 properties  see mcc.h for the definition of the type plist
@@ -520,19 +531,18 @@ or zero if there is no such connective
 
 mccread_tree(p1) returns arg and op such that arg binds left.  The operator argument is returned in the variable readop.
 
-There are two versions of the null connective.  The null connective inserted to connect tree elements is the space connective --
-it has tag 'o' and is string " ".  When a terminator is reached mccread_connective returns NULL --- the true null connective.
-This distinction is important so that the reader inverts the printer --- the space character prints as space while the null connective does not print.
-Having the space connective print as space guarantees that adjacent symbols remain separated in the printed string.
+The null connective is represented by a space connective and application of the space connective are represented by expressions tagged with 'O'.
+This simplifies mccread_tree by allowing the null connective to be handled by general code for binary connectives.
+The null connective prints as space. Having the space connective print as space guarantees that adjacent symbols remain separated in the printed string.
 
-The space connective has priority higher than semicolon and comma but lower than all other binary connectives.  This causes friendly tree structures
-for C argument lists and statement lists.  The true null connective inserted at a terminator has priority below all other null connectives.
+The space connective has priority higher than comma (and higher than the terminator symbol ';') but lower than all other binary connectives.  This causes friendly tree structures
+for C argument lists and statement lists.
 
 If there is no left operator then p1 == 0 which is weaker than all connectives other than the true null connective
 inserted at terminators.  This causes mccread_tree(0) to return the tree between the current readchar and the next terminator.
 
-Each of the following mccread functions can return NULL but in mccread_atom() followed by mccread_connective() one of
-the two must be non-null --- the initial readcar must contribute to either an atom or a connective.
+Each of the following mccread functions can return NULL but if mccread_atom() is followed by mccread_connective() either one of
+the two must be non-null or readchar is a terminator --- the initial readcar must contribute to one of these three cases.
 ==================================================================== **/
 
 expptr mccread_tree(int p);
@@ -674,8 +684,7 @@ expptr mccread_open(){ // readchar is openp
 /** ========================================================================
 printing to a string
 
-This is not used in ExpandA.  It is intended for returning values from undo frames
-and/or stack frames.  The stack heap is generally unused in mcc file expansion.
+This is used in mccE for 
 
 This has not been maintained (as of May 17, 2018).
 ========================================================================**/
@@ -848,6 +857,14 @@ void pprint(expptr w, FILE * f, int col){
   fprintf(f,"\n");
   indent(col);
   pprint_exp(w,col);
+  fprintf(f,"\n");
+}
+
+void print_line(expptr w, FILE * f){
+  writestrm = f;
+  fprintf(f,"\n");
+  print_exp_linear(w);
+  fprintf(f,"\n");
 }
 
 void gud_pprint(expptr e){
@@ -1016,20 +1033,27 @@ void mccexpand(char * source, char * destination){
   fclose(fileout);
 }
 
-expptr preamble;
-void add_preamble(expptr e){preamble = cons(e,preamble);}
+void add_preamble(expptr e){
+  expptr e2 = macroexpand(e);
+  preamble = append(preamble, cons(e2,NULL));}
+
+    
+void pprint_reversed(expptr exps){
+  if(exps == NULL)return;
+  pprint_reversed(cdr(exps));
+  pprint(car(exps),fileout,0);
+}
 
 void process_def(expptr e){
   if(e==NULL)return;
   push_dbg_expression(e);
   preamble = NULL;
   expptr e2 = macroexpand(e);
-  if(preamble)pprint(preamble,fileout,0);
-  else fputc('\n',fileout);
+  pprint(preamble,fileout,0);
+  fputc('\n',fileout);
   pprint(e2,fileout,0);
   pop_dbg_stack();
 }
-
 
 /** ========================================================================
 section: initialization

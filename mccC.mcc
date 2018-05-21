@@ -11,10 +11,9 @@
 #include <fcntl.h>
 #include "mcc.h"
 
-expptr init_forms;
-
 void add_init_form(expptr form){
-  init_forms = cons(macroexpand(form),init_forms);
+  expptr form2 = macroexpand(form);
+  init_forms = append(init_forms,cons(form,NULL));
 }
 
 expptr init_form_macro(expptr e){

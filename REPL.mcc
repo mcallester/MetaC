@@ -12,13 +12,6 @@
 #include <string.h>
 #include "mcc.h"
 
-
-
-/** ========================================================================
-loading a set of declarations and procedure definitions.
-========================================================================**/
-
-
 void load(expptr forms);
 expptr eval(expptr statement);
 
@@ -27,50 +20,8 @@ expptr eval(expptr statement);
 expptr preamble;
 expptr env_syms;
 void preprocess(expptr);
-
 int rep_column;
-
-int debugger_frame;
-
 expptr strip_body(expptr);  //in mccE.ucs
-
-
-void print_frame(int n){
-  indent(rep_column);
-  int len = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"[frame %d]: ",n);
-  pprint(strip_body(getprop((expptr) * ((expptr *) stack[n-1-1]),`declaration, NULL)),
-	 stderr,rep_column+len);
-}
-
-void backtrace(){
-  if(debugger_frame <= 20){
-    for(int i = debugger_frame;i >= 1;i--)print_frame(i);}
-  else{
-    for(int i = 0;i < 10;i++)print_frame(debugger_frame - i);
-    indent(rep_column); fprintf(stdout,"...");
-    for(int i = 10;i > 0;i--)print_frame(i);}
-}
-
-void top(){
-  debugger_frame = stack_frame_count;
-  print_frame(debugger_frame);}
-
-void up(){
-  if(debugger_frame > 1)debugger_frame -= 1;
-  print_frame(debugger_frame);
-}
-
-void down(){
-  if(debugger_frame < stack_frame_count)debugger_frame += 1;
-  print_frame(debugger_frame);
-}
-
-void frame(int n){
-  if(n >= stack_frame_count)debugger_frame = stack_frame_count;
-  else if(n <= 0)debugger_frame = 0;
-  else debugger_frame = n;
-  print_frame(debugger_frame);
-}
 
 void read_eval_print(){
   rep_column += 3;
@@ -78,18 +29,13 @@ void read_eval_print(){
     int i;
     writestrm = stdout;
     indent(rep_column);
-    fprintf(stdout, "McC>");
+    fprintf(stdout, "MC>");
     catch_error({
 	expptr e = read_from_terminal();
 	ucase{e;
 	  {quit}:{if(rep_column == 0)break; else throw_error();}
 	  {continue}:{if(rep_column != 0)break;}
 	  {load(!forms)}:{load(forms);}
-	  {bt}:{backtrace();}
-	  {up}:{up();}
-	  {down}:{down();}
-	  {top}:{top();}
-	  {frame(!n)}:{frame(symbol_int(n));}
 	  {describe(!sym)}:{
 	    indent(rep_column);
 	    pprint(strip_body(getprop(sym,`declaration,NULL)),stdout,rep_column);}
@@ -105,44 +51,30 @@ void read_eval_print(){
   rep_column -=3;
 }
 
-void mcerror(expptr e){
-  int old_debugger_frame = debugger_frame;
-  unwind_protect({
-      debugger_frame = stack_frame_count;
-      
-      indent(rep_column);  pprint(e,stderr,rep_column);
-      
-      if(current_definition != NULL){
-	fprintf(stderr,"in definition:\n\n");
-	indent(rep_column);
-	pprint(current_definition,stderr,rep_column);}
-      
-      if(stack_frame_count > 0){
-	debugger_frame = stack_frame_count;
-	rep_column +=3;
-	print_frame(stack_frame_count);
-	rep_column -=3;
-	read_eval_print();}},
-    {debugger_frame = old_debugger_frame;});
+void load_base(){
+
+  //this emulates loading base_decls.h
+  expptr forms = file_expressions(`{base_decls.h});
+  mapc(install,forms);
+  //the base forms have already been declared in mcc.h and defined in various mcc files
+  //so declarations, extractions and definitions are not needed.
+  insert_base_values();  //This is a macro defined in mccE an initializes the symbol_values array.
+  // initialization statements are handled by the initialization procedures
+  dolist{sym, env_syms}{setprop(sym,`{new},`{false});};
+
 }
 
 int main(int argc, char **argv){
   mccA_init();
-  mccC_init(); //mccC is bootstrapped on mccB and replaces mccB
-  mccC2_init(); //this defines cmacro as distinct from umacro
+  mccB_init();
+  mccC_init();
   mccD_init();
   mccE_init1();
   mccE_init2();
-  
-  //set_base_values is a macro
-  //base_decls must be installed at macro-expansion time
-  //macro expansion is done by expandE
-  set_base_values();
-    
-  //base_decls must also be installed here for evaluation and loading.
-  catch_error(mapc(preprocess,file_expressions(`{base_decls.h})));
+
+  catch_error(load_base());
   if(error_flg != 0)return error_flg;
-  dolist{{sym, env_syms}{setprop(sym,`assigned,`true);}};
+  
   rep_column = -3;
   read_eval_print();
   return 0;
