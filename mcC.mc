@@ -9,7 +9,7 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 #include <fcntl.h>
-#include "mcc.h"
+#include "mc.h"
 
 void add_init_form(expptr form){
   expptr form2 = macroexpand(form);
@@ -37,7 +37,7 @@ expptr init_fun_macro(expptr e){
       return `{void ${fname}(){${init_forms}}};}}
   return NULL;}
 
-void mccC_init(){
+void mcC_init(){
   init_forms = NULL;
   set_macro(`{umacro},umacro_macro);
   set_macro(`{init_form}, init_form_macro);

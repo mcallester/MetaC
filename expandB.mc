@@ -10,13 +10,11 @@
 #include <sys/file.h>
 #include <fcntl.h>
 
-#include "mcc.h"
-
-void mccB_init();
+#include "mc.h"
 
 int main(int argc, char **argv){
-  mccA_init();
-  mccB_init();
-  catch_error({mccexpand(argv[1], argv[2]);});
+  mcA_init();
+  mcB_init();
+  catch_error({mcexpand(argv[1], argv[2]);});
   return error_flg;
 }

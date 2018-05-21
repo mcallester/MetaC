@@ -10,7 +10,7 @@
 #include <sys/file.h>
 #include <fcntl.h>
 #include <string.h>
-#include "mcc.h"
+#include "mc.h"
 
 
 
@@ -27,14 +27,14 @@ void eval(expptr statement);
 void preprocess(expptr form);
 
 int main(int argc, char **argv){
-  mccA_init();
-  mccB_init();
-  mccC_init();
-  mccD_init();
-  mccE_init1();
-  mccE_init2();
+  mcA_init();
+  mcB_init();
+  mcC_init();
+  mcD_init();
+  mcE_init1();
+  mcE_init2();
   catch_error(mapc(install,file_expressions(`{base_decls.h})));
   if(error_flg != 0)return error_flg;
-  catch_error({mccexpand(argv[1], argv[2]);});
+  catch_error({mcexpand(argv[1], argv[2]);});
   return error_flg;
 }

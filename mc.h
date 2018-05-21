@@ -18,7 +18,7 @@ typedef struct expstruct{
 
 /** ========================================================================
 catch, throw, catch-error, throw-error, and unwind_protect.
-catch_error is used in the read eval print loop and so the definitions are placed in mcc.h
+catch_error is used in the read eval print loop and so the definitions are placed in mc.h
 ========================================================================**/
 
 #define CATCH_DIM 10000
@@ -47,7 +47,7 @@ int error_flg;
 /** ========================================================================
 cbreak, berror and macro_error
 
-see berror and macro_error in mccA.mcc
+see berror and macro_error in mcA.mc
 ========================================================================**/
 void cbreak();
 
@@ -152,8 +152,8 @@ void addprop(expptr e, expptr key, expptr val);
 expansion
 ========================================================================**/
 
-void mccexpand(char * source, char * destination);
-void mccexpand1(char * source, char * destination);
+void mcexpand(char * source, char * destination);
+void mcexpand1(char * source, char * destination);
 
 /** ========================================================================
 io
@@ -164,7 +164,7 @@ FILE * filein;
 void open_input_file(char * s);
 void open_output_file(char * s);
 
-char readchar;  //this is used in mccD, in file_expressions, for detecting end of file.
+char readchar;  //this is used in mcD, in file_expressions, for detecting end of file.
 
 expptr read_from_terminal();
 expptr read_from_file();
@@ -227,11 +227,11 @@ voidptr symbol_value[SYMBOL_DIM];
 initialization
 ========================================================================**/
 
-void mccA_init();
-void mccB_init();
-void mccC_init();
-void mccD_init();
-void mccE_init1();
-void mccE_init2();
+void mcA_init();
+void mcB_init();
+void mcC_init();
+void mcD_init();
+void mcE_init1();
+void mcE_init2();
 
 

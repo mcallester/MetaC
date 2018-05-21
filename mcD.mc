@@ -9,7 +9,7 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 #include <fcntl.h>
-#include "mcc.h"
+#include "mc.h"
 
 /** ========================================================================
 catch-return{type,statement}
@@ -164,7 +164,7 @@ expptr args_assignments(expptr args){
   return result;
 }
 
-init_fun(mccD_init)
+init_fun(mcD_init)
 
 
 

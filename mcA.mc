@@ -10,10 +10,10 @@
 #include <sys/file.h>
 #include <fcntl.h>
 #include <string.h>
-#include "mcc.h"
+#include "mc.h"
 
 /** ========================================================================
-See mcc.h for catch, throw, catch-error, throw-error, and unwind_protect.
+See mc.h for catch, throw, catch-error, throw-error, and unwind_protect.
 ========================================================================**/
 
 
@@ -53,7 +53,7 @@ void * stack_alloc(int size){
 }
 
 void push_stack_frame(){
-  if(stack_frame_count >= STACK_DIM)berror("McC stack exhausted");
+  if(stack_frame_count >= STACK_DIM)berror("MC stack exhausted");
   stack_restore[stack_frame_count++] = stack_heap_freeptr;
 }
 
@@ -146,7 +146,7 @@ void init_undo_frames(){
 }
 
 /** ========================================================================
-Interning strings see also mcc.h
+Interning strings see also mc.h
 ========================================================================**/
 
 #define STRING_HASH_DIM 10000
@@ -194,7 +194,7 @@ void init_strings(){
 /** ========================================================================
 interning expressions
 
-see mcc.h for the definitions of types plist and expptr.
+see mc.h for the definitions of types plist and expptr.
 ========================================================================**/
 
 #define EXP_HASH_DIM  (1 << 24)
@@ -296,7 +296,7 @@ expptr reverse(expptr l){
 }
 
 /** ========================================================================
-properties  see mcc.h for the definition of the type plist
+properties  see mc.h for the definition of the type plist
 ========================================================================**/
 
 plist getprop_cell(expptr e, expptr key){
@@ -423,7 +423,7 @@ Comments are removed from REPL inputs only in positions inside parantheses.
 the "lookahead" slots next and next2 are active for file input and for terminal
 input with paren_level > 0.
 
-mccread_open maintains the invariant that when advance_readchar is called we have that paren_level is the level of the position immediately preceding read_stream->next
+mcread_open maintains the invariant that when advance_readchar is called we have that paren_level is the level of the position immediately preceding read_stream->next
 ========================================================================**/
 
 typedef struct comment_wrapper{
@@ -526,32 +526,32 @@ priority of op1 and op2 determines whether e1 binds to the right or to the left.
 operator binds. If the priority is the same we have e1 binds left for left-assiative priories and
 binds right for right-associative priorities.
 
-In mccread_tree(p1), p1 is the precedence of the connective to the left of readcar
+In mcread_tree(p1), p1 is the precedence of the connective to the left of readcar
 or zero if there is no such connective
 
-mccread_tree(p1) returns arg and op such that arg binds left.  The operator argument is returned in the variable readop.
+mcread_tree(p1) returns arg and op such that arg binds left.  The operator argument is returned in the variable readop.
 
 The null connective is represented by a space connective and application of the space connective are represented by expressions tagged with 'O'.
-This simplifies mccread_tree by allowing the null connective to be handled by general code for binary connectives.
+This simplifies mcread_tree by allowing the null connective to be handled by general code for binary connectives.
 The null connective prints as space. Having the space connective print as space guarantees that adjacent symbols remain separated in the printed string.
 
 The space connective has priority higher than comma (and higher than the terminator symbol ';') but lower than all other binary connectives.  This causes friendly tree structures
 for C argument lists and statement lists.
 
 If there is no left operator then p1 == 0 which is weaker than all connectives other than the true null connective
-inserted at terminators.  This causes mccread_tree(0) to return the tree between the current readchar and the next terminator.
+inserted at terminators.  This causes mcread_tree(0) to return the tree between the current readchar and the next terminator.
 
-Each of the following mccread functions can return NULL but if mccread_atom() is followed by mccread_connective() either one of
+Each of the following mcread functions can return NULL but if mcread_atom() is followed by mcread_connective() either one of
 the two must be non-null or readchar is a terminator --- the initial readcar must contribute to one of these three cases.
 ==================================================================== **/
 
-expptr mccread_tree(int p);
-expptr mccread_atom();
-expptr mccread_tagged();
-expptr mccread_connective();
-expptr mccread_string();
-expptr mccread_open();
-expptr mccread_symbol();
+expptr mcread_tree(int p);
+expptr mcread_atom();
+expptr mcread_tagged();
+expptr mcread_connective();
+expptr mcread_string();
+expptr mcread_open();
+expptr mcread_symbol();
 void declare_unmatched();
 expptr readop;
 
@@ -559,7 +559,7 @@ expptr read_from(wstream s){
   read_stream = s;
   paren_level = 0;
   advance_readchar_past_white();
-  expptr e = mccread_tree(0);
+  expptr e = mcread_tree(0);
   return e;
 }
 
@@ -567,19 +567,19 @@ expptr read_from_terminal(){return read_from(terminal_stream);}
 
 expptr read_from_file(){return read_from(file_stream);}
 
-expptr mccread_tree(int p1){
-  if(whitep(readchar))berror("whitespace visible to mccread_tree");
-  expptr a1 = mccread_atom();
-  expptr op2 = mccread_connective();
+expptr mcread_tree(int p1){
+  if(whitep(readchar))berror("whitespace visible to mcread_tree");
+  expptr a1 = mcread_atom();
+  expptr op2 = mcread_connective();
   int p2 = op_precedence(op2);
   while(p2 > p1 || (p2 == p1 && p1 != 0 && p1 < LEFT_THRESHOLD) || (p1 == 0 && readchar ==';')){
     if(p1 == 0 && readchar == ';'){ //op2 == NULL in this case
       a1 = intern_exp(';',a1,NULL);
       advance_readchar_past_white();
-      op2 = mccread_connective();
+      op2 = mcread_connective();
       p2 = op_precedence(op2);}
     else {
-      expptr a2 = mccread_tree(p2);
+      expptr a2 = mcread_tree(p2);
       a1 = intern_exp('O',op2,intern_exp(' ',a1,a2));
       op2 = readop;
       p2 = op_precedence(op2);}}
@@ -587,27 +587,27 @@ expptr mccread_tree(int p1){
   return a1;
 }
 
-expptr mccread_atom(){
-  if(string_quotep(readchar)){return mccread_string();}
-  if(openp(readchar)){return mccread_open();}
+expptr mcread_atom(){
+  if(string_quotep(readchar)){return mcread_string();}
+  if(openp(readchar)){return mcread_open();}
   if(alphap(readchar) || unaryp(readchar)){
-    expptr f = mccread_tagged();
+    expptr f = mcread_tagged();
     while(openp(readchar)){
-      f = intern_exp('A',f,mccread_open());}
+      f = intern_exp('A',f,mcread_open());}
     return f;}
   return NULL;
 }
 
-expptr mccread_tagged(){
+expptr mcread_tagged(){
   if(unaryp(readchar)){
     char c = readchar;
     advance_readchar_past_white();
-    if(alphap(readchar)) return intern_exp(c,mccread_symbol(),NULL);
+    if(alphap(readchar)) return intern_exp(c,mcread_symbol(),NULL);
     return intern_exp(c,NULL,NULL);}
-  return mccread_symbol();
+  return mcread_symbol();
 }
       
-expptr mccread_symbol(){
+expptr mcread_symbol(){
   if(!alphap(readchar))return NULL;
   int i=0;
   while(alphap(readchar)){
@@ -621,7 +621,7 @@ expptr mccread_symbol(){
   return intern_exp('a', (expptr) s, NULL);
 }
 
-expptr mccread_connective(){ //same as mccread_symbol but for strings of operator symbols.
+expptr mcread_connective(){ //same as mcread_symbol but for strings of operator symbols.
   if(terminatorp(readchar) || (readchar == '\n' && read_stream == terminal_stream && paren_level == 0)) return NULL;
   if(!binaryp(readchar))return intern_exp('o',(expptr) intern_string(" "), NULL);
   int i=0;
@@ -636,7 +636,7 @@ expptr mccread_connective(){ //same as mccread_symbol but for strings of operato
   return intern_exp('o', (expptr) s, NULL);
 }
 
-expptr mccread_string(){ // readchar is either " or '
+expptr mcread_string(){ // readchar is either " or '
   int i = 0;
   char q = readchar;
   advance_readchar();
@@ -665,13 +665,13 @@ void declare_unmatched(){
     berror("");
 }
 
-expptr mccread_open(){ // readchar is openp
+expptr mcread_open(){ // readchar is openp
   char openchar = readchar;
   char closechar = close_for(openchar);
 
   paren_level++;
   advance_readchar_past_white();
-  expptr e = mccread_tree(0);
+  expptr e = mcread_tree(0);
   if(readchar != closechar)declare_unmatched();
   paren_level--;
   
@@ -684,7 +684,7 @@ expptr mccread_open(){ // readchar is openp
 /** ========================================================================
 printing to a string
 
-This is used in mccE for 
+This is used in mcE for 
 
 This has not been maintained (as of May 17, 2018).
 ========================================================================**/
@@ -919,7 +919,7 @@ expptr bquote_code(expptr e){
   return intern_exp_code(c,bquote_code(a1),bquote_code(a2));
 }
 
-expptr quote_code(expptr e){ // this is used in mccB but is not used for backquote
+expptr quote_code(expptr e){ // this is used in mcB but is not used for backquote
   if(e == NULL || constructor(e) == 'a' || constructor(e) == 'o' || string_quotep(constructor(e))) return bquote_code(e);
   return intern_exp_code(constructor(e),quote_code(arg1(e)),quote_code(arg2(e)));
 }
@@ -1021,7 +1021,7 @@ void open_output_file(char * destination){
   if(fileout == NULL)berror("attempt to open output file failed");
 }
 
-void mccexpand(char * source, char * destination){
+void mcexpand(char * source, char * destination){
   open_input_file(source);
   open_output_file(destination);
   
@@ -1059,7 +1059,7 @@ void process_def(expptr e){
 section: initialization
 ========================================================================**/
 
-void mccA_init(){
+void mcA_init(){
   init_stack_frames();
   init_undo_frames();
   init_strings();

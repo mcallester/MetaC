@@ -10,7 +10,7 @@
 #include <sys/file.h>
 #include <fcntl.h>
 #include <string.h>
-#include "mcc.h"
+#include "mc.h"
 
 expptr file_preamble;
 expptr env_syms;
@@ -118,7 +118,7 @@ int symbol_count;
 int symbol_index(expptr sym){
   int index = (int) getprop(sym, `{index}, (expptr) ((long int) -1));
   if(index == -1){
-    if(symbol_count == SYMBOL_DIM){berror("McC symbol table exhausted");}
+    if(symbol_count == SYMBOL_DIM){berror("Mc symbol table exhausted");}
     index = symbol_count++;
     setprop(sym,`{index}, (expptr) ((long int) index));
   }
@@ -289,9 +289,9 @@ int arrayp(expptr sym){
 }
 
 
-initfun(mccE_init1)
+initfun(mcE_init1)
 
-void mccE_init2(){
+void mcE_init2(){
   env_syms = NULL;
   file_preamble = NULL;
   compilecount = 0;

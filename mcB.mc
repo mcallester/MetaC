@@ -10,7 +10,7 @@
 #include <sys/file.h>
 #include <fcntl.h>
 
-#include "mcc.h"
+#include "mc.h"
 
 expptr casecode1(expptr,expptr,expptr,expptr);
 expptr casecode2(expptr,expptr,expptr);
@@ -88,6 +88,6 @@ expptr casecode2(expptr pairs, expptr body, expptr donelabel){
 		  donelabel)}}};
 }
 
-void mccB_init(){
+void mcB_init(){
   set_macro(`{ucase},ucase_macro);
 }

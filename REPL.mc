@@ -10,7 +10,7 @@
 #include <sys/file.h>
 #include <fcntl.h>
 #include <string.h>
-#include "mcc.h"
+#include "mc.h"
 
 void load(expptr forms);
 expptr eval(expptr statement);
@@ -21,7 +21,7 @@ expptr preamble;
 expptr env_syms;
 void preprocess(expptr);
 int rep_column;
-expptr strip_body(expptr);  //in mccE.ucs
+expptr strip_body(expptr);  //in mcE.ucs
 
 void read_eval_print(){
   rep_column += 3;
@@ -56,21 +56,21 @@ void load_base(){
   //this emulates loading base_decls.h
   expptr forms = file_expressions(`{base_decls.h});
   mapc(install,forms);
-  //the base forms have already been declared in mcc.h and defined in various mcc files
+  //the base forms have already been declared in mc.h and defined in various mc files
   //so declarations, extractions and definitions are not needed.
-  insert_base_values();  //This is a macro defined in mccE an initializes the symbol_values array.
+  insert_base_values();  //This is a macro defined in mcE an initializes the symbol_values array.
   // initialization statements are handled by the initialization procedures
   dolist{sym, env_syms}{setprop(sym,`{new},`{false});};
 
 }
 
 int main(int argc, char **argv){
-  mccA_init();
-  mccB_init();
-  mccC_init();
-  mccD_init();
-  mccE_init1();
-  mccE_init2();
+  mcA_init();
+  mcB_init();
+  mcC_init();
+  mcD_init();
+  mcE_init1();
+  mcE_init2();
 
   catch_error(load_base());
   if(error_flg != 0)return error_flg;
