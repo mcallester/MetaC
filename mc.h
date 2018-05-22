@@ -192,6 +192,8 @@ expptr args_variables(expptr args);
 void case_error();
 expptr top_symbol(expptr e);
 
+expptr replace_returns(expptr,expptr,expptr);
+  
 /** ========================================================================
 utilities
 ========================================================================**/
@@ -201,7 +203,8 @@ int containsp(expptr e1, expptr e2);
 expptr cons(expptr x, expptr y);
 expptr car(expptr x);
 expptr cdr(expptr x);
-expptr mapcar(expptr f(expptr), expptr l);
+expptr mapc(expptr f(expptr), expptr l);
+int length(expptr);
 expptr append(expptr,expptr);
 expptr reverse(expptr);
 
@@ -226,6 +229,8 @@ voidptr symbol_value[SYMBOL_DIM];
 /** ========================================================================
 initialization
 ========================================================================**/
+
+void install(expptr);
 
 void mcA_init();
 void mcB_init();

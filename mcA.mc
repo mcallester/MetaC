@@ -76,7 +76,7 @@ void init_stack_frames(){
   stack_heap_freeptr = 0;
   stack_frame_count = 0;
 }
- 
+
 /** ========================================================================
 push_undo_frame, undo_alloc, undo_set, and pop_undo_frame.
 ========================================================================**/
@@ -271,6 +271,11 @@ char * symbol_string(expptr s){
   return (char *) arg1(s);
 }
 
+
+/** ========================================================================
+lists
+======================================================================== **/
+
 expptr cons(expptr x, expptr y){
   return intern_exp(' ',x,y);
 }
@@ -293,6 +298,16 @@ expptr reverse(expptr l){
     l = cdr(l);
   }
   return result;
+}
+
+expptr mapcar(expptr f(expptr), expptr l){
+  if(l == NULL) return NULL;
+  return cons(f(car(l)),mapcar(f,cdr(l)));
+}
+
+int length(expptr l){
+  if(l == NULL || constructor(l) != ' ') return 0;
+  return length(arg2(l)) + 1;
 }
 
 /** ========================================================================
@@ -487,6 +502,8 @@ void advance_lookahead(){
 }
 
 void advance_readchar(){
+
+  //removing comments
   if(read_stream->quotechar == 0){
     while(1){
       if(read_stream->next == '/' && read_stream->next2 == '*'){
@@ -506,13 +523,25 @@ void advance_readchar(){
 	}
 	advance_lookahead();}
       else break;}}
+
+  //doing the advance
   readchar = read_stream->next;
   advance_lookahead();
-  if(read_stream == file_stream
-     && read_stream->quotechar == 0
-     && read_stream->next == '\n'
-     && (read_stream->next2 == '#' || (readchar == '\n' && !whitep(read_stream->next2) && !closep(read_stream->next2))))
-    {read_stream->next = '\0';}
+
+  //ignoring quoted returns (imporant for multiline preprocessor defintions)
+  if(read_stream->next == '\\' && read_stream->next2 == '\n' && read_stream->quotechar == 0){
+    advance_lookahead();
+    advance_lookahead();}
+
+  //file segmentation
+  if(read_stream == file_stream && read_stream->quotechar == 0){
+    if(read_stream->next == '\n' && (read_stream->next2 == '#')){read_stream->next = '\0';}
+    else if(readchar == '\n'){
+      while(read_stream->next == ' ' || read_stream->next == '\t')advance_lookahead();
+      if(read_stream->next == '\n' && !whitep(read_stream ->next2) && !closep(read_stream->next2))read_stream->next = '\0';
+    }}
+
+  //maintaining the quotation flag
   if(string_quotep(read_stream->next)){
     if(read_stream->quotechar == 0){read_stream->quotechar = read_stream->next;}
     else if(readchar != '\\' && read_stream->next == read_stream->quotechar){read_stream->quotechar = 0;}}
@@ -961,7 +990,7 @@ expptr top_symbol(expptr e){
   if(e == NULL)return NULL;
   char c  = constructor(e);
   if(c == 'a' || unaryp(c))return e;
-  if(c == 'A' || c == ';')return top_symbol(arg1(e));
+  if(c == 'A')return top_symbol(arg1(e));
   if(c == 'O')return arg1(e);
   return NULL;
 }
@@ -1000,7 +1029,7 @@ expptr gensym(expptr sym){
   char * s = symbol_string(sym);
   
   for(int i=1;1;i++){
-    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_%s%d",s,i);
+    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_mcgen_%s%d",s,i);
     if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
     int key = preintern_string(ephemeral_buffer);
     if(string_hash_table[key]==NULL)break;}

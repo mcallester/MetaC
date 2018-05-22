@@ -16,9 +16,6 @@ expptr file_preamble;
 expptr env_syms;
 
 expptr decl_symbol(expptr decl);
-expptr strip_body(expptr e);
-int procedurep(expptr sym);
-int arrayp(expptr sym);
 int newp(expptr sym);
 int installedp(expptr form);
 expptr args_variables(expptr args);
@@ -64,6 +61,14 @@ load is defined in the install function.
 Arrays are the only supported data variables at this time.  However, note that <type> X[1] is equivalent to <type> * X.
 ======================================================================== **/
 
+void install_preamble(expptr);
+void add_new_symbol(expptr,expptr);
+void install_array(expptr,expptr);
+void install_proc(expptr,expptr,expptr,expptr);
+int symbol_index(expptr);
+int newp(expptr);
+int installedp(expptr);
+
 void install(expptr form){ //only the following patterns are allowed.
   ucase{form;
     {typedef !def;}:{install_preamble(form);}
@@ -72,19 +77,21 @@ void install(expptr form){ //only the following patterns are allowed.
     {#include < !file >}:{install_preamble(form);}
     {#include !x}:{install_preamble(form);}
     {!type ?X[?dim];}:{install_array(X,form);}
-    {!type ?f(?args){!body}}:{install_proc(f,form);}}
+    {!type ?f(?args){!body}}:{install_proc(type, f, args, form);}
+    {!type ?f(?args)}:{install_proc(type,f,args,form);}
+    {{!statement}}:{}}
 }
 
 void install_preamble(expptr e){
   if(!installedp(e)){
-    file_preamble = append{file_preamble,(cons(e,NULL)));
+    file_preamble = append(file_preamble,(cons(e,NULL)));
     setprop(e,`{installed},`{true});}
 }
 
 void add_new_symbol(expptr x, expptr decl){
   push(x,env_syms);
   setprop(x,`{declaration},decl);
-  setprop(x,`{new},`{true}};
+  setprop(x,`{new},`{true});
 }
 
 void install_array(expptr X, expptr decl){
@@ -97,20 +104,22 @@ void install_array(expptr X, expptr decl){
     berror("attempt to change array declaration");}
 }
 
-void install_proc(expptr f, expptr decl){
-  expptr old_decl = getprop(f,`{declaration},NULL);
-  if(old_decl == NULL){
-    add_new_symbol(X,decl);
+void install_proc(expptr newtype, expptr f, expptr newargs, expptr newdecl){
+  expptr olddecl = getprop(f,`{declaration},NULL);
+  if(olddecl == NULL){
+    add_new_symbol(f,newdecl);
     return;}
-  ucase{decl;
-    {?newtype ?g(!newargs1){!newbody}}:{
-      ucase{old_decl;
-	{?oldtype ?g(!oldargs){!oldbody}}:{
-	  if(newtype != oldtype || newargs!= oldargs){
-	    push_dgb_expression(decl);
-	    berror("attempt to change procedure signature");}
-	  setprop(f,`{declaration} decl);
-	  setprop(f,`{new},`{true});}}}}
+  ucase{olddecl;
+    {?oldtype ?g(!oldargs){!oldbody}}:{
+      if(newtype != oldtype || newargs!= oldargs){
+	push_dbg_expression(newdecl);
+	berror("attempt to change procedure signature");}
+      setprop(f,`{declaration}, newdecl);
+      setprop(f,`{new},`{true});}
+    {!x}:{
+      push_dbg_expression(olddecl);
+      berror("attempt to redefine base procedure");
+    }}
 }
 
 int symbol_count;
@@ -138,6 +147,12 @@ load
 ======================================================================== **/
 
 int compilecount;
+expptr declarations();
+expptr new_proc_defs();
+expptr value_extractions();
+expptr proc_def();
+expptr value_insertions();
+expptr statements();
 
 void pprint_out(expptr exp){
   pprint(exp,fileout,0);
@@ -151,7 +166,7 @@ void load(expptr forms){
   fprintf(stdout,"compiling and loading %s\n", s);
   open_output_file(s);
   
-  dolist{form,file_preamble}{print_line(form,fileout,0);}
+  dolist(form,file_preamble){print_line(form,fileout);}
   mapc(pprint_out,declarations());
   mapc(pprint_out,new_proc_defs());
   pprint(`{
@@ -160,21 +175,21 @@ void load(expptr forms){
 	${value_extractions()}
 	${value_insertions()}
 	${statements()}
-	return `{no value};}}
+	return `{no value};}},
     fileout,0);
   fclose(fileout);
   
   void * header = compile_load_file(sformat("TEMP%d",compilecount));
-  expptr (* _mc_doload)(voidptr *);
-  doload = dlsym(header,"_MC_doproc");
-  (*doload)(symbol_value);
+  expptr (* _mcgen_doload)(voidptr *);
+  _mcgen_doload = dlsym(header,"_MC_doproc");
+  (*_mcgen_doload)(symbol_value);
   
-  dolist{sym, env_syms}{setprop(sym,`{new},`{false});};
+  dolist(sym, env_syms){setprop(sym,`{new},`{false});};
 }
 
 expptr declarations(){  //this generates both old and new declarations
   expptr result = NULL;
-   dolist{sym, env_syms}{
+  dolist(sym, env_syms){
     expptr decl = getprop(sym,`{declaration},NULL);
     ucase{decl;
       {?type ?f(!args){!body}}:{push(`{${type} ${f}(${args})},result);}
@@ -186,8 +201,7 @@ expptr declarations(){  //this generates both old and new declarations
 
 expptr new_proc_defs(){
   expptr result = NULL;
-  expptr g = gensym(`{f});
-  dolist{sym, env_syms}{
+  dolist(sym, env_syms){
     expptr decl = getprop(sym,`{declaration},NULL);
     ucase{decl;
       {?type ?f(!args){!body}}:{
@@ -197,62 +211,50 @@ expptr new_proc_defs(){
 
 expptr value_extractions(){
   expptr result = NULL;
-  expptr g = gensym(`{f});
-  dolist{sym, env_syms}{
+  dolist(sym, env_syms){
     if(!newp(sym)){
       ucase{getprop(sym,`{declaration},NULL);
 	{?type ?var[?dimension];}:{
 	  push(`{${sym} = (${type} *) symbol_value_copy[${int_exp(symbol_index(sym))}];}, result);}
-	{?type ?f(!args){!body}}:{
-	  push(`{
-	      ${type} ${f}(${args}){
-		${type} (* ${g})(${args});
-		${g} = symbol_value_copy[${int_exp(symbol_index(f))}];
-		${type == `{void} ? `{return} : NULL} (* ${g})(${args_variables(args)});}},
-	    result);}}}}
+	{?type ?f(!args){!body}}:{push(proc_def(type,f,args), result);}
+    	{?type ?f(!args)}:{push(proc_def(type,f,args), result);}}}}
   return result;
+}
+
+expptr proc_def(expptr type, expptr f, expptr args){
+  expptr g = gensym(`{f});
+  return
+    `{${type} ${f}(${args}){
+      ${type} (* ${g})(${args});
+      ${g} = symbol_value_copy[${int_exp(symbol_index(f))}];
+      ${type == `{void} ? `{return} : NULL} (* ${g})(${args_variables(args)});}};
 }
 
 expptr value_insertions(){
   expptr result = NULL;
-  dolist{sym, env_syms}{
+  dolist(sym, env_syms){
     if(newp(sym)){
       push(`{symbol_value[${int_exp(symbol_index(sym))}] = (voidptr) ${sym};},
 	   result);}}
   return result;
   }
 
-expptr statements(forms){
+expptr statements(expptr forms){
   expptr result = NULL;
-  dolist{form, forms}{
+  dolist(form, forms){
     ucase{form;
       {{!statement}}:{push(statement,result);}}}
   return result;
 }
-
   
 /** ========================================================================
 
-The macro set_base_values() is used for initializing the base environment.  This
-includes a base preamble and base array  to a hybernation.  It is called from main
-in REPL to initialize the environment.
+The macro set_base_values() is used for initializing the base environment.  See the procedure load_base
+in REPL.mc
 
 ======================================================================== **/
 
 umacro{insert_base_values()}{return value_insertions();}
-
-/** ========================================================================
-writing the file.
-========================================================================**/
-
-void write_new_definitions(){
-  dolist{sym, env_syms}{
-      if(!assignedp(sym))pprint(getprop(sym,`{declaration},NULL),fileout,0);}
-}
-
-/** ========================================================================
-utilities
-========================================================================**/
 
 voidptr compile_load_file(charptr fstring){
   int flg;
@@ -268,28 +270,7 @@ voidptr compile_load_file(charptr fstring){
   return header;
 }
 
-expptr strip_body(expptr e){
-  ucase{e;
-    {?type ?f(!x){!body}}:{return `{${type} ${f}(${x});};}
-    {!x}:{}}
-  return e;
-}
-
-int procedurep(expptr sym){
-  ucase{getprop(sym,`{declaration},NULL);
-    {?type ?f(!args);}:{return 1;}
-    {?type ?f(!args){!body}}:{return 1;}
-    {!x}:{return 0;}}
-}
-
-int arrayp(expptr sym){
-  ucase{getprop(sym,`{declaration},NULL);
-    {!type !A[!dim];}:{return 1;}
-    {!x}:{return 0;}}
-}
-
-
-initfun(mcE_init1)
+init_fun(mcE_init1)
 
 void mcE_init2(){
   env_syms = NULL;

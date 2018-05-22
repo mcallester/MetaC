@@ -9,93 +9,50 @@
 #include <sys/mman.h>
 #include <sys/file.h>
 #include <fcntl.h>
+
 #include "mc.h"
 
-/** ========================================================================
-catch-return{type,statement}
-
-This is an expression where the statement returns a value of the stated type.
-========================================================================**/
-
-expptr replace_returns(expptr var, expptr donelabel, expptr s){
-  ucase{s;
-    {return !e ;}:{
-      return `{${var} = ${e}; goto ${donelabel};}}
-    {!x}:{
-      if(atomp(s)) return s;
-      return intern_exp(constructor(s),
-			replace_returns(var, donelabel, arg1(s)),
-			replace_returns(var, donelabel, arg2(s)));}}
-  return NULL;
-}
-
-umacro{catch_return{?var !statement}}{
-  expptr donelabel = gensym(`{done});
-  return `{({
-	expptr ${var};
-	${replace_returns(var,donelabel,statement)}
-	${donelabel}:})};
-}
-
-umacro{push(!x,?y);}{
+umacro{push(!x,?y)}{
   return `{${y} = cons(${x},${y});};
 }
 
-umacro{dolist{?x,!y}{!body}}{
+umacro{dolist(?x,!y){!body}}{
   expptr yval = gensym(`{yval});
-  return `{
-    {expptr ${yval} = ${y};
+  return `{{
+      expptr ${x};
+      expptr ${yval} = ${y};
       while(${yval} != NULL){
 	${x} = car(${yval});
 	${body}
-	${yval} = cdr(${yval});}}}
+	${yval} = cdr(${yval});}}};
 }
 
 umacro{mapc(!f,!list)}{
   expptr x = gensym(`{x});
-  return `{dolist{{${x}, ${list}}{${f}(${x});}}};
-}
-
-expptr mapcar(expptr f(expptr), expptr l){
-  if(l == NULL) return NULL;
-  ucase{l;
-    {{!first},!rest}:{
-      return `{{${f(first)}},${mapcar(f,rest)}};}}
-  return `{void};
-}
-
-int length(expptr l){
-  if(l == NULL || constructor(l) != ' ') return 0;
-  return length(arg2(l)) + 1;
+  return `{dolist(${x}, ${list}){${f}(${x});}};
 }
       
 /** ========================================================================
 file_expressions  This returns a list of macro-expanded expressions in the order they appear
-in the file with each expression preceeded by its preamble and followed by its forms.
+in the file with each expression preceeded by its preamble and followed by its init_forms.
 ========================================================================**/
 
-void add_expression(expptr);
+expptr file_expressions2();
 expptr full_expansion(expptr);
-
-expptr file_exps; //this contains the reverse of the file expressions.  Consing onto this is like writing an output expression.
 
 expptr file_expressions(expptr fname){
   open_input_file(exp_string(fname));
-  file_exps = NULL;
-  while(readchar != EOF){add_expression(read_from_file());}
+  expptr result = file_expressions2();
   fclose(filein);
-  return reverse(file_exps);
+  return result;
 }
 
-void add_expression(expptr e){
-  ucase{e;
-    {!first !rest}:{
-      add_expression(first);
-      add_expression(rest);}
-    {!x}:{file_exps = append(reverse(full_expansion(e)),file_exps);}}
+expptr file_expressions2(){
+  if(readchar == EOF)return NULL;
+  return append(full_expansion(read_from_file()),file_expressions2());
 }
 
-expptr full_expansion(expptr e){//every element of the returned list is fully macro-expanded.
+expptr full_expansion(expptr e){
   preamble = NULL;
   init_forms = NULL;
   expptr e2 = macroexpand(e);
@@ -111,12 +68,11 @@ this is hard to fix because the argument types are very difficult to determine.
 ========================================================================**/
 
 umacro{sformat(!args)}{
-  return `{
-    catch_return{charptr, {
+  return `{({
 	int needed_size = snprintf(NULL,0,${args});
 	char * buffer = (char *) stack_alloc(needed_size+1);
 	sprintf(buffer,${args});
-	return(buffer);}}};
+	buffer;})};
 }
 
 /** ========================================================================
@@ -143,6 +99,25 @@ umacro{sframe{?type ?f(!args){!body}}}{
       return ${var};
     }}}
 
+umacro{catch_return{?var !statement}}{
+  expptr donelabel = gensym(`{done});
+  return `{{
+      ${replace_returns(var,donelabel,statement)}
+      ${donelabel}:}}
+}
+
+expptr replace_returns(expptr var, expptr donelabel, expptr s){
+  ucase{s;
+    {return !e ;}:{
+      return `{${var} = ${e}; goto ${donelabel};}}
+    {!x}:{
+      if(atomp(s)) return s;
+      return intern_exp(constructor(s),
+			replace_returns(var, donelabel, arg1(s)),
+			replace_returns(var, donelabel, arg2(s)));}}
+  return NULL;
+}
+
 expptr args_variables(expptr args){
   ucase{args;
     {?type1 ?var(?type2), !rest}:{return cons(var, args_variables(rest))}
@@ -165,9 +140,3 @@ expptr args_assignments(expptr args){
 }
 
 init_fun(mcD_init)
-
-
-
- 
-
-  
