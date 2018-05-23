@@ -77,8 +77,8 @@ void install(expptr form){ //only the following patterns are allowed.
     {#include < !file >}:{install_preamble(form);}
     {#include !x}:{install_preamble(form);}
     {!type ?X[?dim];}:{install_array(X,form);}
-    {!type ?f(?args){!body}}:{install_proc(type, f, args, form);}
-    {!type ?f(?args)}:{install_proc(type,f,args,form);}
+    {!type ?f(!args){!body}}:{install_proc(type, f, args, form);}
+    {!type ?f(!args);}:{install_proc(type,f,args,form);}
     {{!statement}}:{}}
 }
 
@@ -249,7 +249,7 @@ expptr statements(expptr forms){
   
 /** ========================================================================
 
-The macro set_base_values() is used for initializing the base environment.  See the procedure load_base
+The macro set_base_values() is used for initializing the base environment.  See the procedure load_basetype
 in REPL.mc
 
 ======================================================================== **/

@@ -49,7 +49,10 @@ expptr file_expressions(expptr fname){
 
 expptr file_expressions2(){
   if(readchar == EOF)return NULL;
-  return append(full_expansion(read_from_file()),file_expressions2());
+  expptr e = read_from_file();
+  expptr rest = file_expressions2();
+  if(e == NULL)return rest;
+  return append(full_expansion(e),rest);
 }
 
 expptr full_expansion(expptr e){

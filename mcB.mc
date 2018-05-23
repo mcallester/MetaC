@@ -17,9 +17,9 @@ expptr casecode2(expptr,expptr,expptr);
 expptr constructor_code(char c);
 
 void match_failure(expptr value, expptr patterns){
-  fprintf(stderr,"match error: the value \n");
+  fprintf(stderr,"\n match error: the value \n\n");
   gud_pprint(value);
-  fprintf(stderr,"Does not match any of\n");
+  fprintf(stderr,"Does not match any of\n\n");
   gud_pprint(patterns);
   berror("");
 }
@@ -80,7 +80,7 @@ expptr casecode2(expptr pairs, expptr body, expptr donelabel){
   if(c == 'a' || c == 'o' || string_quotep(c))return `{if(${valvar} == ${quote_code(pattern)}){${casecode2(restpairs,body,donelabel)}}};
   expptr left = gensym(`{leftval});
   expptr right = gensym(`{rightval});
-  return `{if(constructor(${valvar}) == ${constructor_code(c)}){
+  return `{if(${valvar} && constructor(${valvar}) == ${constructor_code(c)}){
       expptr ${left} = arg1(${valvar});
       expptr ${right} = arg2(${valvar});
       ${casecode2(cons(cons(arg1(pattern),left), cons(cons(arg2(pattern),right), restpairs)),

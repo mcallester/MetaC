@@ -11,6 +11,13 @@ expandA.c : expandA.mc mcA.c
 
 expandA : mcA.o expandA.c
 	gcc -g -o expandA mcA.o expandA.c -ldl -lm
+#testA
+
+testA.c : expandA testA.mc
+	./expandA testA.mc testA.c
+
+testA.o : testA.c
+	gcc -g testA.c -c
 
 # expandB
 
@@ -94,15 +101,15 @@ expandE : mcE.o expandE.c
 
 #testE
 
-testE.c : expandB testE.mc
-	./expandB testE.mc testE.c
+testE.c : expandE testE.mc
+	./expandE testE.mc testE.c
 
 testE.o : testE.c
 	gcc -g testE.c -c
 
 #REPL
 
-REPL.c : REPL.mc expandD base_decls.h
+REPL.c : REPL.mc expandE base_decls.h
 	./expandE REPL.mc REPL.c
 
 REPL : REPL.c

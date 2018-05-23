@@ -21,7 +21,13 @@ expptr preamble;
 expptr env_syms;
 void preprocess(expptr);
 int rep_column;
-expptr strip_body(expptr);  //in mcE.ucs
+
+expptr strip_body(expptr decl){
+  ucase{decl;
+    {?type ?f(!args){!body}}:{return `{${type} ${f}(${args})};}
+    {!x}:{return decl}}
+  return NULL;}
+
 
 void read_eval_print(){
   rep_column += 3;
@@ -38,30 +44,24 @@ void read_eval_print(){
 	  {load(!forms)}:{load(forms);}
 	  {describe(!sym)}:{
 	    indent(rep_column);
-	    pprint(strip_body(getprop(sym,`declaration,NULL)),stdout,rep_column);}
+	    pprint(strip_body(getprop(sym,`{declaration},NULL)),stdout,rep_column);}
 	  {definition(!sym)}:{
 	    indent(rep_column);
-	    pprint(getprop(sym,`declaration,NULL),stdout,rep_column);}
-	  {!x}:{
-	    indent(rep_column);
-	    expptr val = eval(macroexpand(e));
-	    pprint(val,stdout,rep_column);}}
+	    pprint(getprop(sym,`{declaration},NULL),stdout,rep_column);}}
       })
       }
   rep_column -=3;
 }
 
 void load_base(){
-
   //this emulates loading base_decls.h
   expptr forms = file_expressions(`{base_decls.h});
   mapc(install,forms);
   //the base forms have already been declared in mc.h and defined in various mc files
-  //so declarations, extractions and definitions are not needed.
-  insert_base_values();  //This is a macro defined in mcE an initializes the symbol_values array.
+  //hence declarations, extractions and definitions are not needed.
+  insert_base_values();  //This is a macro defined in mcE.  It initializes the symbol_values array.
   // initialization statements are handled by the initialization procedures
-  dolist{sym, env_syms}{setprop(sym,`{new},`{false});};
-
+  dolist(sym, env_syms){setprop(sym,`{new},`{false});};
 }
 
 int main(int argc, char **argv){

@@ -180,6 +180,7 @@ macros
 void set_macro(expptr sym, expptr f(expptr));
 expptr macroexpand(expptr e);
 expptr macroexpand1(expptr e);
+expptr full_expansion(expptr);
 
 expptr preamble;
 void add_preamble(expptr e);
@@ -189,7 +190,7 @@ void add_init_form(expptr e);
 
 expptr args_variables(expptr args);
 
-void case_error();
+void match_failure();
 expptr top_symbol(expptr e);
 
 expptr replace_returns(expptr,expptr,expptr);
@@ -204,6 +205,7 @@ expptr cons(expptr x, expptr y);
 expptr car(expptr x);
 expptr cdr(expptr x);
 expptr mapc(expptr f(expptr), expptr l);
+expptr mapcar(expptr f(expptr), expptr l);
 int length(expptr);
 expptr append(expptr,expptr);
 expptr reverse(expptr);

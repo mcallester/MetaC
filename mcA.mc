@@ -502,8 +502,10 @@ void advance_lookahead(){
 }
 
 void advance_readchar(){
-
+  //readchar may be undefined on entry.
+  
   //removing comments
+
   if(read_stream->quotechar == 0){
     while(1){
       if(read_stream->next == '/' && read_stream->next2 == '*'){
@@ -520,26 +522,25 @@ void advance_readchar(){
 	  berror("comment from terminal outside of parens");
 	while(read_stream->next != '\n'){
 	  advance_lookahead();
-	}
+	}}
+      else if(read_stream->next == '\\'
+	      && read_stream->next2 == '\n'
+	      && read_stream->quotechar == 0){
+	advance_lookahead();
 	advance_lookahead();}
       else break;}}
 
-  //doing the advance
+  //file segmentation
+  if(read_stream == file_stream
+     && read_stream->quotechar == 0
+     && read_stream->next == '\n'
+     && !whitep(read_stream->next2)
+     && !closep(read_stream->next2)){
+       read_stream->next = '\0';}
+
+  //setting readchar
   readchar = read_stream->next;
   advance_lookahead();
-
-  //ignoring quoted returns (imporant for multiline preprocessor defintions)
-  if(read_stream->next == '\\' && read_stream->next2 == '\n' && read_stream->quotechar == 0){
-    advance_lookahead();
-    advance_lookahead();}
-
-  //file segmentation
-  if(read_stream == file_stream && read_stream->quotechar == 0){
-    if(read_stream->next == '\n' && (read_stream->next2 == '#')){read_stream->next = '\0';}
-    else if(readchar == '\n'){
-      while(read_stream->next == ' ' || read_stream->next == '\t')advance_lookahead();
-      if(read_stream->next == '\n' && !whitep(read_stream ->next2) && !closep(read_stream->next2))read_stream->next = '\0';
-    }}
 
   //maintaining the quotation flag
   if(string_quotep(read_stream->next)){
@@ -584,12 +585,15 @@ expptr mcread_symbol();
 void declare_unmatched();
 expptr readop;
 
+expptr last_def;
+char last_readchar;
+
 expptr read_from(wstream s){
   read_stream = s;
   paren_level = 0;
-  advance_readchar_past_white();
-  expptr e = mcread_tree(0);
-  return e;
+  advance_readchar_past_white();   //readchar is undefined on entry.  This sets readchar.
+  return mcread_tree(0);
+  //on return readchar is either 0 or EOF and is ignored in future calls to read_from.
 }
 
 expptr read_from_terminal(){return read_from(terminal_stream);}
@@ -883,10 +887,9 @@ void pprint_exp(expptr w, int column){ //column is the current print column
 
 void pprint(expptr w, FILE * f, int col){
   writestrm = f;
-  fprintf(f,"\n");
   indent(col);
   pprint_exp(w,col);
-  fprintf(f,"\n");
+  fprintf(f,"\n\n");
 }
 
 void print_line(expptr w, FILE * f){
@@ -1056,8 +1059,10 @@ void mcexpand(char * source, char * destination){
   
   while(1){
     expptr e = read_from_file();
-    process_def(e);
-    if(readchar == EOF)break;}
+    if(e != NULL)process_def(e);
+    if(readchar == EOF)break;
+  }
+  
   fclose(filein);
   fclose(fileout);
 }
@@ -1078,8 +1083,9 @@ void process_def(expptr e){
   push_dbg_expression(e);
   preamble = NULL;
   expptr e2 = macroexpand(e);
-  pprint(preamble,fileout,0);
-  fputc('\n',fileout);
+  if(preamble != NULL){
+    pprint(preamble,fileout,0);
+    fputc('\n',fileout);}
   pprint(e2,fileout,0);
   pop_dbg_stack();
 }

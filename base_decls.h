@@ -13,8 +13,11 @@
 #include <dlfcn.h>
 
 typedef char * charptr;
+
 typedef void * voidptr;
+
 typedef voidptr * voidptrptr;
+
 typedef FILE * FILEptr;
 
 typedef struct pliststruct{
@@ -38,7 +41,6 @@ void cbreak();
 
 void berror(charptr s);
 
-void uerror(expptr e);
 
 /** ========================================================================
 interning (procedures called by the expansion of backquote)
@@ -58,7 +60,7 @@ It also uses case_error
 char constructor(expptr e);
 expptr arg1(expptr e);
 expptr arg2(expptr e);
-void case_error(expptr topexp);
+void match_failure(expptr topexp);
 
 /** ========================================================================
 properties of expressions
@@ -107,7 +109,7 @@ void pprint(expptr e, FILEptr f, int i);
 macros
 ========================================================================**/
 
-void set_umacro(charptr s, expptr f(expptr));
+void set_macro(charptr s, expptr f(expptr));
 
 expptr macroexpand(expptr e);
 
@@ -156,4 +158,3 @@ voidptr current_frame();
 
 voidptr stack_alloc(int size);
 
-void mcerror(expptr e);
