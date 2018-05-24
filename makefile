@@ -96,7 +96,7 @@ mcE.o : mcE.c
 expandE.c :  expandD expandE.mc
 	./expandD expandE.mc expandE.c
 
-expandE : mcE.o expandE.c
+expandE : mcE.o expandE.c base_decls.h
 	gcc -g -o expandE mcA.o mcB.o mcC.o mcD.o mcE.o expandE.c -ldl -lm
 
 #testE
@@ -109,7 +109,7 @@ testE.o : testE.c
 
 #REPL
 
-REPL.c : REPL.mc expandE base_decls.h
+REPL.c : REPL.mc expandE
 	./expandE REPL.mc REPL.c
 
 REPL : REPL.c

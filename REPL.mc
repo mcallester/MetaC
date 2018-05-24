@@ -12,7 +12,8 @@
 #include <string.h>
 #include "mc.h"
 
-void load(expptr forms);
+expptr load(expptr forms, expptr value);
+
 expptr eval(expptr statement);
 
 //the following are used in the expansion of set_base_values()
@@ -28,27 +29,40 @@ expptr strip_body(expptr decl){
     {!x}:{return decl}}
   return NULL;}
 
+void eval_statement(expptr s){
+  load(append(preamble,cons(s,init_forms)),NULL);
+  fprintf(stdout,"\ndone\n\n");
+}
+
+void eval_expression(expptr e){
+  expptr val = load(append(preamble,init_forms),e);
+  fputc('\n',stdout);
+  pprint(val,stdout,rep_column);}
 
 void read_eval_print(){
   rep_column += 3;
   while(1){
     int i;
-    writestrm = stdout;
     indent(rep_column);
     fprintf(stdout, "MC>");
     catch_error({
-	expptr e = read_from_terminal();
+	preamble = NULL;
+	init_forms = NULL;
+	expptr e = macroexpand(read_from_terminal());
 	ucase{e;
 	  {quit}:{if(rep_column == 0)break; else throw_error();}
 	  {continue}:{if(rep_column != 0)break;}
-	  {load(!forms)}:{load(forms);}
-	  {describe(!sym)}:{
+	  {describe(?sym)}:{
 	    indent(rep_column);
 	    pprint(strip_body(getprop(sym,`{declaration},NULL)),stdout,rep_column);}
-	  {definition(!sym)}:{
+	  {definition(?sym)}:{
 	    indent(rep_column);
-	    pprint(getprop(sym,`{declaration},NULL),stdout,rep_column);}}
-      })
+	    pprint(getprop(sym,`{declaration},NULL),stdout,rep_column);}
+	  {!s;}:{eval_statement(s);}
+	  {?type ?f(!args){!body}}:{eval_statement(e);}
+	  {{!s}}:{eval_statement(e);}
+	  {!e}:{eval_expression(e);}
+	}})
       }
   rep_column -=3;
 }
@@ -61,7 +75,7 @@ void load_base(){
   //hence declarations, extractions and definitions are not needed.
   insert_base_values();  //This is a macro defined in mcE.  It initializes the symbol_values array.
   // initialization statements are handled by the initialization procedures
-  dolist(sym, env_syms){setprop(sym,`{new},`{false});};
+  dolist(sym, env_syms){setprop(sym,`{new},NULL);};
 }
 
 int main(int argc, char **argv){

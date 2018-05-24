@@ -12,20 +12,6 @@
 #include <string.h>
 #include "mc.h"
 
-
-
-/** ========================================================================
-loading a set of declarations and procedure definitions.
-========================================================================**/
-
-expptr preamble;
-expptr env_syms;
-int REPdef_count;
-
-void load(expptr forms);
-void eval(expptr statement);
-void preprocess(expptr form);
-
 int main(int argc, char **argv){
   mcA_init();
   mcB_init();

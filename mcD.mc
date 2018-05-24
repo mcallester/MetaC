@@ -122,6 +122,7 @@ expptr replace_returns(expptr var, expptr donelabel, expptr s){
 }
 
 expptr args_variables(expptr args){
+  if(args == NULL)return NULL;
   ucase{args;
     {?type1 ?var(?type2), !rest}:{return cons(var, args_variables(rest))}
     {?type1 ?var(?type2)}:{return cons(var, NULL);}
@@ -131,6 +132,7 @@ expptr args_variables(expptr args){
 }
 
 expptr args_assignments(expptr args){
+  if(args == NULL)return NULL;
   if(length(args) > DBG_DIM_ARGS)berror("sframe with too many arguments");
   int i = 0;
   expptr result = NULL;

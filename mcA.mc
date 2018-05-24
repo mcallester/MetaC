@@ -201,7 +201,12 @@ see mc.h for the definitions of types plist and expptr.
 expptr exp_hash_table[EXP_HASH_DIM];
 int exp_count;
 
+int binaryp(char);
+
 expptr intern_exp(char constr, expptr a1, expptr a2){
+  if(constr == 'o' && a1 != NULL){
+    char c = ((char *) a1)[0];
+    if(c != ' '  && !binaryp(c))cbreak();}
   expptr e;
   unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & EXP_HASH_DIM-1;
   expptr oldexp;
@@ -440,12 +445,14 @@ input with paren_level > 0.
 
 mcread_open maintains the invariant that when advance_readchar is called we have that paren_level is the level of the position immediately preceding read_stream->next
 ========================================================================**/
+char readchar;
 
-typedef struct comment_wrapper{
+typedef struct wrapper{
   FILE * stream;
   char next;
   char next2;
-  char quotechar;} comment_wrapper, * wstream;
+  char quotechar;
+  int paren_level;} wrapper, * wstream;
 
 wstream file_stream;
 wstream terminal_stream;
@@ -458,6 +465,7 @@ void advance_readchar();
 
 void init_lookahead(wstream s){
   s->quotechar = 0;
+  (s->paren_level) = 0;
   s->next = ' ';
   s->next2 = ' ';
 }
@@ -476,11 +484,8 @@ void advance_readchar_past_white(){
   skipwhite();
 }
 
-char readchar;
-FILE * readstrm;
-
 wstream cwrap_stream(FILE * s){
-  wstream result = (wstream) malloc(sizeof(comment_wrapper));
+  wstream result = (wstream) malloc(sizeof(wrapper));
   result->stream = s;
   init_lookahead(result);
   return result;
@@ -502,9 +507,9 @@ void advance_lookahead(){
 }
 
 void advance_readchar(){
-  //readchar may be undefined on entry.
+  //readchar is undefined on entry --- only read_stream->next and read_stream->next2 are defined.
   
-  //removing comments
+  //the following removes comments and quoted returns.
 
   if(read_stream->quotechar == 0){
     while(1){
@@ -537,6 +542,20 @@ void advance_readchar(){
      && !whitep(read_stream->next2)
      && !closep(read_stream->next2)){
        read_stream->next = '\0';}
+
+  if(read_stream == terminal_stream
+     && read_stream->quotechar == 0
+     && read_stream->paren_level == 0){
+    if(read_stream->next2 == '\n'){
+      readchar = read_stream->next;
+      read_stream->next = read_stream->next2;
+      read_stream->next2 = ' ';
+      return;}
+    if(read_stream->next == '\n'){
+      readchar = '\0';
+      read_stream->next = read_stream->next2;;
+      read_stream->next2 = ' ';
+      return;}}
 
   //setting readchar
   readchar = read_stream->next;
@@ -717,9 +736,7 @@ expptr mcread_open(){ // readchar is openp
 /** ========================================================================
 printing to a string
 
-This is used in mcE for 
-
-This has not been maintained (as of May 17, 2018).
+This is used in mcE for constructing system calls --- system calls take strings.
 ========================================================================**/
 
 void putone(char c){
@@ -970,6 +987,10 @@ void set_macro(expptr sym, expptr f(expptr)){
    setprop(sym, macro_token, (expptr) f);
 }
 
+void set_symbol_expansion(expptr sym, expptr expansion){
+  setprop(sym, string_symbol("symbol_macro_expansion"), expansion);
+}
+
 expptr macroexpand(expptr);
 
 expptr macroexpand_args(expptr e){
@@ -1000,6 +1021,9 @@ expptr top_symbol(expptr e){
   
 expptr macroexpand1(expptr e){
   if(atomp(e))return e;
+  if(constructor(e) == 'a'){
+    expptr expansion = getprop(e,string_symbol("symbol_macro_expansion"),NULL);
+    if(expansion != NULL)return expansion;}
   expptr s = top_symbol(e);
   if(s == NULL)return e;
   return macroexpand2(s,e);
@@ -1111,7 +1135,6 @@ void mcA_init(){
   readchar = ' ';
   catch_freeptr = 0;
   terminal_stream = cwrap_stream(stdin);
-  semiop = intern_exp('o',(expptr) intern_string(";"),NULL);
   commaop = intern_exp('o',(expptr) intern_string(","),NULL);
   colonop = intern_exp('o',(expptr) intern_string(":"),NULL);
   spaceop = intern_exp('o',(expptr) intern_string(" "),NULL);

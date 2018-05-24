@@ -78,7 +78,7 @@ void install(expptr form){ //only the following patterns are allowed.
     {#include !x}:{install_preamble(form);}
     {!type ?X[?dim];}:{install_array(X,form);}
     {!type ?f(!args){!body}}:{install_proc(type, f, args, form);}
-    {!type ?f(!args);}:{install_proc(type,f,args,form);}
+    {!type ?f(!args);}:{install_proc(type,f,args,form);} //this is needed for base_decls.h
     {{!statement}}:{}}
 }
 
@@ -90,6 +90,7 @@ void install_preamble(expptr e){
 
 void add_new_symbol(expptr x, expptr decl){
   push(x,env_syms);
+  symbol_index(x); //this is needed to syncronize the base_decls.h indeces between the expandE process and the REPL process.
   setprop(x,`{declaration},decl);
   setprop(x,`{new},`{true});
 }
@@ -149,42 +150,56 @@ load
 int compilecount;
 expptr declarations();
 expptr new_proc_defs();
-expptr value_extractions();
-expptr proc_def();
+expptr old_proc_defs();
+expptr proc_def(expptr type, expptr f, expptr args);
+expptr array_value_extractions();
 expptr value_insertions();
-expptr statements();
+expptr statements(expptr forms);
 
 void pprint_out(expptr exp){
   pprint(exp,fileout,0);
 }
 
-void load(expptr forms){
+expptr load(expptr forms, expptr value){ //the forms and the value expression must both be fully macro expanded.
   
   mapc(install,forms);
 
-  char * s = sformat("TEMP%d.c",compilecount++);
-  fprintf(stdout,"compiling and loading %s\n", s);
+  compilecount++; //avoid argument duplication problem with sformat
+  char * s = sformat("TEMP%d.c",compilecount);
   open_output_file(s);
-  
+
+  fprintf(fileout, "/* preamble */\n\n");
   dolist(form,file_preamble){print_line(form,fileout);}
+
+  fprintf(fileout,"\n/** declarations (both old and new) **/\n\n");
   mapc(pprint_out,declarations());
+
+  fprintf(fileout,"/** declaring symbol_value_copy **/\n\n");
+  pprint(`{void * * symbol_value_copy;},fileout,0);
+
+  fprintf(fileout,"/** old procedure definitions **/\n\n");  
+  mapc(pprint_out,old_proc_defs());
+  
+  fprintf(fileout,"/** new procedure definitions **/\n\n");
   mapc(pprint_out,new_proc_defs());
+
+  fprintf(fileout,"/** the procedure to be run for effect and value **/\n\n");
   pprint(`{
-      void _mc_doload(voidptr * symbol_value){
-	internal_symbol_value = symbol_value;
-	${value_extractions()}
+      expptr _mc_doload(voidptr * symbol_value){
+	symbol_value_copy = symbol_value;
+	${array_value_extractions()}
 	${value_insertions()}
-	${statements()}
-	return `{no value};}},
+	${statements(forms)}
+	${((value != NULL)? `{return ${value};} : `{return string_symbol("void");})}}},
     fileout,0);
   fclose(fileout);
   
   void * header = compile_load_file(sformat("TEMP%d",compilecount));
-  expptr (* _mcgen_doload)(voidptr *);
-  _mcgen_doload = dlsym(header,"_MC_doproc");
-  (*_mcgen_doload)(symbol_value);
-  
-  dolist(sym, env_syms){setprop(sym,`{new},`{false});};
+  expptr (* _mc_doload)(voidptr *);
+  _mc_doload = dlsym(header,"_mc_doload");
+  expptr result = (*_mc_doload)(symbol_value);
+  dolist(sym, env_syms){setprop(sym,`{new},NULL);};
+  return result;
 }
 
 expptr declarations(){  //this generates both old and new declarations
@@ -192,10 +207,12 @@ expptr declarations(){  //this generates both old and new declarations
   dolist(sym, env_syms){
     expptr decl = getprop(sym,`{declaration},NULL);
     ucase{decl;
-      {?type ?f(!args){!body}}:{push(`{${type} ${f}(${args})},result);}
+      {?type ?f(!args){!body}}:{push(`{${type} ${f}(${args});},result);}
+      {?type ?f(!args);}:{push(`{${type} ${f}(${args});},result);}
       {?type ?var[?dimension];}:{
-	if(!newp(var)){push(`{${type} * ${var}},result);}
-	else{push(decl,result);}}}}
+	if(!newp(var)){push(`{${type} * ${var};},result);}
+	else{push(decl,result);}}
+      {!x}:{}}}
   return result;
 }
 
@@ -205,19 +222,19 @@ expptr new_proc_defs(){
     expptr decl = getprop(sym,`{declaration},NULL);
     ucase{decl;
       {?type ?f(!args){!body}}:{
-	if(newp(f)){push(`{${type} ${f}(${args}){${body}}},result);}}}}
+	if(newp(f)){push(`{${type} ${f}(${args}){${body}}},result);}}
+      {!x}:{}}}
   return result;
 }
 
-expptr value_extractions(){
+expptr old_proc_defs(){
   expptr result = NULL;
   dolist(sym, env_syms){
     if(!newp(sym)){
       ucase{getprop(sym,`{declaration},NULL);
-	{?type ?var[?dimension];}:{
-	  push(`{${sym} = (${type} *) symbol_value_copy[${int_exp(symbol_index(sym))}];}, result);}
 	{?type ?f(!args){!body}}:{push(proc_def(type,f,args), result);}
-    	{?type ?f(!args)}:{push(proc_def(type,f,args), result);}}}}
+    	{?type ?f(!args);}:{push(proc_def(type,f,args), result);}
+	{!x}:{}}}}
   return result;
 }
 
@@ -227,7 +244,19 @@ expptr proc_def(expptr type, expptr f, expptr args){
     `{${type} ${f}(${args}){
       ${type} (* ${g})(${args});
       ${g} = symbol_value_copy[${int_exp(symbol_index(f))}];
-      ${type == `{void} ? `{return} : NULL} (* ${g})(${args_variables(args)});}};
+      ${(type == `{void} ? `{(* ${g})(${args_variables(args)});} : `{return (* ${g})(${args_variables(args)});})}}};
+}
+
+
+expptr array_value_extractions(){
+  expptr result = NULL;
+  dolist(sym, env_syms){
+    if(!newp(sym)){
+      ucase{getprop(sym,`{declaration},NULL);
+	{?type ?var[?dimension];}:{
+	  push(`{${sym} = (${type} *) symbol_value_copy[${int_exp(symbol_index(sym))}];}, result);}
+	{!x}:{}}}}
+  return result;
 }
 
 expptr value_insertions(){
@@ -243,7 +272,8 @@ expptr statements(expptr forms){
   expptr result = NULL;
   dolist(form, forms){
     ucase{form;
-      {{!statement}}:{push(statement,result);}}}
+      {{!statement}}:{push(statement,result);}
+      {!x}:{}}}
   return result;
 }
   
@@ -258,12 +288,16 @@ umacro{insert_base_values()}{return value_insertions();}
 
 voidptr compile_load_file(charptr fstring){
   int flg;
-  char * s1 = sformat("cc -g -fPIC -Wall -c %s.c -o %s.o",fstring,fstring);
+  char * s1 = sformat("cc -g -fPIC -Wall -c -Werror %s.c -o %s.o",fstring,fstring);
   flg = system(s1);
-  if(flg != 0)throw_error();
-  char * s2 = sformat("cc -g -fPIC -shared -Wl -lm %s.o -o %s.so",fstring,fstring);
+  if(flg != 0){
+    fprintf(stderr,"\n evaluation aborted\n\n");
+    throw_error();}
+  char * s2 = sformat("cc -g -fPIC -shared -Wl -lm -Werror %s.o -o %s.so",fstring,fstring);
   flg = system(s2);
-  if(flg != 0)throw_error();
+  if(flg != 0){
+    fprintf(stderr,"\n evaluation aborted\n\n");
+    throw_error();}
   char * s3 = sformat("%s.so",fstring);
   voidptr header = dlopen(s3, RTLD_LAZY|RTLD_GLOBAL);
   if(header == NULL)throw_error();

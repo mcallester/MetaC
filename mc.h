@@ -216,7 +216,6 @@ FILE * writestrm;
 
 void indent(int i);
 
-expptr semiop;
 expptr commaop;
 expptr colonop;
 expptr spaceop;

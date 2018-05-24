@@ -13,7 +13,7 @@
 
 void add_init_form(expptr form){
   expptr form2 = macroexpand(form);
-  init_forms = append(init_forms,cons(`{{${form}}},NULL));
+  init_forms = append(init_forms,cons(`{{${form2}}},NULL));
 }
 
 expptr init_form_macro(expptr e){

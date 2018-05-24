@@ -60,7 +60,7 @@ It also uses case_error
 char constructor(expptr e);
 expptr arg1(expptr e);
 expptr arg2(expptr e);
-void match_failure(expptr topexp);
+void match_failure(expptr topexp, expptr patterns);
 
 /** ========================================================================
 properties of expressions
@@ -109,7 +109,7 @@ void pprint(expptr e, FILEptr f, int i);
 macros
 ========================================================================**/
 
-void set_macro(charptr s, expptr f(expptr));
+void set_macro(expptr sym, expptr f(expptr));
 
 expptr macroexpand(expptr e);
 
