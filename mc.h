@@ -3,19 +3,6 @@
 typedef char * charptr;
 typedef void * voidptr;
 
-typedef struct pliststruct{
-  void * key;
-  struct expstruct * data;
-  struct pliststruct * rest;
-}pliststruct,*plist;
-
-typedef struct expstruct{
-  plist data;
-  char constructor;
-  struct expstruct * arg1;
-  struct expstruct * arg2;
-}expstruct,*expptr;
-
 /** ========================================================================
 catch, throw, catch-error, throw-error, and unwind_protect.
 catch_error is used in the read eval print loop and so the definitions are placed in mc.h
@@ -45,6 +32,28 @@ int error_flg;
 
 
 /** ========================================================================
+undo
+======================================================================== **/
+typedef struct undopair{
+  void * * location;
+  void * oldval;
+}undopair;
+
+#define UNDO_TRAIL_DIM  (1 << 16)
+undopair undo_trail[UNDO_TRAIL_DIM];
+int undo_trail_freeptr;
+
+//in undo_set(p,v) it is important that sizeof(p) = sizeof(v) = 8 ----  8 bytes will be written at undo time.
+
+#define undo_set(p, v) {if(undo_trail_freeptr >= UNDO_TRAIL_DIM)berror("undo trail exhausted"); undo_trail[undo_trail_freeptr].location = (void *) &(p);undo_trail[undo_trail_freeptr++].oldval = (void *) p;p=v;}
+
+void * undo_alloc(int size);
+
+void push_undo_frame();
+
+void pop_undo_frame();
+
+/** ========================================================================
 cbreak, berror and macro_error
 
 see berror and macro_error in mcA.mc
@@ -52,19 +61,6 @@ see berror and macro_error in mcA.mc
 void cbreak();
 
 void berror(char *s);
-
-#define DBG_DIM 10000
-#define DBG_DIM_ARGS 5
-
-expptr dbg_stack[DBG_DIM];
-expptr dbg_stack_args[DBG_DIM][DBG_DIM_ARGS];
-int dbg_freeptr;
-
-void push_dbg_expression(expptr e);
-
-void pop_dbg_stack();
-
-void match_failure(expptr,expptr);
 
 #define EPHEMERAL_DIM (1<<10)
 char ephemeral_buffer[EPHEMERAL_DIM];
@@ -88,17 +84,22 @@ void push_stack_frame2(void * frame);
 void pop_stack_frame();
 void * current_frame();
 
-
-/** ========================================================================
-undo frames
-========================================================================**/
-void push_undo_frame();
-void pop_undo_frame();
-void * undo_alloc(int size);
-
 /** ========================================================================
 expressions
 ========================================================================**/
+typedef struct pliststruct{
+  void * key;
+  struct expstruct * data;
+  struct pliststruct * rest;
+}pliststruct,*plist;
+
+typedef struct expstruct{
+  plist data;
+  char constructor;
+  struct expstruct * arg1;
+  struct expstruct * arg2;
+}expstruct,*expptr;
+
 expptr intern_exp(char constr, expptr arg1, expptr arg2);
 
 static inline char constructor(expptr e){
@@ -132,6 +133,19 @@ int symbol_int(expptr s);
 charptr exp_string(expptr e);
 expptr make_app(expptr sym, expptr arg);
 expptr quote_code(expptr e);
+
+#define DBG_DIM 10000
+#define DBG_DIM_ARGS 5
+
+expptr dbg_stack[DBG_DIM];
+expptr dbg_stack_args[DBG_DIM][DBG_DIM_ARGS];
+int dbg_freeptr;
+
+void push_dbg_expression(expptr e);
+
+void pop_dbg_stack();
+
+void match_failure(expptr,expptr);
 
 /** ========================================================================
 gensym

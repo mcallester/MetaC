@@ -78,13 +78,12 @@ void init_stack_frames(){
 }
 
 /** ========================================================================
-push_undo_frame, undo_alloc, undo_set, and pop_undo_frame.
+undo
 ========================================================================**/
-
 #define UNDO_HEAP_DIM (1<<26)
 char undo_heap[UNDO_HEAP_DIM];
 int undo_heap_freeptr;
-float heap_reserve; // initialized to .1
+float heap_reserve;
 
 void * undo_alloc(int size){
   if(undo_heap_freeptr + size > UNDO_HEAP_DIM*(1-heap_reserve)){
@@ -97,19 +96,6 @@ void * undo_alloc(int size){
   return result;
 }
 
-typedef struct undopair{
-  void * * location;
-  void * oldval;
-}undopair;
-
-#define UNDO_TRAIL_DIM  (1 << 16)
-undopair undo_trail[UNDO_TRAIL_DIM];
-int undo_trail_freeptr;
-
-//in undo_set(p,v) it is important that sizeof(p) = sizeof(v) = 8 ----  8 bytes will be written at undo time.
-
-#define undo_set(p, v) {if(undo_trail_freeptr >= UNDO_TRAIL_DIM)berror("undo trail exhausted"); undo_trail[undo_trail_freeptr].location = (void *) &(p);undo_trail[undo_trail_freeptr++].oldval = (void *) p;p=v;}
-
 typedef struct freeptr_frame{
   int undo_trail_freeptr;
   int undo_heap_freeptr;
@@ -118,6 +104,7 @@ typedef struct freeptr_frame{
 #define UNDO_RESTORE_DIM (1<<10)
 freeptr_frame undo_restore[UNDO_RESTORE_DIM];
 int undo_restore_freeptr;
+
 
 void push_undo_frame(){
   if(undo_restore_freeptr >= UNDO_RESTORE_DIM)berror("undo freeptr stack exhausted");
@@ -143,6 +130,7 @@ void init_undo_frames(){
   undo_heap_freeptr = 0;
   undo_restore_freeptr = 0;
   undo_trail_freeptr = 0;
+  heap_reserve = .1;
 }
 
 /** ========================================================================
@@ -204,9 +192,6 @@ int exp_count;
 int binaryp(char);
 
 expptr intern_exp(char constr, expptr a1, expptr a2){
-  if(constr == 'o' && a1 != NULL){
-    char c = ((char *) a1)[0];
-    if(c != ' '  && !binaryp(c))cbreak();}
   expptr e;
   unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & EXP_HASH_DIM-1;
   expptr oldexp;
@@ -1128,7 +1113,6 @@ void mcA_init(){
   
   print_length_token = string_symbol("print_length");
   macro_token = string_symbol("macro");
-  heap_reserve = .1;
 
   last_parens = NULL;
   

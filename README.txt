@@ -1,30 +1,28 @@
-McC is a C extension supporting the symbolic programming features of
+MetaC is a C extension providing the symbolic programming features of
 Lisp and the interactive programming environment of scripting
 languages such as Python.
 
-The fundamental language features of interest are pattern
-matching\footnote{Pattern matching is not a feature of Lisp but is
-easily implemented given backquote and computed macros}, backquote and
-computed macros. Pattern matching is familiar in many languages.
-Backquote is a generalization of Lisp quotation supporting the
-insertion of computed values into the quoted expression. Backquote
-will be familiar to those versed in writing Lisp computed
-macros. Pattern matching and backquote together allow one to express
-rewriting.  To rewrite an expression ones used pattern matching to
-bind variables to parts of the expression and uses backquote to
-construct an expression using the values of the bound variables.
-Computed macros allow arbitrary source code (Lisp code in the case of
-Lisp) to be used in computing the expansion of a macro.  Computed
-macros should be viewed as compilers.  A computed macro can do
-sophisticated type inference or data-flow analysis as part of macro
+The fundamental language features of interest are pattern matching,
+backquote and computed macros. Pattern matching is familiar in many
+languages.  Although it is not provided by default in Lisp, it is
+readily implemented in Lisp using computed macros.  Backquote is a
+generalization of Lisp quotation supporting the insertion of computed
+values into the quoted expression. Backquote will be familiar to those
+versed in writing Lisp computed macros. Pattern matching and backquote
+together allow one to express rewriting.  To rewrite an expression
+ones used pattern matching to bind variables to parts of the
+expression and uses backquote to construct an expression using the
+values of the bound variables.  Computed macros allow arbitrary source
+language computation to be used in computing the expansion of a macro.
+Computed macros should be viewed as compilers.  A computed macro can
+do sophisticated type inference or data-flow analysis as part of macro
 expansion.
 
 Packages of computed macros are often used as compilers for
 sophisticated languages.  However, given that one is writing a
-compiler, C is a preferable target language.  Experience with Lisp
-indicates that for computed macros to work smoothly it is important
-that the source language be the same as the target language.  The
-target language should be C.
+compiler, C is a preferable target language.  For computed macros to
+work smoothly it is important that the source language be the same as
+the target language.  The target language should be C.
 
 It is not obvious how to implement light weight quotation for C.
 Parsing C is complex.  We bypass the syntactic complexity of C by
