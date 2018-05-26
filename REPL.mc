@@ -58,7 +58,7 @@ void read_eval_print(){
 	  {definition(?sym)}:{
 	    indent(rep_column);
 	    pprint(getprop(sym,`{declaration},NULL),stdout,rep_column);}
-	  {!s;}:{eval_statement(s);}
+	  {!s;}:{eval_statement(e);}
 	  {?type ?f(!args){!body}}:{eval_statement(e);}
 	  {{!s}}:{eval_statement(e);}
 	  {!e}:{eval_expression(e);}

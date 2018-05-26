@@ -63,6 +63,7 @@ Arrays are the only supported data variables at this time.  However, note that <
 
 void install_preamble(expptr);
 void add_new_symbol(expptr,expptr);
+void install_var(expptr,expptr);
 void install_array(expptr,expptr);
 void install_proc(expptr,expptr,expptr,expptr);
 int symbol_index(expptr);
@@ -76,10 +77,14 @@ void install(expptr form){ //only the following patterns are allowed.
     {#define !def}:{install_preamble(form);}
     {#include < !file >}:{install_preamble(form);}
     {#include !x}:{install_preamble(form);}
-    {!type ?X[?dim];}:{install_array(X,form);}
-    {!type ?f(!args){!body}}:{install_proc(type, f, args, form);}
-    {!type ?f(!args);}:{install_proc(type,f,args,form);} //this is needed for base_decls.h
+    {?type ?var;}:{install_var(type,var);}
+    {?type ?var = !e;}:{install_var(type,var);}
+    {?type ?X[?dim];}:{install_array(X,form);}
+    {?type ?f(!args){!body}}:{install_proc(type, f, args, form);}
+    {?type ?f(!args);}:{install_proc(type,f,args,form);} //this is needed for base_decls.h
+    {!e;}:{}
     {{!statement}}:{}}
+  
 }
 
 void install_preamble(expptr e){
@@ -94,6 +99,24 @@ void add_new_symbol(expptr x, expptr decl){
   setprop(x,`{declaration},decl);
   setprop(x,`{new},`{true});
 }
+
+void install_var(expptr type, expptr var){
+  expptr decl = `{${type} ${var};};
+  expptr old_decl = getprop(var,`{declaration}, NULL);
+  if(old_decl == NULL){
+    expptr var_pointer = gensym(var);
+    add_new_symbol(var,decl);
+    setprop(var,`{new},NULL);
+    setprop(var,`{symbol_macro_expansion},`{(* ${var_pointer})});
+    add_new_symbol(var_pointer,`{${type} ${var_pointer}[1];});
+    return;}
+  if(old_decl != decl){
+    push_dbg_expression(decl);
+    berror("attempt to change array declaration");}
+}
+  
+
+  
 
 void install_array(expptr X, expptr decl){
   expptr old_decl = getprop(X,`{declaration},NULL);
@@ -183,7 +206,7 @@ expptr load(expptr forms, expptr value){ //the forms and the value expression mu
   fprintf(fileout,"/** new procedure definitions **/\n\n");
   mapc(pprint_out,new_proc_defs());
 
-  fprintf(fileout,"/** the procedure to be run for effect and value **/\n\n");
+  fprintf(fileout,"/** doit **/");
   pprint(`{
       expptr _mc_doload(voidptr * symbol_value){
 	symbol_value_copy = symbol_value;
@@ -272,11 +295,18 @@ expptr statements(expptr forms){
   expptr result = NULL;
   dolist(form, forms){
     ucase{form;
-      {{!statement}}:{push(statement,result);}
+      {{!statement}}:{push(form,result);}
+      {typedef !def;}:{}
+      {typedef !def1,!def2;}:{}
+      {?type ?var;}:{}
+      {?type ?X[?dim];}:{}
+      {?type ?f(!args);}:{}
+      {?type ?var = !e;}:{push(`{${macroexpand(var)} = ${e};},result)}
+      {!e;}:{push(form,result);}      
       {!x}:{}}}
   return result;
 }
-  
+
 /** ========================================================================
 
 The macro set_base_values() is used for initializing the base environment.  See the procedure load_basetype
@@ -293,7 +323,7 @@ voidptr compile_load_file(charptr fstring){
   if(flg != 0){
     fprintf(stderr,"\n evaluation aborted\n\n");
     throw_error();}
-  char * s2 = sformat("cc -g -fPIC -shared -Wl -lm -Werror %s.o -o %s.so",fstring,fstring);
+  char * s2 = sformat("cc -g -fPIC -shared -lm -Werror %s.o -o %s.so",fstring,fstring);
   flg = system(s2);
   if(flg != 0){
     fprintf(stderr,"\n evaluation aborted\n\n");

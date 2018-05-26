@@ -1005,16 +1005,17 @@ expptr top_symbol(expptr e){
 }
   
 expptr macroexpand1(expptr e){
-  if(atomp(e))return e;
   if(constructor(e) == 'a'){
     expptr expansion = getprop(e,string_symbol("symbol_macro_expansion"),NULL);
     if(expansion != NULL)return expansion;}
+  if(atomp(e))return e;
   expptr s = top_symbol(e);
   if(s == NULL)return e;
   return macroexpand2(s,e);
 }
 
 expptr macroexpand(expptr e){
+  if(e == NULL)return NULL;
   expptr e2 = macroexpand1(e);
   if(e2 != e) return macroexpand(e2);
   if(atomp(e))return e;
