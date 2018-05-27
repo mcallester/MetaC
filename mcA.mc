@@ -335,6 +335,20 @@ void setprop(expptr e, expptr key, expptr val){
   addprop(e,key,val);
 }
 
+void setprop_int(expptr e, expptr key, int x){
+  char buffer[8]; //buffer is a pointer.
+  int * y = (int *) buffer;
+  *y = x;
+  setprop(e,key, * (expptr *) buffer);
+}
+
+int getprop_int(expptr e, expptr key, int defaultval){
+  if(e == NULL)berror("attempt to get a property of the null expression");
+  plist p = getprop_cell(e, key);
+  if(p == NULL)return defaultval;
+  int * y = (int *) &(p -> data);
+  return *y;
+}
 
 /** ========================================================================
 character properties. The character '/n' has different properties
@@ -796,13 +810,11 @@ int compute_plength(expptr w){
 
 int plength(expptr w){
   if(w == NULL)return 0;
-  expptr negative_one = (expptr) ((long int) -1);
-  expptr explength = getprop(w,print_length_token, negative_one);
-  if(explength == negative_one){
-    int intlength = compute_plength(w);
-    addprop(w,print_length_token, (expptr) ((long int) intlength));
-    return intlength;}
-  return (int) explength;
+  int x = getprop_int(w,print_length_token, -1);
+  if(x == -1){
+    x = compute_plength(w);
+    setprop_int(w,print_length_token, x);}
+  return x;
 }
 
 void print_string(char * w){

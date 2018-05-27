@@ -22,18 +22,16 @@
 
 \bigskip
 \bigskip
-MetaC is a C extension supporting the symbolic programming features of Lisp and the interactive programming environment and notebook support of scripting languages such as Python.
-
-The fundamental language features of interest are pattern matching\footnote{Pattern matching is not a feature of Lisp but is easily implemented given backquote and computed macros},
-backquote and computed macros. Pattern matching is familiar in many languages.  Backquote is a generalization of Lisp quotation supporting
-the insertion of computed values into the quoted expression. Backquote will be familiar to
-those versed in writing Lisp computed macros. Pattern matching and backquote together allow one to directly express rewriting. But simple rewriting is a special and trivial case of computed macro expansion.
-Computed macros allow arbitrary source code (Lisp code in the case of Lisp) to be
-used in computing the expansion of a macro.  Computed macros should be viewed as compilers.  A computed macro can do
+MetaC is a C extension supporting notebook-style programming based on a read-eval-print loop with incremental procedure redefinition (dynamic linking) and the general look-and-feel of
+python programming environments.  MetaC also extends C with the symbolic progrqamming features of pattern matching, backquote, and computed macros.
+Pattern matching and backquote together allow one to directly express simple rewrite macros. However, rewriting is a trivial special case of the much more powerful notion
+of a computed macro where computation is supported by high level symbolic progrmming tools.
+Computed macros allow arbitrary high-level symbolic computation in macro expansion. Computed macros should be viewed as compilers.  A computed macro can do
 sophisticated type inference or data-flow analysis as part of macro expansion.
-
-Packages of computed macros are often used as compilers for sophisticated languages.  However, given that one is writing a compiler, C is a more reasonable target language than Lisp or high level scripting languages.
-Experience with Lisp indicates that for computed macros to work smoothly it is important that the source language be the same as the target language.  The target, and hence the source, should be C.
+Compilers for sophisticated high-level languages can be implemented as packages of computed maros.
+When writing a compiler it is desirable to target a low level language offering considerable control over the hardware.  In MetaC the macros
+expand to C.  MetaC's computed macros are written is the MetaC extension of C.  Metac itself is written using macros defined in MetaC.  But all such macros ultimately expand to
+C.
 
 \section{Universal Algebraic Syntax (UAS)}
 

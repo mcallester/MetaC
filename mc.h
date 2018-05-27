@@ -161,6 +161,9 @@ expptr getprop(expptr e, expptr key, expptr defaultval);
 void setprop(expptr e, expptr key, expptr val);
 void addprop(expptr e, expptr key, expptr val);
 
+int getprop_int(expptr e, expptr key, int defaultval);
+void setprop_int(expptr e, expptr key, int x);
+
 
 /** ========================================================================
 expansion

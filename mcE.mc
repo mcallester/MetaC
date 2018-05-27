@@ -149,11 +149,11 @@ void install_proc(expptr newtype, expptr f, expptr newargs, expptr newdecl){
 int symbol_count;
 
 int symbol_index(expptr sym){
-  int index = (int) getprop(sym, `{index}, (expptr) ((long int) -1));
+  int index = (int) getprop_int(sym, `{index}, -1);
   if(index == -1){
     if(symbol_count == SYMBOL_DIM){berror("Mc symbol table exhausted");}
     index = symbol_count++;
-    setprop(sym,`{index}, (expptr) ((long int) index));
+    setprop_int(sym,`{index}, index);
   }
   return index;
 }
