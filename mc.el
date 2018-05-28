@@ -3,7 +3,7 @@
   (delete-other-windows)
   (split-window-horizontally)
   (other-window 1)
-  (switch-to-buffer "*gud-MCCrep*")
+  (switch-to-buffer "*gud-REPL*")
   (end-of-buffer))
 
 (add-hookm c-mode-hook
