@@ -22,16 +22,206 @@
 
 \bigskip
 \bigskip
-MetaC is a C extension supporting notebook-style programming based on a read-eval-print loop with incremental procedure redefinition (dynamic linking) and the general look-and-feel of
-python programming environments.  MetaC also extends C with the symbolic progrqamming features of pattern matching, backquote, and computed macros.
-Pattern matching and backquote together allow one to directly express simple rewrite macros. However, rewriting is a trivial special case of the much more powerful notion
-of a computed macro where computation is supported by high level symbolic progrmming tools.
-Computed macros allow arbitrary high-level symbolic computation in macro expansion. Computed macros should be viewed as compilers.  A computed macro can do
-sophisticated type inference or data-flow analysis as part of macro expansion.
-Compilers for sophisticated high-level languages can be implemented as packages of computed maros.
-When writing a compiler it is desirable to target a low level language offering considerable control over the hardware.  In MetaC the macros
-expand to C.  MetaC's computed macros are written is the MetaC extension of C.  Metac itself is written using macros defined in MetaC.  But all such macros ultimately expand to
-C.
+MetaC is a C extension supporting a read-eval-print loop (REPL) capable of incremental procedure redefinition (dynamic linking) and the general look-and-feel of
+python programming.  MetaC also extends C with symbolic programming features for writing sophisticated preprocessors (compilers) as packages of computed macros.
+Computed macros can do
+sophisticated type inference or data-flow analysis as part of macro expansion.  MetaC supports computed macros with the high level symbolic progrmming features
+of pattern matching and pattern instantiation.  Pattern instantiation is done with backquote --- a language feature of Lisp.
+Generating C code using backquote (pattern instantiation) is facilitated by the use of a universal algebraic concrete syntax --- a universal algebraic
+mapping between character strings and expression trees.
+
+\section{Hello World}
+
+Once one has cloned the MetaC repository (git@github.com:mcallester/MetaC.git) one can cd to the repository directory and type 
+
+\begin{verbatim}
+bash$ make MC
+...
+
+bash$ MC
+
+MC>
+\end{verbatim}
+
+We can then evaluate a Hello world expression.
+
+\begin{verbatim}
+MC> `{hello world}
+
+hello world
+
+MC>
+\end{verbatim}
+
+In the above example the backquote expression given to the REPL macro-expands to a C expression which evaluates to the expression ``hello world''.
+Backquote is described in more detail below.
+
+We can also declare global variables and execute statements from the REPL.
+
+\begin{verbatim}
+MC> int x;
+
+done
+
+MC> x = 2;
+
+done
+
+MC> x += 1;
+
+done
+
+MC> int_exp(x)
+
+3
+
+MC>
+\end{verbatim}
+
+The current implementation requires that expressions given to the REPL are either C statements of C expressions that evaluate to Universal Algebraic Syntax (UAS) expressions.
+UAS expressions are abstract syntax trees which are often viewed as representations of strings. The procedure {\tt int\_exp}
+converts an integer to a UAS expression.
+Backquote can be used in a manner analogous to string formatting.
+
+\begin{verbatim}
+MC> expptr friend = `{Bob Givan};
+
+done
+
+MC> int height = 6;
+
+done
+
+MC> `{My friend ${friend} is ${int_exp(height)} feet tall.}
+
+My friend Bob Givan is 6 feet tall.
+
+MC> 
+\end{verbatim}
+
+While it is often appropriate to think of UAS expressions as representations of strings, UAS expressions are actually abstract syntax trees. The tree structure
+plays an important role in pattern matching. The tree structure is more apparent in the following example.
+
+\begin{verbatim}
+MC> expptr x = `{a+b};
+
+done
+
+MC> `{bar(${x}}
+
+bar(a+b)
+
+MC>
+\end{verbatim}
+
+The pattern {\tt foo(!x)} will match the expression {\tt foo(a+b)} with {\tt x} bound to the expression (tree) {\tt a+b}.
+Pattern matching is described in more detail below.
+
+It is sometimes convenient to use a Gnu C extension in which a basic block defines an expression.  For example,
+{\tt (\{int x = 2; 5*x;\})} is an expression whose value is 10.  We also have the following.
+
+\begin{verbatim}
+MC>({expptr x = `{a+b}; `{bar(${x}};}})
+
+bar(a+b)
+
+MC>
+\end{verbatim}
+
+One can also define new data types and procedures from the REPL.
+
+\begin{verbatim}
+
+MC> typedef struct ptrliststruc{
+  void * car
+  struct ptrliststruct * cdr;
+} *ptrlist;
+
+done
+
+MC> typedef  (void *) ptr_to_ptr(void *);
+
+done
+
+MC> ptrlist mapcar(ptr_to_ptr f, ptrlist l){
+     if(l == NULL)return NULL;
+     return cons(f(l->car),mapcar(f,l->cdr);
+}
+
+done
+
+MC>
+\end{verbatim}
+
+The function {\tt cons} involves memory allocation and the definition has been omitted.  MetaC supports a couple approaches to memory management described below.
+The type ptrlist exposes a weakness in the C type system --- we would like cons to be a polymorphic function supporting many different types of elements
+of lists. A language with a richer type system can be implemented as a MetaC macro package.
+
+\section{Pattern Matching}
+
+MetaC provides a pattern matching case statement.
+The general form of the case construct is the following.
+$${\bf ucase(e; \{<pattern1>\}:\{<statement1>\}; ... ;\{<patternn>\}:\{<statementn>\})}$$
+Variables are marked in patterns by the symbol tags {\bf !} and {\bf ?}.  Variables tagged with {\bf !} can bind to any UAS expression
+while variables tagged with {\bf ?} can only bind to atomic symbols.
+For example we might write the following.
+
+\begin{verbatim}
+int value(expptr e){
+  ucase(e;
+   {!x+!y}:{return value(x)+value(y);};
+   {!x*!y}:{return value(x)*value(y);};
+   {(!x)}:{return value(x);};
+   {?z}:{return symbol_int(z)]);})
+}
+\end{verbatim}
+
+In many cases the choice of the particular tree structure imposed by the MetaC reader is unimportant.  For example, the expression {\bf a+b+c} will match the pattern
+{\bf !x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\bf !x*!y}
+will not match the string {\bf a+b*c} because {\bf +} is above (outer to) {\bf *} in the parse tree constructed by MetaC. The pattern {\bf !x*!y} does match {\bf (a+b)*c}.
+
+In the current implementation repeated variables, such as in the pattern {\bf \{!x + !x\}}, are not supported (and not checked for).
+If a variable is repeated it will be matched at its last occurrences under depth-first left to right traversal.
+
+As another example we consider a code fragment used in the expansion of an iteration macro.
+
+\begin{verbatim}
+ucase{e;
+   {dolist(?x, !L)!body}:{
+     rest = gensym(`{rest});
+     return `{for(list ${rest} = ${L};
+                  ${rest} != NULL;
+                  ${rest} = cdr(${rest});)
+               ${body}}}
+\end{verbatim}
+
+\section{Nested Backquotes}
+
+The general form of a backquote expression is {\tt `\{<exp>\}} where the value of this is the given expression {\tt <exp>} with subexpressions
+of the form {\tt $\$$\{<exp2>\}} replaced with the computed C value of {\tt <exp2>}.  This simple rule is unfortunately incomplete.  One of the most
+confusing situations is where the expansion of a macro contains a backquote.  Writing such a macro involves nested backquotes.  While nested backquotes
+are confusing, and should be avoided when possible, they are none the less supported.  We consider a series of backquote expressions each of which evaluates to the previous one.
+
+First we have
+\begin{equation}
+\label{bq1}
+`\{a+b+\$\{z\}\}
+\end{equation}
+
+If the value of variable {\bf z} is the expression {\bf c} then the value of expression (\ref{bq1}) is the expression {\bf a+b+c}.
+The unary operator {\bf \$} can be included in an expression constant by quoting it.  This gives our second expression.
+\begin{equation}
+\label{bq2}
+`\{`\{a + \$\{y\} + \backslash\$\{z\}\}\}
+\end{equation}
+If the value of variable {\bf y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
+Quotation expression can be included in the expression by adding another layer of quotation as in the following.
+\begin{equation}
+\label{bq3}
+`\{`\{`\{\$\{x\} + \backslash\$\{y\} + \backslash\backslash\$\{z\}\}\}\}
+\end{equation}
+If the value of variable {\bf x} is the expression {\bf a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
+
 
 \section{Universal Algebraic Syntax (UAS)}
 
@@ -39,7 +229,7 @@ It is not obvious how to implement light weight expression quotation and express
 UAS is a compromise between the extreme syntactic simplicity of Lisp and the desire for a syntax that is more similar to C.
 While not as minimal as Lisp, UAS is still simple --- there are seven syntactic categories including a category for the null expression.
 UAS is universal in that the syntactic trees are considered to be semantics-free and, more importantly, under very weak assumptions a semantics defined by a compiler on strings
-can be transferred to UAS trees.
+also defines a semantics on UAS expression trees.
 This later property is made possible by ensuring that the UAS reader will accept any parenthesis-balanced string
 and that the process of reading a string into a UAS expression can be inverted --- printing the expression recovers the original string.
 A semantics defined by a compiler on strings can be imposed on UAS expressions simply by printing the expressions and applying the compiler to the resulting strings.
@@ -146,75 +336,6 @@ x  1   =
 
 Since any parenthesis-balanced string reads as an expression, we can think of expressions as structured representations of strings.
 
-\section{Pattern Matching}
-
-MetaC provides a pattern matching case statement.
-The general form of the case construct is the following.
-$${\bf ucase(e; \{<pattern1>\}:\{<statement1>\}; ... ;\{<patternn>\}:\{<statementn>\})}$$
-Variables are marked in patterns by the symbol tag {\bf !}. For example we might write the following.
-
-\begin{verbatim}
-int value(exp e){
-  ucase(e;
-   {!x+!y}:{return value(x)+value(y);};
-   {!x*!y}:{return value(x)*value(y);};
-   {(!x)}:{return value(x);};
-   {!z}:{return symbol_int(z)]);})
-}
-\end{verbatim}
-
-Here pattern symbols tagged with {\bf !} are bound to expressions. In many cases the choice of the particular tree structure imposed by the MetaC reader is unimportant.  For example, the expression {\bf a+b+c} will match the pattern
-{\bf !x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\bf !x*!y}
-will not match the string {\bf a+b*c} because {\bf +} is above (outer to) {\bf *} in the parse tree constructed by MetaC. Note that the pattern {\bf !x*!y} does match {\bf (a+b)*c}.
-
-Repeated variable, such as the pattern {\bf \{!x + !x\}} are not supported (and not checked for).  If variables are repeated the variable will be matched at its last occurrences under depth-first traversal.
-
-Pattern symbols can also be tagged with {\bf ?} in which case they must be bound to symbols.  For example, in the following {\bf ?x} must bind to a symbol.
-
-\begin{verbatim}
-ucase{e;
-   {dolist{?x !L}!body}:{
-     rest = gensym(`{rest});
-     return `{for(list ${rest} = ${L};
-                  ${rest} != NULL;
-                  ${rest} = cdr(${rest});)
-               ${body}}}
-\end{verbatim}
-
-\section{Backquote}
-
-MetaC provides Lisp-style backquote.
-In the simplest case {\bf `\{$e$\}} evaluates to a data structure which is the UAS syntax tree for
-the string $e$.  For example, the MetaC expression {\bf `\{a+b+c\}}
-evaluates to the expression {\bf a+b+c}.
-
-Backquote can also be used for pattern instantiation.
-When computing the value of {\bf `\{$e$\}} suexpression of $e$ of the form {\bf \$$w$} are replaced by the value of the expression $w$.
-For example consider the following expression.
-\begin{equation}
-\label{bq1}
-`\{a+b+\$z\}
-\end{equation}
-If the value of variable {\bf z} is the expression {\bf c} then the value of expression (\ref{bq1}) is the expression {\bf a+b+c}.
-
-Structured symbols are expressions and structured symbols can be constructed by substitution into parts of the symbol.
-For example, if {\bf x} is bound to {\bf foo} then {\bf `\{\$x:bar\}} evaluates to the structures symbol {\bf foo:bar}.
-
-We allow for expression evaluation inside backquote by writing applications of {\bf \$}.  For example if the procedure call {\bf f(x)} evaluates to the symbol {\bf world} then
-{\bf `\{hello \$\{f(x)\})\}} evaluates to {\bf hello world}.
-
-The unary operator {\bf \$} can be included in an expression constant by quoting it as in the following.
-\begin{equation}
-\label{bq2}
-`\{`\{a + \$y + \backslash\$z\}\}
-\end{equation}
-If the value of variable {\bf y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
-Quotation expression can be included in the expression by adding another layer of quotation as in the following.
-\begin{equation}
-\label{bq3}
-`\{`\{`\{\$x + \backslash\$y + \backslash\backslash\$z\}\}\}
-\end{equation}
-If the value of variable {\bf x} is the expression {\bf a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
 
 
 \section{The MetaC Pretty Printer}
