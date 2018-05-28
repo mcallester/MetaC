@@ -328,9 +328,11 @@ voidptr compile_load_file(charptr fstring){
   if(flg != 0){
     fprintf(stderr,"\n evaluation aborted\n\n");
     throw_error();}
-  char * s3 = sformat("%s.so",fstring);
+  char * s3 = sformat("./%s.so",fstring);
   voidptr header = dlopen(s3, RTLD_LAZY|RTLD_GLOBAL);
-  if(header == NULL)throw_error();
+  if(header == NULL){
+    fprintf(stderr,"unable to open shared library %s with error %i\n", s3, (*dlerror()));
+    throw_error();}
   return header;
 }
 
