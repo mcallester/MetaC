@@ -5,7 +5,8 @@
 \usepackage{psfrag}
 
 \newcommand{\mtt}[1]{\mbox{\tt #1}}
-\input /users/davidmcallester/03/tex/nofill.tex
+%\input /users/davidmcallester/03/tex/nofill.tex
+\input nofill.tex
 
 \newcommand{\ignore}[1]{}
 
@@ -235,7 +236,7 @@ and that the process of reading a string into a UAS expression can be inverted -
 A semantics defined by a compiler on strings can be imposed on UAS expressions simply by printing the expressions and applying the compiler to the resulting strings.
 
 The MetaC reader converts character strings to semantics-free syntax trees (expressions).
-The MetaC reader first preprocessing the input string to remove C-style comments.
+The MetaC reader first preprocesses the input string to remove C-style comments.
 The preprocessor also divides file character strings (as opposed to REPL inputs) into top level segments.
 A segment starts at the beginning of any nonempty line whose first character is not a space or tab and where the preceding line is empty.
 A segment also starts at the begining of any line beginning with the character {\bf \#} (indicating a C preprocessor line).
@@ -280,7 +281,7 @@ Multi-character connectives are left associative.  The null connective, describe
 except {\bf;} and comma.  This precedence of the null connective causes C argument lists and C statement sequences to have friendly tree structure.
 
 {\bf The null expression and the null connective.}  We can draw expressions as trees where the null expression and the null connective are drawn as empty nodes.
-For example {\bf (foo bar)} is a the expression.
+For example {\bf (foo bar)} is the expression.
 \begin{verbatim}
    ( )
 
