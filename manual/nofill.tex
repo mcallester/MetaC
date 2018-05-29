@@ -1,0 +1,53 @@
+% macros for no-fill, built on Plain
+
+\catcode`\@=11\relax         % allow @ in macro names
+
+% a simple no-fill, used as
+%
+% \nofill
+% Here is some no-fill text.
+%    This line starts with three spaces.
+% This is the    last line.  It has embedded spaces which will appear.
+% \endnofill
+%
+% You might want to switch to a fixed-width font when you use
+% these macros.
+
+\def\nofill {%
+  \begingroup
+    % spaces made active so they can be tested for at start of lines
+    %  and so multiple spaces aren't collapsed to one.
+    \obeyspaces
+    % nofill via every line a par; if spaces start next line
+    %   we do a \noindent to make sure a par gets started.
+    \parskip=\z@
+    \parindent=\z@
+    \let\p@r=\par
+    \def\par{\p@r \ifspacenext{\noindent}{}}%
+    \obeylines}
+
+\def\endnofill {%
+    \p@r                % in case user forgot last carriage return
+  \endgroup}
+
+% \ifspacenext is used as:
+%     \ifspacenext {<true tokens>}{<false tokens>}
+% It executes the true tokens if
+% the next character is an active space, the false tokens
+% otherwise.  The same technique can be used to check for any
+% character, not just active space.
+
+% You can NOT nest uses of \ifspacenext!
+
+% get a token which is \ifx-equal to active space, so we can test
+% for it
+{\obeyspaces\global\let\sp@ce= \relax}
+
+\def\ifspacenext #1#2{%
+  \def\truet@ks{#1}%
+  \def\falset@ks{#2}%
+  \futurelet\next\ifsp@cenext}
+\def\ifsp@cenext {%
+  \ifx\next\sp@ce \truet@ks \else \falset@ks \fi}
+
+\catcode`\@=12\relax    % make @ inaccessible again

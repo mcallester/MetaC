@@ -331,7 +331,7 @@ voidptr compile_load_file(charptr fstring){
   char * s3 = sformat("./%s.so",fstring);
   voidptr header = dlopen(s3, RTLD_LAZY|RTLD_GLOBAL);
   if(header == NULL){
-    fprintf(stderr,"unable to open shared library %s with error %i\n", s3, (*dlerror()));
+    fprintf(stderr,"\n unable to open shared library %s with error: %s\n\n", s3, dlerror());
     throw_error();}
   return header;
 }
