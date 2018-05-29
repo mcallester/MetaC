@@ -18,19 +18,21 @@
 \begin{document}
 \maketitle
 
-\section{Motivation}
-
-\bigskip
-\bigskip
+\begin{abstract}
 MetaC is a C extension supporting a read-eval-print loop (REPL) capable of incremental procedure redefinition (dynamic linking) and the general look-and-feel of
 python programming.  MetaC also extends C with symbolic programming features for writing sophisticated preprocessors (compilers) as packages of computed macros.
 Computed macros can do
 sophisticated type inference or data-flow analysis as part of macro expansion.  MetaC supports computed macros with the high level symbolic progrmming features
 of pattern matching and pattern instantiation.  Pattern instantiation is done with backquote --- a language feature of Lisp.
-Generating C code using backquote (pattern instantiation) is facilitated by the use of a universal algebraic concrete syntax --- a universal algebraic
-mapping between character strings and expression trees.
+Generating C code using backquote (pattern instantiation) is facilitated by the use of a universal algebraic syntax (UAS).  UAS is a ``universal''
+correspondence between character strings and expression trees.
+\end{abstract}
 
-\section{Hello World}
+\section{Introduction and Overview}
+
+We start with hello world.
+
+\subsection{Hello World}
 
 Once one has cloned the MetaC repository (git@github.com:mcallester/MetaC.git) one can cd to the repository directory and type 
 
@@ -43,7 +45,7 @@ bash$ MC
 MC>
 \end{verbatim}
 
-We can then evaluate a Hello world expression.
+We can then evaluate a hello world expression.
 
 \begin{verbatim}
 MC> `{hello world}
@@ -78,9 +80,9 @@ MC> int_exp(x)
 MC>
 \end{verbatim}
 
-The current implementation requires that expressions given to the REPL are either C statements of C expressions that evaluate to Universal Algebraic Syntax (UAS) expressions.
-UAS expressions are abstract syntax trees which are often viewed as representations of strings. The procedure {\tt int\_exp}
-converts an integer to a UAS expression.
+In C syntax one distinguishes C expressions from C statements.  A C statement is executed for effect while a C expression is evaluated for value. When given a C statement, the REPL simply prints ``done'' after executing the statement.  When given a C expression
+the REPL computes and prints the value.  The REPL assumes that the value of a C expression is a UAS tree (also called a UAS expression giving a second, and confusing, sense of the term ``expression''). The procedure {\tt int\_exp} above converts an integer to a UAS expression.
+UAS expressions are abstract syntax trees but can viewed as representations of strings.
 Backquote can be used in a manner analogous to string formatting.
 
 \begin{verbatim}
@@ -99,7 +101,9 @@ My friend Bob Givan is 6 feet tall.
 MC> 
 \end{verbatim}
 
-While it is often appropriate to think of UAS expressions as representations of strings, UAS expressions are actually abstract syntax trees. The tree structure
+\subsection{Tree Structure}
+
+While UAS expressions can be viewed as representations of strings, UAS expressions are actually abstract syntax trees. The tree structure
 plays an important role in pattern matching. The tree structure is more apparent in the following example.
 
 \begin{verbatim}
@@ -107,7 +111,7 @@ MC> expptr x = `{a+b};
 
 done
 
-MC> `{bar(${x}}
+MC> `{bar(${x})}
 
 bar(a+b)
 
@@ -118,76 +122,104 @@ The pattern {\tt foo(!x)} will match the expression {\tt foo(a+b)} with {\tt x} 
 Pattern matching is described in more detail below.
 
 It is sometimes convenient to use a Gnu C extension in which a basic block defines an expression.  For example,
-{\tt (\{int x = 2; 5*x;\})} is an expression whose value is 10.  We also have the following.
+{\tt (\{int x = 2; 5*x;\})} is a C expression (as opposed to a C statement) whose value is 10.  Exploiting this extension have the following.
 
 \begin{verbatim}
-MC>({expptr x = `{a+b}; `{bar(${x}};}})
+MC>({expptr x = `{a+b}; `{bar(${x})};})
 
 bar(a+b)
 
 MC>
 \end{verbatim}
 
+\subsection{Incremental Type and Procedure Definition}
+
 One can also define new data types and procedures from the REPL.
 
 \begin{verbatim}
 
-MC> typedef struct ptrliststruc{
-  void * car
-  struct ptrliststruct * cdr;
-} *ptrlist;
+MC> typedef struct expliststruc{
+  expptr car;
+  struct expliststruct * cdr;
+} *explist;
 
 done
 
-MC> typedef  (void *) ptr_to_ptr(void *);
+MC> explist cons(expptr x, explist l){ ...}
 
 done
 
-MC> ptrlist mapcar(ptr_to_ptr f, ptrlist l){
+MC> typedef expptr exp_to_exp (expptr);
+
+done
+
+MC> explist mapcar(exp_to_exp f, explist l){
      if(l == NULL)return NULL;
      return cons(f(l->car),mapcar(f,l->cdr);
 }
 
 done
 
+MC> expptr list_exp(explist l){
+     if(l == NULL) return NULL;
+     return `{ ${l->car} ${list_exp(l->cdr)} };
+}
+
+done
+
+MC> list_exp(cons(`{foo},cons(`{bar},NULL))
+
+foo bar
+
 MC>
 \end{verbatim}
 
-The function {\tt cons} involves memory allocation and the definition has been omitted.  MetaC supports a couple approaches to memory management described below.
-The type ptrlist exposes a weakness in the C type system --- we would like cons to be a polymorphic function supporting many different types of elements
-of lists. A language with a richer type system can be implemented as a MetaC macro package.
+The function {\tt cons} involves memory allocation and the definition has been omitted.  MetaC provides a couple approaches to memory management described below.
+The type explist exposes a weakness in the C type system --- we would like a polymorphic cons supporting many different types of elements
+of lists. Also, in an object-oriented language each class should specify a method for converting instances of that class to expressions for the purpose of printing.
+More reasonable languages (or frameworks) can be implemented as MetaC macro packages.
 
-\section{Pattern Matching}
+To simplify the implementation of MetaC all type expressions appearing in procedure definitions must be single symbol types. Arbitrary types can be given single symbol names
+using typedef as in the definition of the type {\tt exp\_to\_exp} above.
+
+\subsection{Pattern Matching}
 
 MetaC provides a pattern matching case statement.
 The general form of the case construct is the following.
-$${\bf ucase(e; \{<pattern1>\}:\{<statement1>\}; ... ;\{<patternn>\}:\{<statementn>\})}$$
-Variables are marked in patterns by the symbol tags {\bf !} and {\bf ?}.  Variables tagged with {\bf !} can bind to any UAS expression
-while variables tagged with {\bf ?} can only bind to atomic symbols.
+
+\begin{verbatim}
+ucase{e;
+  {<pattern1>}:{<body1>}
+   ...
+  {<patternn>}:{<bodyn>}}
+\end{verbatim}
+
+Variables are marked in patterns by the symbol tags {\tt !} and {\tt ?}.  Variables tagged with {\tt !} can bind to any UAS expression
+while variables tagged with {\tt ?} can only bind to atomic symbols.
 For example we might write the following.
 
 \begin{verbatim}
 int value(expptr e){
-  ucase(e;
+  ucase{e;
    {!x+!y}:{return value(x)+value(y);};
    {!x*!y}:{return value(x)*value(y);};
    {(!x)}:{return value(x);};
-   {?z}:{return symbol_int(z)]);})
+   {?z}:{return symbol_int(z);}}
 }
 \end{verbatim}
 
-In many cases the choice of the particular tree structure imposed by the MetaC reader is unimportant.  For example, the expression {\bf a+b+c} will match the pattern
-{\bf !x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\bf !x*!y}
-will not match the string {\bf a+b*c} because {\bf +} is above (outer to) {\bf *} in the parse tree constructed by MetaC. The pattern {\bf !x*!y} does match {\bf (a+b)*c}.
+In many cases the choice of the particular tree structure imposed by the MetaC reader is unimportant.  For example, the expression {\tt a+b+c} will match the pattern
+{\tt !x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\tt !x*!y}
+will not match the string {\tt a+b*c} because {\tt +} is above (outer to) {\tt *} in the abstract syntax tree. The pattern {\tt !x*!y} does match {\tt (a+b)*c}.
 
-In the current implementation repeated variables, such as in the pattern {\bf \{!x + !x\}}, are not supported (and not checked for).
+As of June 2018 repeated variables, such as in the pattern {\tt \{!x + !x\}}, are not supported (and not checked for).
 If a variable is repeated it will be matched at its last occurrences under depth-first left to right traversal.
 
 As another example we consider a code fragment used in the expansion of an iteration macro.
 
 \begin{verbatim}
 ucase{e;
-   {dolist(?x, !L)!body}:{
+   {dolist(?x, !L){!body}}:{
      rest = gensym(`{rest});
      return `{for(list ${rest} = ${L};
                   ${rest} != NULL;
@@ -195,10 +227,226 @@ ucase{e;
                ${body}}}
 \end{verbatim}
 
-\section{Nested Backquotes}
+\subsection{Macros}
 
-The general form of a backquote expression is {\tt `\{<exp>\}} where the value of this is the given expression {\tt <exp>} with subexpressions
-of the form {\tt $\$$\{<exp2>\}} replaced with the computed C value of {\tt <exp2>}.  This simple rule is unfortunately incomplete.  One of the most
+We can define a {\tt dolist} macro as follows.
+
+\begin{verbatim}
+umacro{dolist(?x, !L){!body}}:{
+     rest = gensym(`{rest});
+     return `{for(list ${rest} = ${L};
+                  ${rest} != NULL;
+                  ${rest} = cdr(${rest});)
+               ${body}}}
+\end{verbatim}
+
+The general form of a macro definition is
+\begin{verbatim}
+umacro{<pattern>}{<body>}
+\end{verbatim}
+where instances of <pattern> in MetaC code are to be replaced by the value of <body> under the variable bindings determined by the match.  The procedure {\tt macroexpand} takes a UCS expression
+an returns the result of repeatedly expanding macros until no more macro expansion is possible.  Macro expansion can generate effects as well as return an expansion.  The REPL performs
+macro expansion on the given expression and also performs the effects of that expansion.  {\tt umacro} is itself a MetaC macro and we can feed the above macro definition to the REPL.
+
+\begin{verbatim}
+MC> umacro{dolist(?x, !L){!body}}:{
+     rest = gensym(`{rest});
+     return `{for(list ${rest} = ${L};
+                  ${rest} != NULL;
+                  ${rest} = cdr(${rest});)
+               ${body}}}
+
+done
+
+MC>
+\end{verbatim}
+
+The macro expansion of the above macro definition defines a procedure to compute the macro expansion and installs that procedure on a macro property of the symbol {\tt dolist}.
+In general a macro patterns must either be an application expression or a binary connection expressions.  The procedure for macro expansion is attached to either the head symbol of the application
+or the binary operator of the binary connection expression.
+
+\section{Universal Algebraic Syntax (UAS)}
+
+It is not obvious how to implement light weight expression quotation and expression pattern matching for C expressions.  The syntax of C is complex.  We bypass this complexity by introducing universal algebraic syntax (UAS).
+UAS is a compromise between the extreme syntactic simplicity of Lisp and the desire for a syntax that is more similar to C.
+While not as minimal as Lisp, UAS is still simple --- we have the following eight syntactic categories.
+
+
+\begin{itemize}
+\item A symbol.  A symbol represents a string of alpha-numeric characters (upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar).
+  For example {\tt  foo\_bar1}.
+\item A tagged symbol.  A tagged symbol is either a symbol, a symbol-tag followed by a symbol, or a symbol tag followed by the NULL expression.
+The symbol tag characters are {\tt \$}, {\tt $\backslash$}, {\tt `}, {\tt !}, {\tt ?}, {\tt \#} and {\tt \%}.
+  For example we have the tagged symbols {\tt ?foo} and {\tt !foo}.
+\item A quoted string.  For example {\tt \tt "!:\&?;"} or {\tt 'a'}.  In UAS there is no distinction between {\tt "foo"} and {\tt 'foo'} other than the choice of the quotation character (which must match).
+  To avoid confusion newline characters are not allowed in strings (the two character sequence {\tt /n} is ok).
+\item A parenthesis expression.  This is an expression of the form ($e$), $\{e\}$, or $[e]$ where $e$ is an expression.  In MetaC $(e)$ is always a different expression from $e$.
+\item An application expression.  This is a tagged symbol (possibly untagged) followed by a parenthesis expression or an application expression followed by a parenthesis expression.  For example {\tt foo(x)} or {\tt foo(x)(y)} or {\tt `\{a\}}.
+The formation of application expressions is tighter than (higher precedence than) the formation of binary connective expressions or semicolon-terminated expressions.
+\item A binary connective expression.  For example {\tt x=3} is the binary connective expression with connective {\tt =} and symbol arguments {\tt x} and {\tt 3}.  Binary conectives are described in more detail below.
+\item A semicolon-terminated expression. For example {\tt x=3;} or {\tt f(x);}. All binary connectives are tighter than (higher precedence than)
+the formation of semicolon-terminated expressions.
+\item The null expression and the null connective. In order to ensure that the UAS reader can read any parenthesis-balanced string we can use the null
+  expression as arguments and the null connective to combine pairs of adjacent expressions.  This is described in more detail below.
+\end{itemize}
+
+\noindent Universal algebraic syntax is ``universal'' in that it has the following three properties.
+
+\begin{enumerate}
+\item UAS trees are semantics-free.  They are simply trees and can be viewed as representations of character strings.
+
+\item Any parenthesis-balanced character string can be represented (up to white space equivalence) by a UAS tree. Here parenthesis-balanced means that every open parenthesis, brace or bracket has a matching closing character and that string quotations
+  are properly closed.  Two strings are white space equivalent if they are the same after removing all white space characters (space, tab and return) but leaving a single space character after each symbol (to separate symbols).
+
+\item The printer inverts the reader. If we read a string $s$ into a UAS expression $e$ and then print $e$ back into a string $s'$ we have that $s$ and $s'$ are white-space equivalent.  This implies that $s$ and $s'$ both read to the same expression $e$.
+\end{enumerate}
+
+These universality properties ensure that one can assign semantics to expressions based on the strings that they represent.  We can assign C semantics to an expression by printing the expression and passing the resulting string to a C compiler.
+This string-based semantics is not always compositional with respect to three structure of UAS trees.  However, the tree structure imposed by the reader is designed to approximate the compositional structure of C syntax.  In most cases
+pattern matching on UAS expressions recovers substructure that is semantically meaningful under C semantics.
+
+The above discussion ignores the presence of C comments. The MetaC reader first preprocessing the input string to remove comments.
+The Meta preprocessor also divides long character strings, such as entire code files, into segments where each segment is read as a separate expression.
+The partitioning into segments is different in file inputs than in REPL inputs.
+For file inputs a new segment starts at the beginning of any line whose first character is not a space, tab or close character (right parenthesis, brace or bracket).
+A quoted return --- the character '$\backslash\backslash$' followed by '$\backslash$n' --- does not start a new line.  This is important for ``multi-line'' preprocessor definitions.
+A file must be parenthesis-balanced within each segment.
+For REPL inputs the segment ends at the first return character outside of parenthesization independent of further input characters.  This allows the REPL to respond immediately
+to the top level return character.
+
+\subsection{Binary Connectives}
+
+The binary connectives consist of all non-empty strings over the characters comma, \{{\tt =}, {\tt $\sim$}, {\tt $<$}, {\tt $>$}\}, \{\mtt{|}, {\tt \&}\}, \{{\tt +},
+{\tt -}\}, \{{\tt *}, {\tt /}\}, {\tt .}, {\tt @}, and \mtt{$\hat{~}$}.
+Single-character connectives are outermost to innermost in the order given (low
+precedence to high precedence) where set brackets indicate same-precedence.    All binary connectives are infix.  The last four single-chracter connectives are left-associative and the
+others are right-associative.
+All multi-character binary connectives have the same
+precedence which is higher than (innermost to) all single character connectives other than {\tt :}.
+Multi-character connectives are left associative.  The null connective, described below, is right associative and is outermost to (lower precedence) than all other binary connectives
+except {\tt;} and comma.  This precedence of the null connective causes C argument lists and C statement sequences to have friendly tree structure.
+Expressions can also be connected by the null connective --- a connective which prints as the empty string.  Connection by the null connective is higher priority than all binary connectives other than comma.
+Making null connection higher priority than comma allows proper pattern matching of C procedure argument lists.
+
+\subsection{Examples}
+We now give a set of examples of character stings and their corresponding representation as UAS expression trees.
+
+\begin{verbatim}
+(foo bar)    ( )
+              |
+             / \
+          foo   bar
+\end{verbatim}
+
+\begin{verbatim}
+{x+y*z}    { }
+            |
+            +
+           / \
+          x   *
+             / \
+            y   z
+\end{verbatim}
+
+\begin{verbatim}
+{int x = 1; y = 2;}   { }
+                       |
+ 
+                    /      \
+                   ;        ;
+                   |        |
+                  / \       =
+                 int =     / \
+                    / \   y   2
+                   x   1
+\end{verbatim}
+
+\begin{verbatim}
+foo(int x, float y)   / \
+                    foo ( )
+                         |
+                         ,
+                      /     \
+                     /\     / \
+                  int  x float y
+\end{verbatim}
+
+\begin{verbatim}
+{$foo}   { }
+          |
+          $
+          |
+         foo
+\end{verbatim}
+
+\begin{verbatim}
+{${foo}}   { }
+            |
+          /   \
+         $    { }
+         |     |
+              foo
+\end{verbatim}
+
+\begin{verbatim}
+{?=}   { }
+        |
+      /   \
+     ?     =
+     |   /   \
+\end{verbatim}
+
+\subsection{A More Precise Semantics of Backquote}
+
+The reader has the property that if string $s$ and $s'$ are white-space equivalent then the UCS tree that results from reading
+$s$ is the same as that resulting from reading $s'$.  The printer inverts the reader
+in the sense that reading a string $s$ and then prining the result to get string $s'$ has the property that $s$ and $s'$ are which space equivalent.
+
+It should be noted, however, there are syntax trees which cannot be represented by a string.  For example we have that {\tt +} is lower precedence than {\tt *} and hence the tree
+\begin{verbatim}
+     *
+    / \
+   a   +
+      / \
+     b   c
+\end{verbatim}
+cannot be represented by a string. It can, however, be created with backquote. Backquote and pattern matching both operate on trees rather than character strings.
+The above tree can be created as the value of {\tt `\{a * \$\{`\{b+c\}\}\}}.  In general a subexpression of the form {\tt \$\{e\}} inserts the value of
+$e$ at the node of the syntax tree for the backquote expression where the {\tt \$\{e\}} subexpression occurs.  The backquote expression has the following tree.
+
+\begin{verbatim}
+`{a * ${`{b+c}}}        / \
+                       `  { }
+                       |   |
+                           *
+                          / \
+                         a  / \
+                           $ { }
+                           |  |
+                             / \
+                            `  { }
+                            |   |
+                                +
+                               / \
+                              b   c
+\end{verbatim}
+
+
+Note that the tree
+\begin{verbatim}
+a * (b + c)     *
+               / \
+              a   ( )
+                   |
+                   +
+                  / \
+                 b   c
+\end{verbatim}
+is representable by a character string.
+
+The general form of a backquote expression is {\tt `\{<exp1>\}} where the value of this is the given expression {\tt <exp1>} with the nodes
+in the tree for {\tt <exp1>} at which subexpressions
+of the form {\tt \$\{<exp2>\}} appear replaced with the computed C value of {\tt <exp2>}.  This simple rule is unfortunately incomplete.  One of the most
 confusing situations is where the expansion of a macro contains a backquote.  Writing such a macro involves nested backquotes.  While nested backquotes
 are confusing, and should be avoided when possible, they are none the less supported.  We consider a series of backquote expressions each of which evaluates to the previous one.
 
@@ -208,181 +456,41 @@ First we have
 `\{a+b+\$\{z\}\}
 \end{equation}
 
-If the value of variable {\bf z} is the expression {\bf c} then the value of expression (\ref{bq1}) is the expression {\bf a+b+c}.
-The unary operator {\bf \$} can be included in an expression constant by quoting it.  This gives our second expression.
+If the value of variable {\tt z} is the expression {\tt c} then the value of expression (\ref{bq1}) is the expression {\tt a+b+c}.
+The unary operator {\tt \$} can be included in an expression constant by quoting it.  This gives our second expression.
 \begin{equation}
 \label{bq2}
 `\{`\{a + \$\{y\} + \backslash\$\{z\}\}\}
 \end{equation}
-If the value of variable {\bf y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
+If the value of variable {\tt y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
 Quotation expression can be included in the expression by adding another layer of quotation as in the following.
 \begin{equation}
 \label{bq3}
 `\{`\{`\{\$\{x\} + \backslash\$\{y\} + \backslash\backslash\$\{z\}\}\}\}
 \end{equation}
-If the value of variable {\bf x} is the expression {\bf a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
+If the value of variable {\tt x} is the expression {\tt a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
 
+\section{Interning, Property Lists, and Memory Management}
 
-\section{Universal Algebraic Syntax (UAS)}
+\subsection{Expression Interning}
 
-It is not obvious how to implement light weight expression quotation and expression pattern matching for C expressions.  The syntax of C is complex.  We bypass this complexity by introducing universal algebraic syntax (UAS).
-UAS is a compromise between the extreme syntactic simplicity of Lisp and the desire for a syntax that is more similar to C.
-While not as minimal as Lisp, UAS is still simple --- there are seven syntactic categories including a category for the null expression.
-UAS is universal in that the syntactic trees are considered to be semantics-free and, more importantly, under very weak assumptions a semantics defined by a compiler on strings
-also defines a semantics on UAS expression trees.
-This later property is made possible by ensuring that the UAS reader will accept any parenthesis-balanced string
-and that the process of reading a string into a UAS expression can be inverted --- printing the expression recovers the original string.
-A semantics defined by a compiler on strings can be imposed on UAS expressions simply by printing the expressions and applying the compiler to the resulting strings.
+\subsection{Expression Properties}
 
-The MetaC reader converts character strings to semantics-free syntax trees (expressions).
-The MetaC reader first preprocessing the input string to remove C-style comments.
-The preprocessor also divides file character strings (as opposed to REPL inputs) into top level segments.
-A segment starts at the beginning of any nonempty line whose first character is not a space or tab and where the preceding line is empty.
-A segment also starts at the begining of any line beginning with the character {\bf \#} (indicating a C preprocessor line).
-The file must be parenthesis-balanced within each segment.  This means that every open parenthesis, brace or bracket has a matching closing character and that string quotations
-are properly closed.  The reader also has the property that white space is ignored other than in the determining the top level segmentation and in separating symbols.
-The reader converts each segment to a single expression.
-An expression is defined recursively to one of the following.
+\subsection{Undo Stacks and Undo Memory Management}
 
-\begin{itemize}
-\item A symbol.  A symbol represents a string of alpha-numeric characters (upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar).
-  For example {\bf  foo\_bar1}.
-\item A tagged symbol.  A tagged symbol consists of a symbol-tag followed by a symbol.  The symbol tag characters are {\bf \$}, {\bf $\backslash$}, {\bf `}, {\bf !}, {\bf ?}, {\bf \#} and {\bf \%}.
-  For example we have the tagged symbols {\bf ?foo} and {\bf !foo}.
-\item A quoted string.  For example {\bf \tt "!:\&?;"} or {\tt 'a'}.  In UAS there is no distinction between {\bf "foo"} and {\bf 'foo'} other than the choice of the quotation character (which must match).
-  To avoid confusion newline characters are not allowed in strings (the two character sequence {\bf /n} is ok).
-\item A parenthesis expression.  This is an expression of the form ($e$), $\{e\}$, or $[e]$ where $e$ is an expression.  In MetaC $(e)$ is always a different expression from $e$.
-\item An application expression.  This is a tagged symbol followed by a parenthesis expression or an application expression followed by a parenthesis expression.  For example {\bf foo(x)} or {\bf foo(x)(y)}.
-The formation of application expressions is tighter than (higher precedence than) the formation of binary connective expressions.
-\item A binary connective expression.  For example {\bf x=3} is the binary connective expression with connective {\bf =} and symbol arguments {\bf x} and {\bf 3}.  Binary conectives are described in more detail below.
-\item The null expression and the null connective. In order to ensure that the UAS reader can read any parenthesis-balanced string we can use the null
-  expression as arguments and the null connective to combine pairs of adjacent expressions.  This is described in more detail below.
-\end{itemize}
+\subsection{The MetaC Execution Stack for Debugging}
 
-{\bf Binary connectives.} The binary connectives consist of all non-empty strings over the characters {\bf ;}, comma, \{{\bf =}, {\bf $\sim$}, {\bf $<$}, {\bf $>$}\}, \{\mtt{|}, {\bf \&}\}, \{{\bf +},
-{\bf -}\}, \{{\bf *}, {\bf /}\}, {\bf .}, {\bf @}, and \mtt{$\hat{~}$}.
-Single-character connectives are outermost to innermost in the order given (low
-precedence to high precedence) where set brackets indicate same-precedence.    All binary connectives are infix.  The last four single-chracter connectives are left-associative and the
-others are right-associative. For example {\bf f(x).a.b} reads as
-\begin{verbatim}
-       .   
-      / \
-     .   b
-    / \
-   /\  a
-  f ( )
-     |
-     x
-\end{verbatim}
-All multi-character binary connectives have the same
-precedence which is higher than (innermost to) all single character connectives other than {\bf :}.
-Multi-character connectives are left associative.  The null connective, described below, is right associative and is outermost to (lower precedence) than all other binary connectives
-except {\bf;} and comma.  This precedence of the null connective causes C argument lists and C statement sequences to have friendly tree structure.
+\subsection{Allocating Memory from the MetaC Execution Stack}
 
-{\bf The null expression and the null connective.}  We can draw expressions as trees where the null expression and the null connective are drawn as empty nodes.
-For example {\bf (foo bar)} is a the expression.
-\begin{verbatim}
-   ( )
+\section{System Features}
 
-    |
-      
-  /   \
-foo   bar
-\end{verbatim}
-  
-{\bf \{x=1;y=2;\}} is the expression
-\begin{verbatim}
-   { }
-    |
-    ;   
-  /    \
- =       ;
-/ \     / \
-x  1   =
-      / \
-     y   2
-\end{verbatim}
-{\bf \{?=\}} is  the expression
-\begin{verbatim}
-   { }
-    |
+\subsection{The Emacs Interactive Development Environment}
 
-  /   \
- ?     =
- |   /   \
-\end{verbatim}
+\subsection{MetaC Source Code File Management}
 
-{\bf \{?\$foo\}} is  the expression
-\begin{verbatim}
-   { }
-    |
+MetaC macro-expander executables macro-expand MetaC source code files .mc into a C source file .c.  The MetaC macro-expander applications
+are written in MetaC --- MetaC is bootstrapped on itself.  The expanders are defined in layers where each layer has a set of active macros.
+Each layer has both an expander executable and a REPL with the same set of macros pre-installed.  A new layer with more installed macros
+can be constructed using the previous layer to expand files with additional code including additional macro definitions.
 
-  /   \
- ?     $
- |     |
-      foo
-\end{verbatim}
-
-{\bf \{\$\{foo\}\}} is  the expression
-\begin{verbatim}
-   { }
-    |
-
-  /   \
- $    { }
- |     |
-      foo
-\end{verbatim}
-
-Since any parenthesis-balanced string reads as an expression, we can think of expressions as structured representations of strings.
-
-
-
-\section{The MetaC Pretty Printer}
-
-The printer converts an abstract syntax tree back into a byte string which includes newline bytes and space characters
-so that the expression is well formatted. The printer inverts the reader up to string equivalence (as defined by the reader).
-This emphasizes that we are thinking of the abstract syntax tree as a representation of a character string.
-
-\section{Reader-Printer Inverse Properties}
-
-The white space characters are space, tab and newline.  White space characters are generally ignored.  There are two exceptions to this.
-First, white space between two alpha-numeric characters (upper and lower case letters and the numberals 0 to 9) causes two symbols to be read rather than one.
-Second, a newline that is not preceded by the quotation character '//' and is not followed by a white space character is
-treated as a file segment terminator.  Parentheses must be balanced within each file segments.
-
-For any character string we define the white space normal form of $s$
-to be the result of removing all c-style comments and then removing all white space characters except for
-a single space character between two alpha-numeric characters and where segment terminator newlines
-are replaced by null bytes.
-
-The reader has the property that if string $s$ and $s'$ have the same white space normal form then the result of reading
-$s$ is the same as the result of reading $s'$.  The printer inverts the reader
-in the sense that reading a string $s$ and then prining the result to get string $s'$ has the property that $s$ abnd $s'$ have the same white space normal form.
-Conversely, the reader inversts the printer in the sense that, if syntax tree $x$ can be represented by a string, then printing $x$ and reading the result gives back $x$.
-However, there are syntax trees which cannot be represented by a string.  For example we have that "+" is lower precidence than * and hence the tree
-\begin{verbatim}
-     *
-    / \
-   a   +
-      / \
-     b   c
-\end{verbatim}
-cannot be represneted by a string. It can, however, be created with {\tt `\{a * \$x\}} where $x$ is the result of reading {\mtt b + c}.
-Note that parsing {\tt a * (b + c)} results in the tree
-\begin{verbatim}
-     *
-    / \
-   a   (.)
-        |
-        +
-       / \
-      b   c
-\end{verbatim}
-which is different.
-
-It is often more natural to think in terms of strings where tree structure exists only to disambiguate
-pattern matching in case expressions.  When constructing expressions with backquote it is aften advisable to insert
-parentheses around inserted values to ensure that the resulting expression is string-representable.  For example,
-rather than write {\tt `\{a * \$x\}} one should write {\tt `\{a * (\$x)\}}.
 \end{document}
