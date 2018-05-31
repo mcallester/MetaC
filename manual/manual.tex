@@ -155,7 +155,7 @@ done
 
 MC> explist mapcar(exp_to_exp f, explist l){
      if(l == NULL)return NULL;
-     return cons(f(l->car),mapcar(f,l->cdr);
+     return cons(f(l->car),mapcar(f,l->cdr));
 }
 
 done
@@ -179,7 +179,7 @@ The type explist exposes a weakness in the C type system --- we would like a pol
 of lists. Also, in an object-oriented language each class should specify a method for converting instances of that class to expressions for the purpose of printing.
 More reasonable languages (or frameworks) can be implemented as MetaC macro packages.
 
-To simplify the implementation of MetaC all type expressions appearing in procedure definitions must be single symbol types. Arbitrary types can be given single symbol names
+To simplify the implementation of MetaC all type expressions appearing in procedure definitions must be single symbols. Arbitrary types can be given single symbol names
 using typedef as in the definition of the type {\tt exp\_to\_exp} above.
 
 \subsection{Pattern Matching}
@@ -398,11 +398,7 @@ foo(int x, float y)   / \
 
 \subsection{A More Precise Semantics of Backquote}
 
-The reader has the property that if string $s$ and $s'$ are white-space equivalent then the UCS tree that results from reading
-$s$ is the same as that resulting from reading $s'$.  The printer inverts the reader
-in the sense that reading a string $s$ and then prining the result to get string $s'$ has the property that $s$ and $s'$ are which space equivalent.
-
-It should be noted, however, there are syntax trees which cannot be represented by a string.  For example we have that {\tt +} is lower precedence than {\tt *} and hence the tree
+There are UAS trees that cannot be represented by a string but can be constructed by backquote.  For example we have that {\tt +} is lower precedence than {\tt *} and hence the tree
 \begin{verbatim}
      *
     / \
@@ -431,24 +427,14 @@ $e$ at the node of the syntax tree for the backquote expression where the {\tt \
                               b   c
 \end{verbatim}
 
-
-Note that the tree
-\begin{verbatim}
-a * (b + c)     *
-               / \
-              a   ( )
-                   |
-                   +
-                  / \
-                 b   c
-\end{verbatim}
-is representable by a character string.
-
 The general form of a backquote expression is {\tt `\{<exp1>\}} where the value of this is the given expression {\tt <exp1>} with the nodes
 in the tree for {\tt <exp1>} at which subexpressions
-of the form {\tt \$\{<exp2>\}} appear replaced with the computed C value of {\tt <exp2>}.  This simple rule is unfortunately incomplete.  One of the most
-confusing situations is where the expansion of a macro contains a backquote.  Writing such a macro involves nested backquotes.  While nested backquotes
-are confusing, and should be avoided when possible, they are none the less supported.  We consider a series of backquote expressions each of which evaluates to the previous one.
+of the form {\tt \$\{<exp2>\}} appear replaced with the computed C value of {\tt <exp2>}.  Under this evaluation rule the value of above backquote expression is the preceding tree
+which has no string representation.
+
+Unfortunately the above simple evaluation rule for backquote expressions is incomplete.  One of the most
+confusing situations is where the expansion of a macro contains a backquote.  Writing such a macro typically involves nested backquotes.  While nested backquotes
+are confusing, and should be avoided when possible, nested backquotes are supported.  We consider a series of backquote expressions each of which evaluates to the previous one.
 
 First we have
 \begin{equation}
@@ -457,7 +443,7 @@ First we have
 \end{equation}
 
 If the value of variable {\tt z} is the expression {\tt c} then the value of expression (\ref{bq1}) is the expression {\tt a+b+c}.
-The unary operator {\tt \$} can be included in an expression constant by quoting it.  This gives our second expression.
+The unary operator {\tt \$} can be included in an expression constructed with backquote by quoting it.  This gives our second expression.
 \begin{equation}
 \label{bq2}
 `\{`\{a + \$\{y\} + \backslash\$\{z\}\}\}

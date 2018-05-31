@@ -23,12 +23,6 @@ expptr env_syms;
 void preprocess(expptr);
 int rep_column;
 
-expptr strip_body(expptr decl){
-  ucase{decl;
-    {?type ?f(!args){!body}}:{return `{${type} ${f}(${args})};}
-    {!x}:{return decl}}
-  return NULL;}
-
 void eval_statement(expptr s){
   load(append(preamble,cons(s,init_forms)),NULL);
   fprintf(stdout,"\ndone\n\n");
@@ -54,9 +48,6 @@ void read_eval_print(){
 	  {continue}:{if(rep_column != 0)break;}
 	  {describe(?sym)}:{
 	    indent(rep_column);
-	    pprint(strip_body(getprop(sym,`{declaration},NULL)),stdout,rep_column);}
-	  {definition(?sym)}:{
-	    indent(rep_column);
 	    pprint(getprop(sym,`{declaration},NULL),stdout,rep_column);}
 	  {!s;}:{eval_statement(e);}
 	  {?type ?f(!args){!body}}:{eval_statement(e);}
@@ -67,16 +58,6 @@ void read_eval_print(){
   rep_column -=3;
 }
 
-void load_base(){
-  //this emulates loading base_decls.h
-  expptr forms = file_expressions(`{base_decls.h});
-  mapc(install,forms);
-  //the base forms have already been declared in mc.h and defined in various mc files
-  //hence declarations, extractions and definitions are not needed.
-  insert_base_values();  //This is a macro defined in mcE.  It initializes the symbol_values array.
-  // initialization statements are handled by the initialization procedures
-  dolist(sym, env_syms){setprop(sym,`{new},NULL);};
-}
 
 int main(int argc, char **argv){
   mcA_init();
@@ -86,7 +67,7 @@ int main(int argc, char **argv){
   mcE_init1();
   mcE_init2();
 
-  catch_error(load_base());
+  catch_error(insert_base_values())
   if(error_flg != 0)return error_flg;
   
   rep_column = -3;
