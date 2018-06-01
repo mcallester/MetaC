@@ -24,7 +24,7 @@ void preprocess(expptr);
 int rep_column;
 
 void eval_statement(expptr s){
-  load(append(preamble,cons(s,init_forms)),NULL);
+  load(append(preamble,append(init_forms,cons(s,NULL))),NULL);
   fprintf(stdout,"\ndone\n\n");
 }
 

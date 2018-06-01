@@ -61,7 +61,7 @@ expptr load(expptr forms, expptr value){ // forms and value must both be fully m
 	symbol_value_copy = symbol_value;
 	${insertions()}
 	${extractions()}
-	${statements}
+	${reverse(statements)}
 	${((value != NULL)? `{return ${value};} : `{return string_symbol("void");})}}},
     fileout,0);
 
@@ -83,10 +83,10 @@ void install(expptr form){ //only the following patterns are allowed.
     {#define !def}:{install_preamble(form);}
     {#include < !file >}:{install_preamble(form);}
     {#include !x}:{install_preamble(form);}
-    {?type * ?var;}:{install_pointer(type,var,`{NULL});}
+    {?type * ?var;}:{install_pointer(type,var,`{malloc(sizeof(${type}))});}
     {?type ?X[?dim];}:{
       install_pointer(type,X,`{malloc(${dim}*sizeof(${type}))});}
-    {?type ?var;}:{install_var(type,var,`{malloc(sizeof(${type}))})}
+    {?type ?var;}:{install_var(type,var,NULL);}
     {?type ?var = !e;}:{install_var(type,var,e);}
     {?type ?f(!args){!body}}:{install_proc(type, f, args, body);}
     {?type ?f(!args);}:{install_proc(type,f,args,NULL);} //this is needed for base_decls.h
@@ -108,7 +108,9 @@ void install_var(expptr type, expptr var, expptr initval){
   if(newp(var)){
     expptr pointer = gensym(var);
     setprop(var,`{symbol_macro_expansion},`{(* ${pointer})});
-    install_pointer(type, pointer, initval);}
+    install_pointer(type, pointer, `{malloc(sizeof(${type}))});
+    if(initval != NULL) push(`{(* ${pointer}) = ${initval};}, statements);}
+      
 }
 
 void install_pointer(expptr type, expptr var, expptr initval){
@@ -188,7 +190,8 @@ expptr insertions(){
     if(newp(sym)){
       ucase{getprop(sym,`{declaration},NULL); 
 	{?type ?f(!args);}:{push(`{symbol_value[${int_exp(symbol_index(f))}] = ${f};}, result);}
-	{?type * ?var;}:{push(`{symbol_value[${int_exp(symbol_index(var))}] = ${getprop(var,`{initval},NULL)};}, result)}
+	{?type * ?var;}:{
+	  push(`{symbol_value[${int_exp(symbol_index(var))}] = ${getprop(var,`{initval},NULL)};}, result)}
 	{!e}:{}}}}
   return result;
 }
