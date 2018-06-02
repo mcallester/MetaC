@@ -1,14 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <math.h>
-#include <setjmp.h>
-#include <time.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/file.h>
-#include <fcntl.h>
 #include "mc.h"
 
 void add_init_form(expptr form){
@@ -43,9 +32,3 @@ void mcC_init(){
   set_macro(`{init_form}, init_form_macro);
   set_macro(`{init_fun}, init_fun_macro);
 }
-
-
-
- 
-
-  

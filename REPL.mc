@@ -12,26 +12,14 @@
 #include <string.h>
 #include "mc.h"
 
-expptr load(expptr forms, expptr value);
+expptr load(expptr forms);
 
-expptr eval(expptr statement);
-
-//the following are used in the expansion of set_base_values()
-
-expptr preamble;
-expptr env_syms;
-void preprocess(expptr);
-int rep_column;
-
-void eval_statement(expptr s){
-  load(append(preamble,append(init_forms,cons(s,NULL))),NULL);
-  fprintf(stdout,"\ndone\n\n");
+void MC_doit(expptr e){
+  fputc('\n',stdout);
+  pprint(load(append(preamble,append(init_forms,cons(e,NULL)))),stdout,0);
 }
 
-void eval_expression(expptr e){
-  expptr val = load(append(preamble,init_forms),e);
-  fputc('\n',stdout);
-  pprint(val,stdout,rep_column);}
+int rep_column;
 
 void read_eval_print(){
   rep_column += 3;
@@ -49,15 +37,14 @@ void read_eval_print(){
 	  {describe(?sym)}:{
 	    indent(rep_column);
 	    pprint(getprop(sym,`{declaration},NULL),stdout,rep_column);}
-	  {!s;}:{eval_statement(e);}
-	  {?type ?f(!args){!body}}:{eval_statement(e);}
-	  {{!s}}:{eval_statement(e);}
-	  {!e}:{eval_expression(e);}
+	  {!s;}:{MC_doit(e);}
+	  {?type ?f(!args){!body}}:{MC_doit(e);}
+	  {{!s}}:{MC_doit(e);}
+	  {!e}:{MC_doit(`{return ${e};})}
 	}})
       }
   rep_column -=3;
 }
-
 
 int main(int argc, char **argv){
   mcA_init();
@@ -66,11 +53,11 @@ int main(int argc, char **argv){
   mcD_init();
   mcE_init1();
   mcE_init2();
-
+  rep_column = -3;
+  
   catch_error(insert_base_values())
   if(error_flg != 0)return error_flg;
-  
-  rep_column = -3;
+
   read_eval_print();
   return 0;
 }

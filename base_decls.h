@@ -149,7 +149,8 @@ voidptr undo_alloc(int size);
 stack frames
 ========================================================================**/
 
-voidptr stack[STACK_DIM];
+voidptrptr stack;
+
 void push_stack_frame();
 void push_stack_frame2(voidptr frame);
 void pop_stack_frame();

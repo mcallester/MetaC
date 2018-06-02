@@ -1,4 +1,15 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <math.h>
+#include <setjmp.h>
+#include <time.h>
 #include <dlfcn.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/file.h>
+#include <fcntl.h>
+#include <string.h>
 
 typedef char * charptr;
 typedef void * voidptr;

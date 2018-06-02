@@ -1,15 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <math.h>
-#include <setjmp.h>
-#include <time.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/file.h>
-#include <fcntl.h>
-#include <string.h>
 #include "mc.h"
 
 /** ========================================================================
@@ -388,7 +376,7 @@ int whitep(char x){return (x == ' ' || x == '\t' || x == '\n');}
 
 int closep(char x){return ((x)==')' || (x)=='}' || (x) == ']');}
 
-int terminatorp(char c){return (closep(c) || c == EOF || c == '\0' || c == ';');}
+int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
 
 char close_for(char o){
   if(o == '(')return  ')';
@@ -624,7 +612,9 @@ expptr mcread_tree(int p1){
   expptr op2 = mcread_connective();
   int p2 = op_precedence(op2);
   while(p2 > p1 || (p2 == p1 && p1 != 0 && p1 < LEFT_THRESHOLD) || (p1 == 0 && readchar ==';')){
-    if(p1 == 0 && readchar == ';'){ //op2 == NULL in this case
+    if(p1 == 0 && readchar == ';'){
+      if(op2 != NULL){
+	a1 = intern_exp('O',op2,intern_exp(' ',a1,NULL));}
       a1 = intern_exp(';',a1,NULL);
       advance_readchar_past_white();
       op2 = mcread_connective();
@@ -673,7 +663,9 @@ expptr mcread_symbol(){
 }
 
 expptr mcread_connective(){ //same as mcread_symbol but for strings of operator symbols.
-  if(terminatorp(readchar) || (readchar == '\n' && read_stream == terminal_stream && paren_level == 0)) return NULL;
+  if(terminatorp(readchar)
+     || readchar == ';'
+     || (readchar == '\n' && read_stream == terminal_stream && paren_level == 0)) return NULL;
   if(!binaryp(readchar))return intern_exp('o',(expptr) intern_string(" "), NULL);
   int i=0;
   while(binaryp(readchar)){
@@ -733,9 +725,7 @@ expptr mcread_open(){ // readchar is openp
 }
 
 /** ========================================================================
-printing to a string
-
-This is used in mcE for constructing system calls --- system calls take strings.
+printing to a string.  This is used for incorporating an expression into a string in fprintf.
 ========================================================================**/
 
 void putone(char c){
@@ -1017,9 +1007,6 @@ expptr top_symbol(expptr e){
 }
   
 expptr macroexpand1(expptr e){
-  if(constructor(e) == 'a'){
-    expptr expansion = getprop(e,string_symbol("symbol_macro_expansion"),NULL);
-    if(expansion != NULL)return expansion;}
   if(atomp(e))return e;
   expptr s = top_symbol(e);
   if(s == NULL)return e;
