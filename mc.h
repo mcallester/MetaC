@@ -69,9 +69,16 @@ cbreak, berror and macro_error
 
 see berror and macro_error in mcA.mc
 ========================================================================**/
+
 void cbreak();
 
 void berror(char *s);
+
+void activate_break();
+
+void deactivate_break();
+
+void act_break();
 
 #define EPHEMERAL_DIM (1<<10)
 char ephemeral_buffer[EPHEMERAL_DIM];
@@ -110,6 +117,9 @@ typedef struct expstruct{
   struct expstruct * arg1;
   struct expstruct * arg2;
 }expstruct,*expptr;
+
+
+void uerror(expptr);
 
 expptr intern_exp(char constr, expptr arg1, expptr arg2);
 

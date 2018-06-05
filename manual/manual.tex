@@ -58,105 +58,72 @@ MC>
 In the above example the backquote expression given to the REPL macro-expands to a C expression which evaluates to the expression ``hello world''.
 Backquote is described in more detail below.
 
+\subsection{C Statements, C expressions, and UAS Expressions}
+
 We can also declare global variables and execute statements from the REPL.
 
 \begin{verbatim}
-MC> int x;
+MC> int x[10];
 
 done
 
-MC> x = 2;
+MC> for(int i = 0; i < 10; i++)x[i] = i;
 
 done
 
-MC> x += 1;
+MC> for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
 
-done
+0123456789done
 
-MC> int_exp(x)
+MC>int_exp(x[5])
 
-3
+5
 
 MC>
 \end{verbatim}
 
-In C syntax one distinguishes C expressions from C statements.  A C statement is executed for effect while a C expression is evaluated for value. When given a C statement, the REPL simply prints ``done'' after executing the statement.  When given a C expression
-the REPL computes and prints the value.  The REPL assumes that the value of a C expression is a UAS tree (also called a UAS expression giving a second, and confusing, sense of the term ``expression''). The procedure {\tt int\_exp} above converts an integer to a UAS expression.
-UAS expressions are abstract syntax trees but can viewed as representations of strings.
-Backquote can be used in a manner analogous to string formatting.
+In C syntax one distinguishes C expressions from C statements.  A C
+statement is executed for effect while a C expression is evaluated for
+value. The REPL can be given either a statement or an expression.  When
+given a C statement, the REPL simply prints ``done'' after executing
+the statement.
+When given a C expression the REPL computes and prints
+the value.  The REPL assumes that the value of a C expression
+is a UAS tree (also called a UAS expression giving a second, and confusing,
+sense of the term ``expression''). The procedure {\tt int\_exp} above
+converts an integer to a UAS expression.  UAS expressions are abstract
+syntax trees but can viewed as representations of strings.
+
+If a C statement executes a {\tt return} outside of any
+procedure then that value is returned to the REPL and printed.
+For example, the above session can be extended with the following.
 
 \begin{verbatim}
-MC> expptr friend = `{Bob Givan};
+MC>{int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
 
-done
-
-MC> int height = 6;
-
-done
-
-MC> `{My friend ${friend} is ${int_exp(height)} feet tall.}
-
-My friend Bob Givan is 6 feet tall.
-
-MC> 
-\end{verbatim}
-
-\subsection{Tree Structure}
-
-While UAS expressions can be viewed as representations of strings, UAS expressions are actually abstract syntax trees. The tree structure
-plays an important role in pattern matching. The tree structure is more apparent in the following example.
-
-\begin{verbatim}
-MC> expptr x = `{a+b};
-
-done
-
-MC> `{bar(${x})}
-
-bar(a+b)
+45
 
 MC>
 \end{verbatim}
 
-The pattern {\tt foo(!x)} will match the expression {\tt foo(a+b)} with {\tt x} bound to the expression (tree) {\tt a+b}.
-Pattern matching is described in more detail below.
-
-It is sometimes convenient to use a Gnu C extension in which a basic block defines an expression.  For example,
-{\tt (\{int x = 2; 5*x;\})} is a C expression (as opposed to a C statement) whose value is 10.  Exploiting this extension have the following.
-
-\begin{verbatim}
-MC>({expptr x = `{a+b}; `{bar(${x})};})
-
-bar(a+b)
-
-MC>
-\end{verbatim}
-
-\subsection{Incremental Type and Procedure Definition}
+\subsection{Definitions of Types and Procedures}
 
 One can also define new data types and procedures from the REPL.
 
 \begin{verbatim}
 
-MC> typedef struct expliststruc{
-  expptr car;
-  struct expliststruct * cdr;
-} *explist;
+MC> typedef struct expliststruct{
+      expptr car;
+      struct expliststruct * cdr;
+    } expliststruct, *explist;
 
 done
 
-MC> explist cons(expptr x, explist l){ ...}
-
-done
-
-MC> typedef expptr exp_to_exp (expptr);
-
-done
-
-MC> explist mapcar(exp_to_exp f, explist l){
-     if(l == NULL)return NULL;
-     return cons(f(l->car),mapcar(f,l->cdr));
-}
+MC> explist mycons(expptr x, explist l){
+      explist cell = malloc(sizeof(expliststruct));
+      cell->car = x;
+      cell->cdr = l;
+      return cell;}
 
 done
 
@@ -167,20 +134,91 @@ MC> expptr list_exp(explist l){
 
 done
 
-MC> list_exp(cons(`{foo},cons(`{bar},NULL))
+MC> list_exp(mycons(`{foo},mycons(`{bar},NULL)))
 
 foo bar
 
 MC>
 \end{verbatim}
 
-The function {\tt cons} involves memory allocation and the definition has been omitted.  MetaC provides a couple approaches to memory management described below.
-The type explist exposes a weakness in the C type system --- we would like a polymorphic cons supporting many different types of elements
-of lists. Also, in an object-oriented language each class should specify a method for converting instances of that class to expressions for the purpose of printing.
-More reasonable languages (or frameworks) can be implemented as MetaC macro packages.
+Procedures can also be redefined at the REPL provided that the
+signature (argument types and return type) remains the same.  In the
+current implementation (June 5, 2018) changing a procedure signature
+requires restarting the MetaC REPL.  This restricting ensures
+meaningful C type checking in the presence of dynamic linking.
 
-To simplify the implementation of MetaC all type expressions appearing in procedure definitions must be single symbols. Arbitrary types can be given single symbol names
-using typedef as in the definition of the type {\tt exp\_to\_exp} above.
+\subsection{The Global Variable Array Restriction}
+
+To simplify dynamaic linking, all global data
+variables must be arrays. One can always use single element
+arrays to represent non-array variables.  To make this more convenient
+we allow single element arrays to be declared with an initial value in a
+manner similar to non-array data variables.  For example, we can declare and assign a variable {\tt y}
+as follows.
+
+\begin{verbatim}
+MC> int y[0] = 2;
+
+done
+
+MC> y[0] += 1;
+
+done
+
+MC> int_exp(y[0])
+
+3
+
+MC>
+\end{verbatim}
+
+Here assignments to $y[0]$ are allowed but assignments to $y$ are not --- assignment to array variables
+are not allowed in $C$. As noted above, this restriction greatly simplifies dynamic linking of data variables.
+
+\subsection{The Single Symbol Type Restriction}
+
+To simplify the implementation of MetaC all type expressions appearing in procedure signatures and global array declarations must be single symbols.
+Arbitrary types can be given single symbol names using {\tt typedef}.
+
+\section{Backquote and UAS Expression Trees}
+
+We now consider backquote and UAS expressions in more detail.  Backquote can be used in a manner analogous to string formatting.
+
+\begin{verbatim}
+MC> expptr friend[0] = `{Bob Givan};
+
+done
+
+MC> int height[0] = 6;
+
+done
+
+MC> `{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
+
+My friend Bob Givan is 6 feet tall.
+
+MC> 
+\end{verbatim}
+
+While UAS expressions can be viewed as representations of strings, UAS
+expressions are actually abstract syntax trees. The tree structure
+plays an important role in pattern matching. The tree structure is
+more apparent in the following example.
+
+\begin{verbatim}
+MC> expptr x[0] = `{a+b};
+
+done
+
+MC> `{bar(${x[0]})}
+
+bar(a+b)
+
+MC>
+\end{verbatim}
+
+The pattern {\tt foo(!x)} will match the expression {\tt foo(a+b)} with {\tt x} bound to the expression (tree) {\tt a+b}.
+Pattern matching is described in more detail below.
 
 \subsection{Pattern Matching}
 
@@ -201,10 +239,11 @@ For example we might write the following.
 \begin{verbatim}
 int value(expptr e){
   ucase{e;
-   {!x+!y}:{return value(x)+value(y);};
-   {!x*!y}:{return value(x)*value(y);};
-   {(!x)}:{return value(x);};
+   {!x+!y}:{return value(x)+value(y);}
+   {!x*!y}:{return value(x)*value(y);}
+   {(!x)}:{return value(x);}
    {?z}:{return symbol_int(z);}}
+return 0;
 }
 \end{verbatim}
 
@@ -215,29 +254,28 @@ will not match the string {\tt a+b*c} because {\tt +} is above (outer to) {\tt *
 As of June 2018 repeated variables, such as in the pattern {\tt \{!x + !x\}}, are not supported (and not checked for).
 If a variable is repeated it will be matched at its last occurrences under depth-first left to right traversal.
 
-As another example we consider a code fragment used in the expansion of an iteration macro.
+\subsection{Gensym and Macro Definitions}
+
+MetaC supports computed macros which can exploit pattern matching, backquote pattern instantiation, and other (bootstrapped) high level language features.
+As a very simple example we can define a {\tt dolist} macro at the REPL.
 
 \begin{verbatim}
-ucase{e;
-   {dolist(?x, !L){!body}}:{
-     rest = gensym(`{rest});
-     return `{for(list ${rest} = ${L};
+MC> umacro{mydolist(?x, !L){!body}}{
+     expptr rest = gensym(`{rest});
+     return `{for(explist ${rest} = ${L};
                   ${rest} != NULL;
-                  ${rest} = cdr(${rest});)
-               ${body}}}
-\end{verbatim}
+                  ${rest} = ${rest}->cdr;)
+               {expptr ${x} = ${rest}->car; ${body}}}}
 
-\subsection{Macros}
+done
 
-We can define a {\tt dolist} macro as follows.
+MC>macroexpand(`{dolist(item,list){f(item);}})
 
-\begin{verbatim}
-umacro{dolist(?x, !L){!body}}:{
-     rest = gensym(`{rest});
-     return `{for(list ${rest} = ${L};
-                  ${rest} != NULL;
-                  ${rest} = cdr(${rest});)
-               ${body}}}
+for(explist _mcgen_rest1=list; _mcgen_rest1 !=NULL; _mcgen_rest1=_mcgen_rest1->cdr;)
+    {expptr item=_mcgen_rest1->car;
+     f(item);}
+
+MC>
 \end{verbatim}
 
 The general form of a macro definition is
@@ -247,19 +285,6 @@ umacro{<pattern>}{<body>}
 where instances of <pattern> in MetaC code are to be replaced by the value of <body> under the variable bindings determined by the match.  The procedure {\tt macroexpand} takes a UCS expression
 an returns the result of repeatedly expanding macros until no more macro expansion is possible.  Macro expansion can generate effects as well as return an expansion.  The REPL performs
 macro expansion on the given expression and also performs the effects of that expansion.  {\tt umacro} is itself a MetaC macro and we can feed the above macro definition to the REPL.
-
-\begin{verbatim}
-MC> umacro{dolist(?x, !L){!body}}:{
-     rest = gensym(`{rest});
-     return `{for(list ${rest} = ${L};
-                  ${rest} != NULL;
-                  ${rest} = cdr(${rest});)
-               ${body}}}
-
-done
-
-MC>
-\end{verbatim}
 
 The macro expansion of the above macro definition defines a procedure to compute the macro expansion and installs that procedure on a macro property of the symbol {\tt dolist}.
 In general a macro patterns must either be an application expression or a binary connection expressions.  The procedure for macro expansion is attached to either the head symbol of the application

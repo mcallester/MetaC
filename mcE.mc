@@ -1,17 +1,41 @@
 #include "mc.h"
 
+/** ========================================================================
+In this implementation all global data variables must be arrays.
+We can replace a declaration
+
+    <type>  x;
+
+by
+
+   <type> x[1];
+
+and replace x by x[0] throughout the code.
+
+An array variable x can be dynamically linked into the DLL code in such a way that assignments
+to x[i] in the DLL code do the right thing.  This is not true of assignments
+to x as opposed to assignments to x[i]. To support assignment to x (as opposed to x[i])
+we need to be able to identify the FREE occurances of x in the code. This implementation
+does not support that level of analysis of the C code.
+
+MetaC is designed to create new languages.  The implementation of a new language will support
+better code analysis of the new langauge.
+======================================================================== **/
+
 expptr file_preamble;
-expptr declarations;
+expptr signatures;
 expptr procedures;
-expptr base_datavars; //used only to communicate between install_base and insert_base_values.
-expptr file_statements;
-expptr doit_statements;
+expptr arrays;
+
+expptr new_procedures;
+expptr new_arrays;
+expptr new_statements;
 
 int compilecount;
 int symbol_count;
 
 expptr args_variables(expptr args);
-void install(expptr decl);
+void install(expptr sig);
 voidptr compile_load_file(charptr fstring);
 void install_preamble(expptr);
 void install_var(expptr,expptr,expptr);
@@ -19,54 +43,64 @@ void install_proc(expptr,expptr,expptr,expptr);
 int symbol_index(expptr);
 expptr symbol_index_exp(expptr);
 void unrecognized_statement(expptr form);
-void write_sig(expptr);
-void write_proc(expptr);
 expptr proc_def(expptr f);
-expptr symbol_expand(expptr e);
 void install_base();
 
 void mcE_init2(){
   file_preamble = NULL;
-  declarations = NULL;
+  arrays = NULL;
   procedures = NULL;
   symbol_count = 0;
-  install_base();
+  install_base();  //eval-when compile and load (run in both expandE and REPL).
   compilecount = 0;
 }
 
 void install_base(){
-  base_datavars = NULL;
-  dolist(decl,file_expressions(`{base_decls.h})){
-    ucase{decl;
+  dolist(sig,file_expressions(`{base_decls.h})){
+    ucase{sig;
       {?type ?f(!args);}:{
-	setprop(f,`{signature},decl);
+	symbol_index(f);  //synchoronizes compile and load indeces.
 	push(f,procedures);
-	push(decl,declarations);
-	symbol_index(f);} // establish base indeces
-      {?type ?x;}:{
-	setprop(x,`{symbol_macro_expansion},
-		`{(* (${type} *) symbol_value_copy[${symbol_index_exp(x)}])});
-	push(decl,declarations);
-	push(x,base_datavars);
-	symbol_index(x);} // establish base indeces
+	push(sig,signatures);
+	setprop(f,`{signature},sig);}
+      {?type ?x[?dim];}:{
+	symbol_index(x);  //synchoronizes compile and load indeces.
+	push(x,arrays);
+	push(sig,signatures);
+	setprop(x,`{signature},sig);}
       {!e}:{push(e,file_preamble);}}}
 }
 
 /** ========================================================================
-The macro insert_base_values() appears at the beginning of main in REPL.mc.
-It is expanded by expandE after expandE calls mcE_init2().
+The REPL must start with the base symbols inserted.  The following is run at "load time".
+The macro insert_base() appears at the beginning of main in REPL.mc.
+It is expanded during the compilation of REPL (by expandE) after running install_base().
 ======================================================================== **/
-  
-umacro{insert_base_values()}{
+
+umacro{insert_base()}{
   expptr result = NULL;
   dolist(f,procedures){
     push(`{symbol_value[${symbol_index_exp(f)}] = ${f};}, result);}
-  dolist(x,base_datavars){
-    push(`{symbol_value[${symbol_index_exp(x)}] = & ${x};}, result);}
+  dolist(X,arrays){
+    push(`{symbol_value[${symbol_index_exp(X)}] = ${X};}, result);}
   return result;
 }
 
-init_fun(mcE_init1)  //this just installs the init-form for the above macro.
+init_fun(mcE_init1)  //mcE_init1 just installs the above macro.
+
+expptr new_procedure_insertion (expptr f){
+  return `{symbol_value[${symbol_index_exp(f)}] = ${f};};
+}
+
+expptr new_array_insertion (expptr x){
+  ucase{getprop(x,`{signature},NULL);
+    {?type ?x[?dim];}:{return `{symbol_value[${symbol_index_exp(x)}] = malloc(${dim}*sizeof(${type}));};}}
+  return NULL; //avoids compiler warning
+}
+
+expptr array_extraction (expptr x){
+  return `{${x} = symbol_value[${symbol_index_exp(x)}];};
+}
 
 /** ========================================================================
 The load function is given a list of fully macro-expanded expressions.
@@ -78,22 +112,32 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
   char * s = sformat("TEMP%d.c",compilecount);
   open_output_file(s);
 
-  file_statements = NULL;
-  doit_statements = NULL;
-
+  new_procedures = NULL;
+  new_arrays = NULL;
+  new_statements = NULL;
+  
   mapc(install,forms);
   dolist(form,reverse(file_preamble)){print_line(form,fileout);}
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
-  dolist(form,reverse(declarations)){pprint(form,fileout,0);}
-  dolist(f,procedures){pprint(symbol_expand(proc_def(f)),fileout,0);}
-  dolist(form,reverse(file_statements)){pprint(symbol_expand(form),fileout,0);}
+
+  //variable declarations
+  dolist(f,procedures){pprint(getprop(f,`{signature},NULL),fileout,0);}
+  dolist(x,arrays){
+    ucase{getprop(x,`{signature},NULL);
+      {?type ?x[?dim];}:{pprint(`{${type} * ${x};},fileout,0);}}}
+
+  //procedure value extractions.  array extractions are done in doit.
+  dolist(f,procedures){pprint(proc_def(f),fileout,0);} 
 
   pprint(`{
       expptr _mc_doit(voidptr * symbol_value){
 	symbol_value_copy = symbol_value;
-	${symbol_expand(reverse(doit_statements))}
-	return `{done};}},
+	${mapcar(new_procedure_insertion, new_procedures)}
+	${mapcar(new_array_insertion, new_arrays)}
+	${mapcar(array_extraction, arrays)} // procedure extractions are done by procdefs above
+	${reverse(new_statements)}
+	return string_symbol("done");}},
     fileout,0);
   fclose(fileout);
   
@@ -110,67 +154,56 @@ void install(expptr statement){ //only the following patterns are allowed.
     {#define !def}:{install_preamble(statement);}
     {#include < !file >}:{install_preamble(statement);}
     {#include !x}:{install_preamble(statement);}
-    {?type ?var;}:{install_var(type,var,NULL);}
-    {?type ?var = !e;}:{install_var(type,var,e);}
-    {?type ?X[?dim];}:{
-      install_var(`{${type} *},X,`{malloc(${dim}*sizeof(${type}))})}
+    {?type ?X[0];}:{install_var(type,X,`{1})}
+    {?type ?X[0] = !e;}:{install_var(type,X,`{1}); push(`{${X}[0] = ${e};},new_statements);}
+    {?type ?X[?dim];}:{install_var(type,X,dim)}
     {?type ?f(!args){!body}}:{install_proc(type, f, args, body);}
-    {return !e;}:{push(statement,doit_statements);}
+    {return !e;}:{push(statement,new_statements);}
     {?type !e;}:{unrecognized_statement(statement);}
     {?type * !e;}:{unrecognized_statement(statement);}
-    {!e;}:{push(statement,doit_statements)}
-    {{!statement}}:{push(statement,doit_statements)}
+    {!e;}:{push(statement,new_statements)}
+    {{!statement}}:{push(statement,new_statements)}
     {!e}:{unrecognized_statement(statement)}}
 }
 
 void install_preamble(expptr e){
-  if(!getprop(e,`{installed},NULL))
-    file_preamble = append(file_preamble,(cons(e,NULL)));
+  if(!getprop(e,`{installed},NULL)){
+    push(e,file_preamble);
     setprop(e,`{installed},`{true});}
 }
 
-void install_var(expptr type, expptr var, expptr initval){
-  expptr oldtype = getprop(var,`{type},NULL);
-  expptr replacement = `{(* (${type} *) symbol_value_copy[${symbol_index_exp(var)}])};
-  if(oldtype != NULL && type != oldtype)berror("attempt to change variable type");
-  if(oldtype == NULL){
-    setprop(var,`{type},type);
-    //the variable does not need to be declared --- it does not exist in the dll.
-    setprop(var,`{symbol_macro_expansion}, replacement);
-    push(`{symbol_value[${symbol_index_exp(var)}] = malloc(sizeof(${type}))}, doit_statements);}
-  expptr oldinit = getprop(var,`{initval},NULL);
-  if(oldinit != NULL && initval != oldinit){
-    setprop(var,`{initval},initval);
-    push(`{${replacement} = ${initval};}, doit_statements);}
+void install_var(expptr type, expptr X, expptr dim){
+  expptr oldsig = getprop(X,`{signature}, NULL);
+  expptr newsig = `{${type} ${X}[${dim}];};
+  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change ${oldsig} to ${newsig}});
+  if(oldsig == NULL){
+    setprop(X,`{signature},newsig);
+    push(X, arrays);
+    push(newsig,signatures);
+    push(X,new_arrays);}
 }
 
 void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   expptr oldsig = getprop(f,`{signature}, NULL);
-  expptr newsig = `{${type} ${f}(${args})};
-  if(oldsig != NULL && newsig != oldsig)berror("attempt to change procedure signature");
+  expptr oldbody = getprop(f,`{body},NULL);
+  expptr newsig = `{${type} ${f}(${args});};
+  if(oldsig != NULL && newsig != oldsig)uerror(`{{attempt to change} ${oldsig} to ${newsig}});
   if(oldsig == NULL){
     setprop(f,`{signature},newsig);
-    push(newsig, declarations);}
-  expptr oldbody = getprop(f,`{body},NULL);
-  if(newbody != NULL && newbody != oldbody) setprop(f,`{body}, newbody);
-  if(oldsig == NULL || newbody != oldbody){
-    push(`{symbol_value[${symbol_index_exp(f)}] = ${f};}, doit_statements);
+    push(f, procedures);
+    push(newsig,signatures);}
+  if(oldsig == NULL || oldbody == NULL || oldbody != newbody){
+    push(f, new_procedures);
+    setprop(f,`{body},newbody);
     setprop(f,`{new},`{true});}
 }
 
-expptr symbol_expand(expptr e){
-  if(e == NULL)return e;
-  if(constructor(e) == 'a'){
-    expptr expansion = getprop(e,`{symbol_macro_expansion},NULL);
-    if(expansion != NULL)return expansion;}
-  if(atomp(e))return e;
-  return intern_exp(constructor(e),symbol_expand(arg1(e)),symbol_expand(arg2(e)));
-}
-
 void unrecognized_statement(expptr form){
-  fprintf(stderr,"unrecognized statement %s\n", exp_string(form));
-  fprintf(stderr,"you may need to define single-symbol types\n");
-  berror("");
+  uerror( `{{unrecognized statement}
+      ${form}
+      {types must be single symbols}
+      {all global variables must be arrays}
+    });
 }
 
 int symbol_index(expptr sym){
@@ -190,7 +223,6 @@ expptr symbol_index_exp(expptr sym){
 expptr proc_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
     {?type ?f(!args);}:{
-      if(f == `{cons})cbreak();
       if(getprop(f,`{new},NULL)){
 	setprop(f,`{new},NULL);
 	return `{${type} ${f}(${args}){${getprop(f,`{body},NULL)}}};}
@@ -219,7 +251,8 @@ voidptr compile_load_file(charptr fstring){
   char * s3 = sformat("./%s.so",fstring);
   voidptr header = dlopen(s3, RTLD_LAZY|RTLD_GLOBAL);
   if(header == NULL){
-    fprintf(stderr,"unable to open shared library %s with error %i\n", s3, (*dlerror()));
+    fprintf(stderr,"\nunable to open shared library %s with error %s\n", s3, dlerror());
+    fprintf(stderr,"\n evaluation aborted\n\n");
     throw_error();}
   return header;
 }

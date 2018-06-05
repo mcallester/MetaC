@@ -41,6 +41,12 @@ void cbreak();
 
 void berror(charptr s);
 
+void activate_break();
+
+void deactivate_break();
+
+void act_break();
+
 
 /** ========================================================================
 interning (procedures called by the expansion of backquote)
@@ -88,7 +94,7 @@ int symbol_int(expptr s);
 gensym
 ========================================================================**/
 
-expptr gensym(charptr s);
+expptr gensym(expptr s);
 
 
 /** ========================================================================

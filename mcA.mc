@@ -11,6 +11,16 @@ cbreak, berror
 
 void cbreak(){};
 
+int break_active;
+
+void activate_break(){break_active = 1;}
+
+void deactivate_break(){break_active = 0;}
+
+void act_break(){
+  if(break_active)cbreak();
+}
+
 void push_dbg_expression(expptr e){
   if(dbg_freeptr == DBG_DIM)berror("debugging stack exhausted");
   dbg_stack[dbg_freeptr++] = e;
@@ -26,8 +36,14 @@ void berror(char *s){
   if(dbg_freeptr > 0){
     fprintf(stderr,"in \n");
     pprint(dbg_stack[dbg_freeptr-1],stderr,0);}
+  fflush(stdin);
   cbreak();
   throw_error();}
+
+void uerror(expptr e){
+  push_dbg_expression(e);
+  berror("");
+}
 
 /** ========================================================================
 push_stack_frame, pop_stack_frame, and stack_alloc
@@ -339,7 +355,7 @@ int getprop_int(expptr e, expptr key, int defaultval){
 }
 
 /** ========================================================================
-character properties. The character '/n' has different properties
+character properties. The character '\n' has different properties
 when reading from files vs. the terminal.
 
 
@@ -432,27 +448,25 @@ input with paren_level > 0.
 
 mcread_open maintains the invariant that when advance_readchar is called we have that paren_level is the level of the position immediately preceding read_stream->next
 ========================================================================**/
+
 char readchar;
 
 typedef struct wrapper{
   FILE * stream;
   char next;
-  char next2;
-  char quotechar;
-  int paren_level;} wrapper, * wstream;
+  char next2;} wrapper, * wstream;
 
 wstream file_stream;
 wstream terminal_stream;
 wstream read_stream;
 
 int paren_level;
+char quotechar; //this is internal to preprocessing, mcread_string uses its own flag.
 
 wstream cwrap_stream(FILE * f);
 void advance_readchar();
 
 void init_lookahead(wstream s){
-  s->quotechar = 0;
-  (s->paren_level) = 0;
   s->next = ' ';
   s->next2 = ' ';
 }
@@ -463,8 +477,7 @@ void open_input_file(char * source){
   file_stream = cwrap_stream(filein);
 }
 
-void skipwhite(){while(whitep(readchar) && !(readchar == '\n' && read_stream == terminal_stream && paren_level == 0)){advance_readchar();}
-}
+void skipwhite(){while(whitep(readchar))advance_readchar();}
 
 void advance_readchar_past_white(){
   advance_readchar();
@@ -487,8 +500,8 @@ void print_stream_state(){
 
 void advance_lookahead(){
   char nextchar;
-  if(read_stream->next2 == EOF){nextchar = EOF;}
-  else {nextchar = fgetc(read_stream->stream);}
+  if(read_stream->next2 == EOF)nextchar = EOF;
+  else nextchar = fgetc(read_stream->stream);
   read_stream->next = read_stream->next2;
   read_stream->next2 = nextchar;
 }
@@ -498,7 +511,7 @@ void advance_readchar(){
   
   //the following removes comments and quoted returns.
 
-  if(read_stream->quotechar == 0){
+  if(quotechar == 0){
     while(1){
       if(read_stream->next == '/' && read_stream->next2 == '*'){
 	if(read_stream == terminal_stream && paren_level == 0)
@@ -517,41 +530,42 @@ void advance_readchar(){
 	}}
       else if(read_stream->next == '\\'
 	      && read_stream->next2 == '\n'
-	      && read_stream->quotechar == 0){
+	      && quotechar == 0){
 	advance_lookahead();
 	advance_lookahead();}
       else break;}}
 
   //file segmentation
   if(read_stream == file_stream
-     && read_stream->quotechar == 0
+     && quotechar == 0
      && read_stream->next == '\n'
      && !whitep(read_stream->next2)
      && !closep(read_stream->next2)){
        read_stream->next = '\0';}
 
-  if(read_stream == terminal_stream
-     && read_stream->quotechar == 0
-     && read_stream->paren_level == 0){
-    if(read_stream->next2 == '\n'){
-      readchar = read_stream->next;
-      read_stream->next = read_stream->next2;
-      read_stream->next2 = ' ';
-      return;}
-    if(read_stream->next == '\n'){
-      readchar = '\0';
-      read_stream->next = read_stream->next2;;
-      read_stream->next2 = ' ';
-      return;}}
-
-  //setting readchar
   readchar = read_stream->next;
-  advance_lookahead();
+  
+  if(read_stream == terminal_stream){
+    //ensuring immediate response at the terminal
+    //and limiting non-terminated quotations
 
-  //maintaining the quotation flag
+    int lookahead_level = paren_level;
+    if(openp(read_stream->next))lookahead_level++;
+    if(closep(read_stream->next))lookahead_level--;
+    
+    if(read_stream->next2 == '\n' && (quotechar != 0 ||  lookahead_level == 0)){
+      read_stream->next = '\0';
+      read_stream->next2 = ' ';}
+    else if(read_stream->next == '\0'){
+      read_stream->next = ' ';
+      read_stream->next2 = ' ';}
+    else advance_lookahead();}
+  else advance_lookahead();
+
+  //maintaining quotechar
   if(string_quotep(read_stream->next)){
-    if(read_stream->quotechar == 0){read_stream->quotechar = read_stream->next;}
-    else if(readchar != '\\' && read_stream->next == read_stream->quotechar){read_stream->quotechar = 0;}}
+    if(quotechar == 0){quotechar = read_stream->next;}
+    else if(readchar != '\\' && read_stream->next == quotechar){quotechar = 0;}}
 }
 
 /** ========================================================================
@@ -597,9 +611,12 @@ char last_readchar;
 expptr read_from(wstream s){
   read_stream = s;
   paren_level = 0;
-  advance_readchar_past_white();   //readchar is undefined on entry.  This sets readchar.
+  quotechar = 0;
+
+  //readchar is undefined on entry.  The following sets readchar.
+  advance_readchar_past_white();
   return mcread_tree(0);
-  //on return readchar is either 0 or EOF and is ignored in future calls to read_from.
+  //on return readchar is either '\0' or EOF
 }
 
 expptr read_from_terminal(){return read_from(terminal_stream);}
@@ -626,6 +643,7 @@ expptr mcread_tree(int p1){
       p2 = op_precedence(op2);}}
   readop = op2;
   return a1;
+  if(whitep(readchar))berror("white space on return of mcread_tree");
 }
 
 expptr mcread_atom(){
@@ -663,9 +681,7 @@ expptr mcread_symbol(){
 }
 
 expptr mcread_connective(){ //same as mcread_symbol but for strings of operator symbols.
-  if(terminatorp(readchar)
-     || readchar == ';'
-     || (readchar == '\n' && read_stream == terminal_stream && paren_level == 0)) return NULL;
+  if(terminatorp(readchar) || readchar == ';') return NULL;
   if(!binaryp(readchar))return intern_exp('o',(expptr) intern_string(" "), NULL);
   int i=0;
   while(binaryp(readchar)){
@@ -680,6 +696,9 @@ expptr mcread_connective(){ //same as mcread_symbol but for strings of operator 
 }
 
 expptr mcread_string(){ // readchar is either " or '
+  //we must prevent an unterminated string from swalling all further input.
+  //in files segmentation should solve the problem.
+  //from the terminal we do not allow return characters in strings.
   int i = 0;
   char q = readchar;
   advance_readchar();
@@ -702,10 +721,7 @@ expptr last_parens;
 void declare_unmatched(){
   fprintf(stderr,"unmatched parentheses after:\n\n");
   pprint(last_parens,stderr,0);
-  if(read_stream == terminal_stream){
-      while(readchar != '\n')readchar = fgetc(stdin);}
-  else
-    berror("");
+  berror("");
 }
 
 expptr mcread_open(){ // readchar is openp
@@ -1104,6 +1120,7 @@ section: initialization
 ========================================================================**/
 
 void mcA_init(){
+  break_active = 0;
   init_stack_frames();
   init_undo_frames();
   init_strings();
