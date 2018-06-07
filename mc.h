@@ -208,7 +208,7 @@ expptr read_from_terminal();
 expptr read_from_file();
 void pprint(expptr e, FILE * f, int i);
 void print_line(expptr e, FILE * f);
-void gud_pprint(expptr e);
+void printexp(expptr e);
 void put_return(FILE * ws);
 
 
@@ -278,4 +278,4 @@ void mcD_init();
 void mcE_init1();
 void mcE_init2();
 
-
+int rep_column;

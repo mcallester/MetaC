@@ -6,9 +6,9 @@ expptr constructor_code(char c);
 
 void match_failure(expptr value, expptr patterns){
   fprintf(stderr,"\n match error: the value \n\n");
-  gud_pprint(value);
+  printexp(value);
   fprintf(stderr,"Does not match any of\n\n");
-  gud_pprint(patterns);
+  printexp(patterns);
   berror("");
 }
 

@@ -33,15 +33,11 @@ void pop_dbg_stack(){
 
 void berror(char *s){
   fprintf(stderr,"%s\n",s);
-  if(dbg_freeptr > 0){
-    fprintf(stderr,"in \n");
-    pprint(dbg_stack[dbg_freeptr-1],stderr,0);}
-  fflush(stdin);
   cbreak();
   throw_error();}
 
 void uerror(expptr e){
-  push_dbg_expression(e);
+  printexp(e);
   berror("");
 }
 
@@ -919,8 +915,8 @@ void print_line(expptr w, FILE * f){
   fprintf(f,"\n");
 }
 
-void gud_pprint(expptr e){
-  pprint(e,stdout,0);}
+void printexp(expptr e){
+  pprint(e,stdout,rep_column);}
 
 
 /** ========================================================================

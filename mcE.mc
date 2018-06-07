@@ -154,11 +154,11 @@ void install(expptr statement){ //only the following patterns are allowed.
     {#define !def}:{install_preamble(statement);}
     {#include < !file >}:{install_preamble(statement);}
     {#include !x}:{install_preamble(statement);}
+    {return !e;}:{push(statement,new_statements);}
     {?type ?X[0];}:{install_var(type,X,`{1})}
     {?type ?X[0] = !e;}:{install_var(type,X,`{1}); push(`{${X}[0] = ${e};},new_statements);}
     {?type ?X[?dim];}:{install_var(type,X,dim)}
     {?type ?f(!args){!body}}:{install_proc(type, f, args, body);}
-    {return !e;}:{push(statement,new_statements);}
     {?type !e;}:{unrecognized_statement(statement);}
     {?type * !e;}:{unrecognized_statement(statement);}
     {!e;}:{push(statement,new_statements)}
@@ -175,7 +175,7 @@ void install_preamble(expptr e){
 void install_var(expptr type, expptr X, expptr dim){
   expptr oldsig = getprop(X,`{signature}, NULL);
   expptr newsig = `{${type} ${X}[${dim}];};
-  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change ${oldsig} to ${newsig}});
+  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change the type declaration _; ${oldsig} _; to ${newsig} _;});
   if(oldsig == NULL){
     setprop(X,`{signature},newsig);
     push(X, arrays);

@@ -19,13 +19,15 @@
 \maketitle
 
 \begin{abstract}
-MetaC is a C extension supporting a read-eval-print loop (REPL) capable of incremental procedure redefinition (dynamic linking) and the general look-and-feel of
-python programming.  MetaC also extends C with symbolic programming features for writing sophisticated preprocessors (compilers) as packages of computed macros.
-Computed macros can do
-sophisticated type inference or data-flow analysis as part of macro expansion.  MetaC supports computed macros with the high level symbolic progrmming features
-of pattern matching and pattern instantiation.  Pattern instantiation is done with backquote --- a language feature of Lisp.
-Generating C code using backquote (pattern instantiation) is facilitated by the use of a universal algebraic syntax (UAS).  UAS is a ``universal''
-correspondence between character strings and expression trees.
+  MetaC is a Lisp-inspired programming environment for C. MetaC provides a read-eval-print loop (REPL) capable of evaluating (compiling and running)
+  C statements and expressions.  The REPL is capable of incremental procedure definition and redefinition (dynamic linking).  MetaC also provides
+  a macro feature similar to that of Lisp and powerful symbolic programming features for writing computed macros.  Most of the symbolic programming features of
+  MetaC are implemented as bootstrapped MetaC macros.  MetaC is intended to be a development environment for frameworks implemented as
+  macro packages. Frameworks written in MetaC (and MetaC itself) use a universal algebraic concrete syntax (UACSS) ---
+  a simplification of the C concrete syntax but based on the Lisp philosophy that a single concrete syntax suffices for a wide variety of languages with
+  a wide variety of semantics.  MetaC macro packages
+  should be viewed as compilers from framework expressions to C code.  MetaC gives the framework developer complete control over the C code
+  generated for framework expressions.  Frameworks written in MetaC inherit the REPL and g†eneral programming environment of MetaC.
 \end{abstract}
 
 \section{Introduction and Overview}
@@ -40,7 +42,7 @@ Once one has cloned the MetaC repository (git@github.com:mcallester/MetaC.git) o
 bash$ make MC
 ...
 
-bash$ MC
+basth$ MC
 
 MC>
 \end{verbatim}
@@ -58,7 +60,7 @@ MC>
 In the above example the backquote expression given to the REPL macro-expands to a C expression which evaluates to the expression ``hello world''.
 Backquote is described in more detail below.
 
-\subsection{C Statements, C expressions, and UAS Expressions}
+\subsection{C Statements, C expressions, and UACS Expressions}
 
 We can also declare global variables and execute statements from the REPL.
 
@@ -70,6 +72,7 @@ done
 MC> for(int i = 0; i < 10; i++)x[i] = i;
 
 done
+
 
 MC> for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
 
@@ -89,9 +92,9 @@ given a C statement, the REPL simply prints ``done'' after executing
 the statement.
 When given a C expression the REPL computes and prints
 the value.  The REPL assumes that the value of a C expression
-is a UAS tree (also called a UAS expression giving a second, and confusing,
+is a UACS tree (also called a UACS expression giving a second, and confusing,
 sense of the term ``expression''). The procedure {\tt int\_exp} above
-converts an integer to a UAS expression.  UAS expressions are abstract
+converts an integer to a UACS expression.  UACS expressions are abstract
 syntax trees but can viewed as representations of strings.
 
 If a C statement executes a {\tt return} outside of any
@@ -180,9 +183,9 @@ are not allowed in $C$. As noted above, this restriction greatly simplifies dyna
 To simplify the implementation of MetaC all type expressions appearing in procedure signatures and global array declarations must be single symbols.
 Arbitrary types can be given single symbol names using {\tt typedef}.
 
-\section{Backquote and UAS Expression Trees}
+\section{Backquote and UACS Expression Trees}
 
-We now consider backquote and UAS expressions in more detail.  Backquote can be used in a manner analogous to string formatting.
+We now consider backquote and UACS expressions in more detail.  Backquote can be used in a manner analogous to string formatting.
 
 \begin{verbatim}
 MC> expptr friend[0] = `{Bob Givan};
@@ -200,7 +203,7 @@ My friend Bob Givan is 6 feet tall.
 MC> 
 \end{verbatim}
 
-While UAS expressions can be viewed as representations of strings, UAS
+While UACS expressions can be viewed as representations of strings, UACS
 expressions are actually abstract syntax trees. The tree structure
 plays an important role in pattern matching. The tree structure is
 more apparent in the following example.
@@ -217,8 +220,7 @@ bar(a+b)
 MC>
 \end{verbatim}
 
-The pattern {\tt foo(!x)} will match the expression {\tt foo(a+b)} with {\tt x} bound to the expression (tree) {\tt a+b}.
-Pattern matching is described in more detail below.
+As described in the next section, the pattern {\tt foo(!x)} will match the expression {\tt foo(a+b)} with {\tt x} bound to the expression (tree) {\tt a+b}.
 
 \subsection{Pattern Matching}
 
@@ -232,7 +234,7 @@ ucase{e;
   {<patternn>}:{<bodyn>}}
 \end{verbatim}
 
-Variables are marked in patterns by the symbol tags {\tt !} and {\tt ?}.  Variables tagged with {\tt !} can bind to any UAS expression
+Variables are marked in patterns by the symbol tags {\tt !} and {\tt ?}.  Variables tagged with {\tt !} can bind to any UACS expression
 while variables tagged with {\tt ?} can only bind to atomic symbols.
 For example we might write the following.
 
@@ -282,53 +284,106 @@ The general form of a macro definition is
 \begin{verbatim}
 umacro{<pattern>}{<body>}
 \end{verbatim}
-where instances of <pattern> in MetaC code are to be replaced by the value of <body> under the variable bindings determined by the match.  The procedure {\tt macroexpand} takes a UCS expression
-an returns the result of repeatedly expanding macros until no more macro expansion is possible.  Macro expansion can generate effects as well as return an expansion.  The REPL performs
+where instances of {\tt <pattern>} in MetaC code are to be replaced by the value returned by {\tt <body>} under the variable bindings determined by the match.
+The procedure {\tt macroexpand} takes a UACS expression
+and returns the result of repeatedly expanding macros until no more macro expansion is possible.  Macro expansion can generate effects as well as return an expansion.  The REPL performs
 macro expansion on the given expression and also performs the effects of that expansion.  {\tt umacro} is itself a MetaC macro and we can feed the above macro definition to the REPL.
 
-The macro expansion of the above macro definition defines a procedure to compute the macro expansion and installs that procedure on a macro property of the symbol {\tt dolist}.
-In general a macro patterns must either be an application expression or a binary connection expressions.  The procedure for macro expansion is attached to either the head symbol of the application
+The macro expansion of the above macro definition defines a procedure to compute the macro expansion and installs that procedure on a macro property of the symbol {\tt mydolist}.
+In general a macro patterns must either be a generalized application expression or a binary connection expressions.  UACS expression types are discussed in the next section.
+The procedure for macro expansion is attached to either the head symbol of the application
 or the binary operator of the binary connection expression.
 
-\section{Universal Algebraic Syntax (UAS)}
+\section{Universal Algebraic Concrete Syntax (UACS)}
 
-It is not obvious how to implement light weight expression quotation and expression pattern matching for C expressions.  The syntax of C is complex.  We bypass this complexity by introducing universal algebraic syntax (UAS).
-UAS is a compromise between the extreme syntactic simplicity of Lisp and the desire for a syntax that is more similar to C.
-While not as minimal as Lisp, UAS is still simple --- we have the following eight syntactic categories.
+It is not obvious how to implement light weight expression quotation and expression pattern matching for C expressions.  The syntax of C is complex.
+We bypass this complexity by introducing universal algebraic concrete syntax (UACS).  It should be noted up front that this section is a specification
+of behavior which bears little resemblance to the actual implementation.
 
-
-\begin{itemize}
-\item A symbol.  A symbol represents a string of alpha-numeric characters (upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar).
-  For example {\tt  foo\_bar1}.
-\item A tagged symbol.  A tagged symbol is either a symbol, a symbol-tag followed by a symbol, or a symbol tag followed by the NULL expression.
-The symbol tag characters are {\tt \$}, {\tt $\backslash$}, {\tt `}, {\tt !}, {\tt ?}, {\tt \#} and {\tt \%}.
-  For example we have the tagged symbols {\tt ?foo} and {\tt !foo}.
-\item A quoted string.  For example {\tt \tt "!:\&?;"} or {\tt 'a'}.  In UAS there is no distinction between {\tt "foo"} and {\tt 'foo'} other than the choice of the quotation character (which must match).
-  To avoid confusion newline characters are not allowed in strings (the two character sequence {\tt /n} is ok).
-\item A parenthesis expression.  This is an expression of the form ($e$), $\{e\}$, or $[e]$ where $e$ is an expression.  In MetaC $(e)$ is always a different expression from $e$.
-\item An application expression.  This is a tagged symbol (possibly untagged) followed by a parenthesis expression or an application expression followed by a parenthesis expression.  For example {\tt foo(x)} or {\tt foo(x)(y)} or {\tt `\{a\}}.
-The formation of application expressions is tighter than (higher precedence than) the formation of binary connective expressions or semicolon-terminated expressions.
-\item A binary connective expression.  For example {\tt x=3} is the binary connective expression with connective {\tt =} and symbol arguments {\tt x} and {\tt 3}.  Binary conectives are described in more detail below.
-\item A semicolon-terminated expression. For example {\tt x=3;} or {\tt f(x);}. All binary connectives are tighter than (higher precedence than)
-the formation of semicolon-terminated expressions.
-\item The null expression and the null connective. In order to ensure that the UAS reader can read any parenthesis-balanced string we can use the null
-  expression as arguments and the null connective to combine pairs of adjacent expressions.  This is described in more detail below.
-\end{itemize}
-
-\noindent Universal algebraic syntax is ``universal'' in that it has the following three properties.
+\noindent UACS is ``universal'' in that it has the following three properties.
 
 \begin{enumerate}
-\item UAS trees are semantics-free.  They are simply trees and can be viewed as representations of character strings.
+\item UACS syntax trees are semantics-free.  They are simply trees and can be viewed as representations of character strings.
 
-\item Any parenthesis-balanced character string can be represented (up to white space equivalence) by a UAS tree. Here parenthesis-balanced means that every open parenthesis, brace or bracket has a matching closing character and that string quotations
-  are properly closed.  Two strings are white space equivalent if they are the same after removing all white space characters (space, tab and return) but leaving a single space character after each symbol (to separate symbols).
-
-\item The printer inverts the reader. If we read a string $s$ into a UAS expression $e$ and then print $e$ back into a string $s'$ we have that $s$ and $s'$ are white-space equivalent.  This implies that $s$ and $s'$ both read to the same expression $e$.
+\item Any parenthesis-balanced character string can be read by the UACS reader producing a UACS expression tree.
+  Here parenthesis-balanced means that every open parenthesis, brace or bracket has a matching closing character and that string quotations
+  are properly closed.
+  
+\item UACS Expression trees represent the strings from which they are constructed --- the printer inverts the reader. If we read a string $s$ into a UACS expression
+  $e$ and then print $e$ back into a string $s'$ we have that $s$ and $s'$ are whitespace-equivalent
+ --- they lexicalize to the same sequence of whitespace-free tokens as
+  described at the beginning of section~\ref{sec:reader}.    This implies that $s$ and $s'$ both read to the same expression $e$.  It also implies that the strings $s$ and $s'$ will be treated equivalently by the C compiler.
 \end{enumerate}
 
-These universality properties ensure that one can assign semantics to expressions based on the strings that they represent.  We can assign C semantics to an expression by printing the expression and passing the resulting string to a C compiler.
-This string-based semantics is not always compositional with respect to three structure of UAS trees.  However, the tree structure imposed by the reader is designed to approximate the compositional structure of C syntax.  In most cases
-pattern matching on UAS expressions recovers substructure that is semantically meaningful under C semantics.
+The universality properties allow one to assign semantics to UACS expressions based on the strings that they represent.  We can assign C
+semantics to an expression by printing the expression and passing the resulting string to a C compiler.  This string-based semantics is not always
+compositional with respect to the UACS bracketing.  However, the tree structure imposed by the reader is designed to approximate the
+compositional structure of C syntax.  In most cases pattern matching on UACS expressions recovers substructure that is semantically meaningful under C
+semantics. Parentheses and the expression-terminating semicolon are particularly helpful in aligning UACS tree with C syntax.
+
+\subsection{UACS Expressions}
+
+A UACS expression is simply a tree structure imposed on a character string.  More formally, a UACS expression is either a whitespace-free character string
+or a finite sequence of UACS expressions.  The UACS reader produces UACS expressions of a particular form described below.
+A UACS expression can be represented by ``phantom brackets''
+which are not printed when printing the expression. For example, the reader takes the string {\tt \{int x = 1; y=2;\}} and imposes the phantom bracketing
+$$ \langle\{\;\langle \langle \mathtt{int} \langle \rangle \langle \mathtt{x = 1}\rangle\rangle;\rangle\;\langle\rangle\; \langle\langle \mathtt{y = 2} \rangle ;\rangle\;\}\rangle.$$
+Here the empty expression $\langle\rangle$ is acting as a binary connective. Whitespace separates whitespace-free character stings so that $\langle\mathtt{x = 1}\rangle$ is a sequence of three
+strings.  The printer simply
+removes the phantom brackets but leaves a space character after each whitespace-free character string to ensure proper lexicalization when the printed string is read.
+In practice a pretty printer inserts newline
+characters and indentation to make large expressions more readable.
+
+
+All UACS expressions returned by the reader are one of the following.
+
+\begin{itemize}
+\item A symbol.  A symbol is a character string consisting of only alpha-numeric characters --- upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar.
+  For example the string {\tt  foo\_bar1}.
+\item A connective.  A connective is a character string consisting of only ``connective characters'' --- the characters comma,
+  {\tt =}, {\tt $\sim$}, {\tt $<$}, {\tt $>$}, \mtt{|}, {\tt \&}, {\tt +}, {\tt -}, {\tt *}, {\tt /}, {\tt .}, {\tt @}, \mtt{$\hat{~}$}.
+  For example the strings {\tt ->} and {\tt ==}.
+\item The null expression $\langle \rangle$ represents the empty string and is both a symbol and a connective.
+\item A quoted string.  A character string starting and ending with the same string quotation character.  For example {\tt "!:\&?;"} or {\tt 'a'}.
+\item A parenthesis expression.  This is an expression of the form $\langle(e)\rangle$, $\langle\{e\}\rangle$ or $\langle[e]\rangle$ where
+  $e$ is a UACS expression.
+\item A semicolon expression. This is an expression of the form $\langle e~\mtt{;}\rangle$ where $e$ is an UACS expression.
+As described in section~\ref{sec:reader}, the reader treats a semicolon very similarly to a parenthesis close character ({\tt )}, {\tt \}} or {\tt ]}).
+  A semicolon expression is like a parenthesis expression but formed with a single character rather than a pair of characters.
+\item An orphan character.  This is a string consisting of a single non-whitespace character not mentioned above.  In particular, one of the characters
+  {\tt \$}, {\tt $\backslash$}, {\tt `}, {\tt !}, {\tt ?}, {\tt \#} and {\tt \%}.
+\item A tagged symbol.  A tagged symbol is a UACS expression of the form $\langle c~s\rangle$ where $c$ is an orphan character and $s$ is a symbol.
+\item A generalized application expression.  This is a UACS expression consisting of an orphaned character, a symbol or a tagged symbol followed by a
+sequence of parenthesis expressions. For example {\tt foo(x)}, {\tt foo(x)(y)}, {\tt ?foo(a)} or {\tt ?(a)}.
+\item A connective expression.  This is a UACS expression of the form $\langle e_1~R~e_2\rangle$ where $e_1$ and $e_2$ are UACS expressions
+  and $R$ is a connective.  For example, the reader converts {\tt x=3} to the connective expression $\langle \mathtt{x = 3}\rangle$.
+\end{itemize}
+
+Note that with the exception of generalized application expressions,
+the expressions returned by the UACS reader never have more than three subexpressions.  Long sequences of arbitrary expressions are represented by nested null-connective expressions.
+Examples of the bracketings imposed by the UACS reader are shown in figure~\ref{fig:reader}.
+
+\begin{figure}
+\begin{eqnarray*}
+  \mathtt{Hello~World} & \Rightarrow & \langle \mathtt{Hello}\;\langle\rangle\; \mathtt{World}\rangle \\
+  \mathtt{one~two~three} & \Rightarrow & \langle \mathtt{one}\;\langle\rangle\; \langle \mathtt{two} \;\langle \rangle \;\mathtt{three}\rangle\rangle \\
+  \mathtt{x+y*z} & \Rightarrow & \langle \mathtt{x~ +}\;\langle\mathtt{y~*~z}\rangle\rangle \\
+  \mathtt{(x+y)*z} & \Rightarrow & \langle\; \langle (\;\langle\mathtt{x~+~y} \rangle \;)\rangle\;\mathtt{*~z}\rangle \\
+  \mathtt{foo}(\mathtt{int~x}) & \Rightarrow & \langle\;\mathtt{foo}\;\langle (\;\langle \mathtt{int}\; \langle\rangle \; \mathtt{x}\rangle\;)\rangle\;\rangle \\
+  \mathtt{foo(int~x,~float~y)} & \Rightarrow & \langle \mathtt{foo} \; \langle (\; \langle\langle \mathtt{int} \langle\rangle\mathtt{x}\rangle\;
+  \mathtt{,}\; \langle\mathtt{float} \langle\rangle \mathtt{y} \rangle\rangle \;) \rangle\;\rangle \\
+  ?\mathtt{f}(\mathtt{!args}) & \Rightarrow & \langle\;\langle?\;\mathtt{f}\rangle\;\langle (\;\langle \mathtt{!} \;\mathtt{args}\rangle\;)\rangle\;\rangle \\
+  \mathtt{`}\{\mathtt{x}\} & \Rightarrow & \langle\;\mathtt{`} \;\langle \{\;\mathtt{x}\;\}\rangle\;\rangle \\
+  \{\mathtt{int~x = 1;~y = 2;}\} & \Rightarrow & \langle\{\;\langle \langle \mathtt{int} \langle \rangle \langle \mathtt{x = 1}\rangle\rangle;\rangle\;\langle\rangle\; \langle\langle \mathtt{y = 2} \rangle ;\rangle\;\}\rangle
+\end{eqnarray*}
+
+\caption{{\bf Examples of UACS reader bracketing.} The first two expressions are null connective expressions.  The next two are connective expressions.  The next four are all generalized application expressions.
+  The last one is a parenthesis expression containing a null connective expression connecting two semicolon expressions.}
+\label{fig:reader}
+\end{figure}
+
+\subsection{Reader Specification}
+\label{sec:reader}
 
 The above discussion ignores the presence of C comments. The MetaC reader first preprocessing the input string to remove comments.
 The Meta preprocessor also divides long character strings, such as entire code files, into segments where each segment is read as a separate expression.
@@ -339,91 +394,50 @@ A file must be parenthesis-balanced within each segment.
 For REPL inputs the segment ends at the first return character outside of parenthesization independent of further input characters.  This allows the REPL to respond immediately
 to the top level return character.
 
-\subsection{Binary Connectives}
+We allow the reader to be applied to the empty string (or a string consisting only of white space) in which case the reader returns the null expression.
+For example, the strings {\tt ()} and {\tt ( )} read as $\langle(\langle \rangle)\rangle$.
 
-The binary connectives consist of all non-empty strings over the characters comma, \{{\tt =}, {\tt $\sim$}, {\tt $<$}, {\tt $>$}\}, \{\mtt{|}, {\tt \&}\}, \{{\tt +},
-{\tt -}\}, \{{\tt *}, {\tt /}\}, {\tt .}, {\tt @}, and \mtt{$\hat{~}$}.
-Single-character connectives are outermost to innermost in the order given (low
-precedence to high precedence) where set brackets indicate same-precedence.    All binary connectives are infix.  The last four single-chracter connectives are left-associative and the
-others are right-associative.
-All multi-character binary connectives have the same
+Given a nonempty string with comments removed the reader first ``lexicalizes'' the whitespace-free strings into symbols, connectives, quoted strings (which are considered whitespace-free),
+and single character strings for the remaining non-white characters. Two strings are whitespace-equivalent if they result in the same lexical sequence.
+
+To specify the reader further we first consider semicolon expressions.  UACS treates a semicolon as a kind of close parenthesis.
+Like a pair of balanced parentheses, the subexpression of a semicolon expression has a trivially determined
+span in the text. We define the ``begin position'' for a semicolon to be the nearest position to the left
+of the semicolon that is either an open parenthesis not closed in the interveaning span, a semicolon not contained in the span of an intervening close parenthesis,
+or the beginning of the read.
+The span of the argument to a semicolon is simply the subsequence between the begin position (but not including the begin position) and the semicolon.
+The argument expression for a semicolon is simply the reader applied recursively to the subexpression span.
+A sequence of semicolon expressions is effectively a sequence of parenthesis expressions but with one character instead of two characters to define each span.
+
+To specify the reader it now suffices to consider a sequence of connectives, symbols, orphan characters,
+parenthesis expressions, and semicolon expressions.
+The first step is to group each pair of an orphan character followed by a symbol into a tagged symbol.
+Next we group any sequence of an orphan character, a symbol or tagged symbol followed by parenthesis expressions
+into a generalized application expression.  This leaves a sequence of connectives, symbols, tagged symbols, generalized application expressions,
+parenthesis expressions and semicolon expressions.  Anything other than a connective in this sequence will now be called an argument.
+The null expression can be used as a connective and
+we now insert the NULL expression between each pair of adjacent arguments.  The null expression can also be used as an argument and we
+also insert the null expression between each pair of adjacent connectives.
+If the sequence starts with a connective we insert the null expression at the beginning of the sequence. Similarly, if the sequence ends with a connective
+we add the null expression at the end.
+We now have an alternating sequence of arguments and connectives starting and ending with arguments.
+It now suffices to specify operator precedence and left/right associativity for precedence ties.
+
+The connective characters are comma,
+\{{\tt =}, {\tt $\sim$}, {\tt $<$}, {\tt $>$}\}, \{\mtt{|}, {\tt \&}\}, \{{\tt +}, {\tt -}\}, \{{\tt *}, {\tt /}\}, {\tt .}, {\tt @}, \mtt{$\hat{~}$}
+Single-character connectives other than space have precedence that is outermost to innermost in the order given above (low
+precedence to high precedence) where grouped characters have the same-precedence.
+The null connective is outer to (lower precedence than) all other connectives except comma.  Having comma be outer to
+the null connective causes C procedure argument lists to have an appropriate tree structure.
+
+The last four single-character connectives in the above list are left-associative and the
+others are right-associative. All multi-character binary connectives have the same
 precedence which is higher than (innermost to) all single character connectives other than {\tt :}.
-Multi-character connectives are left associative.  The null connective, described below, is right associative and is outermost to (lower precedence) than all other binary connectives
-except {\tt;} and comma.  This precedence of the null connective causes C argument lists and C statement sequences to have friendly tree structure.
-Expressions can also be connected by the null connective --- a connective which prints as the empty string.  Connection by the null connective is higher priority than all binary connectives other than comma.
-Making null connection higher priority than comma allows proper pattern matching of C procedure argument lists.
+Multi-character connectives are left associative. 
+  
+\subsection{Backquote Specification}
 
-\subsection{Examples}
-We now give a set of examples of character stings and their corresponding representation as UAS expression trees.
-
-\begin{verbatim}
-(foo bar)    ( )
-              |
-             / \
-          foo   bar
-\end{verbatim}
-
-\begin{verbatim}
-{x+y*z}    { }
-            |
-            +
-           / \
-          x   *
-             / \
-            y   z
-\end{verbatim}
-
-\begin{verbatim}
-{int x = 1; y = 2;}   { }
-                       |
- 
-                    /      \
-                   ;        ;
-                   |        |
-                  / \       =
-                 int =     / \
-                    / \   y   2
-                   x   1
-\end{verbatim}
-
-\begin{verbatim}
-foo(int x, float y)   / \
-                    foo ( )
-                         |
-                         ,
-                      /     \
-                     /\     / \
-                  int  x float y
-\end{verbatim}
-
-\begin{verbatim}
-{$foo}   { }
-          |
-          $
-          |
-         foo
-\end{verbatim}
-
-\begin{verbatim}
-{${foo}}   { }
-            |
-          /   \
-         $    { }
-         |     |
-              foo
-\end{verbatim}
-
-\begin{verbatim}
-{?=}   { }
-        |
-      /   \
-     ?     =
-     |   /   \
-\end{verbatim}
-
-\subsection{A More Precise Semantics of Backquote}
-
-There are UAS trees that cannot be represented by a string but can be constructed by backquote.  For example we have that {\tt +} is lower precedence than {\tt *} and hence the tree
+There are UACS trees that can be constructed by backquote but which cannot be represented by a string.  For example we have that {\tt +} is lower precedence than {\tt *} and hence the expression
 \begin{verbatim}
      *
     / \
