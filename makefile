@@ -115,3 +115,13 @@ REPL.c : REPL.mc expandE
 REPL : REPL.c
 	gcc -g -o REPL mcA.o mcB.o mcC.o mcD.o mcE.o REPL.c -ldl -lm
 
+#uf
+
+uf.c : expandE uf.mc
+	./expandE uf.mc uf.c
+
+test_uf.c : expandE test_uf.mc
+	./expandE test_uf.mc test_uf.c
+
+test_uf : uf.c test_uf.c
+	gcc -g -o test_uf mcA.o mcB.o mcC.o mcD.o mcE.o uf.c test_uf.c -ldl -lm
