@@ -1121,6 +1121,7 @@ void mcA_init(){
   init_undo_frames();
   init_strings();
   init_expressions();
+  rep_column = 0;
   
   dbg_freeptr = 0;
   
