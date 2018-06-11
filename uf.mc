@@ -6,6 +6,7 @@ section: union-find
 **/
 
 
+#include "mc.h"
 #include "uf.h"
 
 /**

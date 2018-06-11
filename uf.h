@@ -1,5 +1,4 @@
 
-#include "mc.h"
 #include <stdint.h>
 
 uint64_t next_uf_node_id; // 8 bytes for undo_set

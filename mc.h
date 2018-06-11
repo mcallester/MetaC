@@ -249,6 +249,7 @@ expptr append(expptr,expptr);
 expptr reverse(expptr);
 
 expptr file_expressions(expptr fname);
+void install_base();
 
 FILE * writestrm;
 

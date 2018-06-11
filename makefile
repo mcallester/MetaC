@@ -117,11 +117,20 @@ REPL : REPL.c
 
 #uf
 
-uf.c : expandE uf.mc
+uf.c : expandE uf.mc uf.h
 	./expandE uf.mc uf.c
 
-test_uf.c : expandE test_uf.mc
-	./expandE test_uf.mc test_uf.c
+uf.o : uf.c
+	gcc -g uf.c -c
 
-test_uf : uf.c test_uf.c
-	gcc -g -o test_uf mcA.o mcB.o mcC.o mcD.o mcE.o uf.c test_uf.c -ldl -lm
+expandtest_uf.c: expandtest_uf.mc expandE
+	./expandE expandtest_uf.mc expandtest_uf.c
+
+expandtest_uf: expandtest_uf.c mcE.o
+	gcc -g -o expandtest_uf mcA.o mcB.o mcC.o mcD.o mcE.o expandtest_uf.c -ldl -lm
+
+test_uf.c : expandtest_uf test_uf.mc uf.h
+	./expandtest_uf test_uf.mc test_uf.c
+
+test_uf : uf.o test_uf.c
+	gcc -g -o test_uf mcA.o mcB.o mcC.o mcD.o mcE.o uf.o test_uf.c -ldl -lm

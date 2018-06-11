@@ -51,12 +51,12 @@ void mcE_init2(){
   arrays = NULL;
   procedures = NULL;
   symbol_count = 0;
-  install_base();  //eval-when compile and load (run in both expandE and REPL).
+  install_base(`{base_decls.h});  //eval-when compile and load (run in both expandE and REPL).
   compilecount = 0;
 }
 
-void install_base(){
-  dolist(sig,file_expressions(`{base_decls.h})){
+void install_base(expptr filename){
+  dolist(sig,file_expressions(filename)){
     ucase{sig;
       {?type ?f(!args);}:{
 	symbol_index(f);  //synchoronizes compile and load indeces.

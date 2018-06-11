@@ -30,6 +30,7 @@ expptr full_expansion(expptr);
 
 expptr file_expressions(expptr fname){
   open_input_file(exp_string(fname));
+  readchar=' ';
   expptr result = file_expressions2();
   fclose(filein);
   return result;
