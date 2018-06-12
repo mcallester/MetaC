@@ -20,35 +20,6 @@ umacro{mapc(!f,!list)}{
   return `{dolist(${x}, ${list}){${f}(${x});}};
 }
       
-/** ========================================================================
-file_expressions  This returns a list of macro-expanded expressions in the order they appear
-in the file with each expression preceeded by its preamble and followed by its init_forms.
-========================================================================**/
-
-expptr file_expressions2();
-expptr full_expansion(expptr);
-
-expptr file_expressions(expptr fname){
-  open_input_file(exp_string(fname));
-  expptr result = file_expressions2();
-  fclose(filein);
-  return result;
-}
-
-expptr file_expressions2(){
-  if(readchar == EOF)return NULL;
-  expptr e = read_from_file();
-  expptr rest = file_expressions2();
-  if(e == NULL)return rest;
-  return append(full_expansion(e),rest);
-}
-
-expptr full_expansion(expptr e){
-  preamble = NULL;
-  init_forms = NULL;
-  expptr e2 = macroexpand(e);
-  return append(preamble,cons(e2,init_forms));
-}
 
 /** ========================================================================
 sformat is like sprintf but stack-allocates the buffer rather than take a buffer argument.

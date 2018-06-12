@@ -189,8 +189,6 @@ see mc.h for the definitions of types plist and expptr.
 expptr exp_hash_table[EXP_HASH_DIM];
 int exp_count;
 
-int binaryp(char);
-
 expptr intern_exp(char constr, expptr a1, expptr a2){
   expptr e;
   unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & EXP_HASH_DIM-1;
@@ -219,59 +217,54 @@ void init_expressions(){
   for(int i=0;i<EXP_HASH_DIM;i++)exp_hash_table[i] = NULL;
 }
 
-expptr intern_expA(char * s, expptr arg2){
-  return intern_exp('A', (expptr) intern_string(s), arg2);
-}
+expptr string_atom(char * s){return intern_exp('A', (expptr) intern_string(s), NULL);}
 
-expptr string_exp(char * s){
- return intern_expA(s,NULL);
-}
+int atomp(expptr e){return constructor(e) == 'A';}
 
-expptr intern_expB(expptr arg1, char * s){
-  return intern_exp('B', arg1 (expptr) intern_string(s));
-}
+char * atom_string(expptr a){return (char *) arg1(a);}
 
-expptr intern_exp_op( expptr a1, (char *) s, expptr a2){
-  return intern_exp(' ',intern_expB(a1, intern_string(s)), a2);
-}
+expptr cons(expptr x, expptr y){return intern_exp(' ',x,y);}
+
+int cellp(expptr e){return constructor(e) == ' ';}
+
+expptr car(expptr x){return arg1(x);}
+
+expptr cdr(expptr x){return arg2(x);}
+
+
+expptr intern_paren(char opencar, expptr arg){return intern_exp(openchar, arg, NULL);}
+
+int parenp(expptr e){return openp(constructor(e));}
+
+expptr paren_inside(expptr e){return arg1(e);}
 
 
 /** ========================================================================
-lists
+list operations
 ======================================================================== **/
-
-expptr cons(expptr x, expptr y){
-  return intern_exp(' ',x,y);
-}
-
-expptr car(expptr x){
-  return arg1(x);}
-
-expptr cdr(expptr x){
-  return arg2(x);}
+expptr nil;
 
 expptr append(expptr l1, expptr l2){
-  if(l1 == NULL)return l2;
-  return cons(car(l1), append(cdr(l1),l2));
+  if(cellp(l1))return cons(car(l1), append(cdr(l1),l2));
+  else return l2;
 }
 
 expptr reverse(expptr l){
-  expptr result = NULL;
-  while(l != NULL){
+  expptr result = nil;
+  while(cellp(l)){
     result = cons(car(l), result);
-    l = cdr(l);
-  }
+    l = cdr(l);}
   return result;
 }
 
 expptr mapcar(expptr f(expptr), expptr l){
-  if(l == NULL) return NULL;
-  return cons(f(car(l)),mapcar(f,cdr(l)));
+  if(cellp(l))return cons(f(car(l)),mapcar(f,cdr(l)));
+  return nil;
 }
 
 int length(expptr l){
-  if(l == NULL || constructor(l) != ' ') return 0;
-  return length(arg2(l)) + 1;
+  if(cellp(l))return length(arg2(l)) + 1;
+  else return 0;
 }
 
 /** ========================================================================
@@ -325,21 +318,60 @@ int getprop_int(expptr e, expptr key, int defaultval){
 }
 
 /** ========================================================================
-printing
+character and atom types
 ========================================================================**/
 
-int prefixp(char c){
+int string_quotep(char x){return (x == '"' || x == '\'');}
+
+int alphap(char c){
+  return  (c >= 'A' && c <= 'Z')
+    || (c >= 'a' && c <= 'z')
+    || (c >= '0' && c <= '9')
+    || (c == '_');
+}
+
+int miscp(char c){
+  char c = ((char *) arg1(e))[0];
   return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '%' || c == '?';
 }
 
+int connp(char c){
+  return c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
+      || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^' || c == '|' || c == '&' || c == '~' ||c ==';';
+}
+
+int quote_atomp(expptr x){return  atomp(x) && string_quotep(atom_string(x)[0]);}
+int alpha_atomp(expptr x){return  atomp(x) && alphapp(atom_string(x)[0]);}
+int conn_atomp(expptr x){return  atomp(x) && connp(atom_string(x)[0]);}
+int misc_atomp(expptr x){return  atomp(x) && string_quotep(atom_string(x)[0]);}
+
+
 int closep(char x){return ((x)==')' || (x)=='}' || (x) == ']');}
+
+int openp(char x){return ((x)=='(' || (x)=='}' || (x) == ']');}
 
 char close_for(char o){
   if(o == '(')return  ')';
   if(o == '{')return  '}';
   if(o == '[')return  ']';
-  berror("not an open in close_for");
+  berror("illegal char given to close_for");
   return 'a';  // avoids compiler warning
+}
+
+int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
+
+/** ========================================================================
+printing: exp_string
+======================================================================== **/
+
+void putexp(expptr);
+void putone(char);
+
+char * exp_string(expptr e){
+  char * result = &stack_heap[stack_heap_freeptr];
+  puutexp(e);
+  putone('\0');
+  return result;
 }
 
 void putone(char c){
@@ -353,21 +385,11 @@ void putstring(char * s){
 }
 
 void putexp(expptr w){
-  if(w == NULL)return;
-  char c = constructor(w);
-  if(c == 'A'){putstring((char *)arg1(w)); putone(' '); putexp(arg2(w));}
-  else if(c == 'B'){ putexp(arg1(w)); putstring((char *)arg2(w));}
-  else if(c == ' '){putexp(arg1(w)); putexp(arg2(w));}
-  else if(prefixp(c)){putone(c); putexp(arg1(w)); putexp(arg2(w));}
-  else if(openp(c)){putone(c);putexp(arg1(w));putone(close_for(w));putexp(arg2(w));}
-  else berror("unrecognized constructor in putexp");
-}
-
-char * exp_string(expptr e){
-  char * result = &stack_heap[stack_heap_freeptr];
-  print_to_stack_heap(e);
-  putone('\0');
-  return result;
+  if(atomp(w)){
+    if(conn_atomp(w) || sym_atomp(w)) {put_string(atom_string(w)); putone(' ');}
+    else put_string(atom_string(w));}
+  else if(parenp(w)){char c = constructor(w); putone(c); putexp(paren_inside(w));putone(close_for(c));}
+  else if(cellp(w)){putexp(car(w)); putexp(cdr(w));}
 }
 
 FILE * writestrm;
@@ -378,145 +400,130 @@ void writestring(char * w){
   fprintf(writestrm, "%s",w);
 }
 
-void writeexp(expptr w){
-  if(w == NULL)return;
-  char c = constructor(w);
-  if(c == 'A'){writestring((char *)arg1(w)); writeone(' '); writeexp(arg2(w));}
-  else if(c == 'B'){ writeexp(arg1(w)); writestring((char *)arg2(w));}
-  else if(c == ' '){writeexp(arg1(w)); writeexp(arg2(w));}
-  else if(prefixp(c)){writeone(c); writeexp(arg1(w)); writeexp(arg2(w));}
-  else if(openp(c)){writeone(c);writeexp(arg1(w));writeone(close_for(w));writeexp(arg2(w));}
-  else berror("unrecognized constructor in writeexp");
-}
+/** ========================================================================
+pprint
+======================================================================== **/
 
-void indent(int column){
-  int i;
-  for(i=0;i<column;i++)fprintf(writestrm, " ");
-}
+int pprint_column;
 
 void newline(){
   fprintf(writestrm, "\n");
+  for(int i=0;i<pprint_column;i++)fprintf(writestrm, " ");
 }
 
-void pprint_exp(expptr w, int column){ //column is the current print column
-  if(w == NULL)return;
-  char c = constructor(w);
-  if(c == A){writestring((car *)arg1(w));writeone(' '); writeexp(arg2(w),column);}
-  else if(c == B){
-    pprint_exp(arg1(w),column);
-    s = (char *) arg2(x);
-    writestring(s);
-    if(s[0] == ';' && s[1] = 0){
-      newline();
-      indent(column);
-      pprint_exp(arg2(w),column);
-    }}
-  else if(c == ' '){pprint_exp(arg1(w), column); writeexp(arg2(w),column);}
-  else if(prefixp(c)){writeone(c); pprint_exp(arg1(w),column); pprint_exp(arg2(w),column);}
-  else if(openp(c)){
-    newline();
-    indent(column);
-    writeone(c);
-    indent(2);
-    pprint_exp(arg1(w),column+3);
-    writeone(close_for(c));
-    newline();
-    indendent(column);
-    pprint_exp(arg2(w),column);}
-  else berror("unrecognized constructor in pprint_exp");
+expptr semi;
+
+void pprint_exp(expptr w){
+  if(atomp(w)){
+    if(w == semi){putone(';'); newline();}
+    else if(conn_atomp(w) || sym_atomp(w)) {put_string(atom_string(w)); putone(' ');}
+    else put_string(atom_string(w));}
+  else if(parenp(w)){
+    char c = constructor(w);
+    putone(c);
+    pprint_column += 2;
+    if(c == '\{') newline();
+    pprint_exp(paren_inside(w));
+    putone(close_for(c));
+    print_column -= 2;
+    if(c == '\{')newline();
+    else if(cellp(w)){putexp(car(w)); putexp(cdr(w));}
+  }
 }
 
 void pprint(expptr w, FILE * f, int col){
   writestrm = f;
   indent(col);
-  pprint_exp(w,col);
+  pprint_column = col;
+  pprint_exp(w);
   fprintf(f,"\n\n");
-}
-
-void print_line(expptr w, FILE * f){
-  writestrm = f;
-  fprintf(f,"\n");
-  writeexp(w);
-  fprintf(f,"\n");
 }
 
 void printexp(expptr e){
   pprint(e,stdout,rep_column);}
 
-
 /** ========================================================================
 section: backquote
 ========================================================================**/
 
-expptr constructor_code(char c){
-  if(c == '\''){return intern_exp('\'', (expptr) intern_string("\\'"), NULL);}
-  if(c == '\\'){return intern_exp('\'', (expptr) intern_string("\\"), NULL);}
-  sprintf(ephemeral_buffer,"'%c'",c);
-  return intern_exp('\'', (expptr) intern_string(ephemeral_buffer) , NULL);
+expptr app_code(char * proc, expptr arg_code){
+  return cons(string_atom(proc), intern_paren('(',arg_code));}
+
+expptr comma_code(expptr arg1_code, expptr arg2_code){
+  return app_code("cons", cons(arg1_code, cons(string_atom(","), arg2_code)));
 }
 
-expptr intern_exp_code(char c, expptr a1, expptr a2){
-  return intern_exp('A',
-		    string_exp("intern_exp"),
-		    intern_exp('(',
-			       intern_exp_op(constructor_code(c) ,",", intern_exp_op(a1 ,",", a2)),
-			       NULL));
+expptr app_code2(char * proc, expptr arg1_code, expptr arg2_code){
+  return app_code(proc, comma_code(arg1_code,arg2_code));
 }
 
-expptr make_app(car * s, expptr arg){
-  return intern_exp('A', sym, intern_exp('(',arg,NULL));
+expptr constructor_code(char c){  //this is only used for the three open paren characters
+  return app_code("string_atom",string_atom(sprintf(ephemeral_buffer,"'%c'",c)));
 }
 
-expptr intern_string_code(char * s){
-  return intern_exp_op(intern_exp('(', string_exp("expptr"), NULL),
-		       " ",
-		       make_app("intern_string",
-				intern_exp('"', (expptr) intern_string(s), NULL)));
+expptr atom_quote_code(expptr a){
+  char  * s1 = atom_string(a);
+  char  * s2 = ephemeral_buffer;
+  int i = 0;  s2[0] = '"';  int j = 1;
+  while(s1[i] != 0){
+    if(j >= EPHEMERAL_DIM - 5)berror("Ephemeral buffer exausted");
+    if(s2[i] != '\\' && s2[i] != '"'){
+      s2[j] = s1[i]; i++; j++;}
+    else {
+      s2[j] = '\\'; s2[j+1] = s1[i]; i++; j += 2;}
+  }
+  s2[j] = '"';   s2[j+1] = 0;
+
+  return app_code("string_atom",string_atom(s2));
 }
+
+expptr quote_code(expptr e){
+  if(atomp(e))return atom_quote_code(e);
+  else if(parenp(a))return app_code2("intern_paren",constructor_code(constructor(e)),quote_code(paren_inside(e)));
+  else return app_code("cons",comma_code(quote_code(car(e)),quote_code(cdr(e))));
+}
+
+expptr backslash;
+expptr dollar;
 
 expptr bquote_code(expptr e){
-  if(e == NULL)return string_exp("NULL");
-  char c = constructor(e);
-  if(c=='a' || c == 'o' || string_quotep(c))return intern_exp_code(c,intern_string_code((char *) arg1(e)),bquote_code(NULL));
-  expptr a1 = arg1(e);
-  expptr a2 = arg2(e);
-  if(c =='$'){}
-  if(c =='$'){berror("Illegal syntax for $");}
-  if(c=='\\'){
-    if(a1 == NULL)berror("Illegal syntax for backslash in backquote");
-    char c2 = constructor(a1);
-    if(!prefixp(c2))berror("illegal syntax of '\' in backquote --- '\' must be followed by a unary operator such as '$' or itself");
-    return intern_exp_code(c2, bquote_code(arg1(a1)), bquote_code(NULL));}
-  if(c == 'A' && constructor(a1) == '$'){ // for const = 'A' both arguments are guaranteed to be non-null.
-    if(arg1(a1) == NULL) return arg1(a2);
-    berror("$ must be followed by curly braces");}
-  return intern_exp_code(c,bquote_code(a1),bquote_code(a2));
+  if(atomp(e))return atom_quote_code(e);
+  if(parenp(a))return app_code2("intern_paren",constructor_code(constructor(e)),bquote_code(paren_inside(e)));
+  if(car(e)) == dollar && parenp(cdr(e)){return paren_inside(cdr(e));}
+  if(car(e) == backslash)return backslash_code(cdr(e));
+  return app_code("cons",comma_code(quote_code(car(e)),quote_code(cdr(e))));
 }
 
-expptr quote_code(expptr e){ // this is used in mcB but is not used for backquote
-  if(e == NULL || constructor(e) == 'a' || constructor(e) == 'o' || string_quotep(constructor(e))) return bquote_code(e);
-  return intern_exp_code(constructor(e),quote_code(arg1(e)),quote_code(arg2(e)));
+expptr backslash_code(expptr e){
+  if(cellp(e) && car(e) == backslash)return app_code2("cons", atom_quote_code(backslash), backslash_code(cdr e));
+  if(cellp(e) && car(e) == dollar)return app_code2("cons", atom_quote_code(dollar), bquote_code(cdr e));
+  return bquote_code(e);
 }
 
 expptr bquote_macro(expptr e){ //this is the non-recursive entry point (the macro procedure) for backquote
-  if(constructor(arg2(e)) != '{')berror("syntax error: backquote must be followed by curly braces");
- return  bquote_code(arg1(arg2(e)));
+  if(!parenp(cdr(e)))berror("syntax error: backquote must be followed by parentheses");
+ return bquote_code(paren_inside(cdr(e)));
 }
 
 /** ========================================================================
 section: macroexpand
 ========================================================================**/
+
 expptr macro_token; //has value `{macro}
 
 void set_macro(expptr sym, expptr f(expptr)){
    setprop(sym, macro_token, (expptr) f);
 }
 
-void set_symbol_expansion(expptr sym, expptr expansion){
-  setprop(sym, string_exp("symbol_macro_expansion"), expansion);
-}
+expptr macroexpand1(expptr);
+expptr macroexpand_args(expptr);
 
-expptr macroexpand(expptr);
+expptr macroexpand(expptr e){
+  if(e == NULL)return NULL;
+  expptr e2 = macroexpand1(e);
+  if(e2 != e) return macroexpand(e2);
+  return macroexpand_args(e);
+}
 
 expptr macroexpand_args(expptr e){
   if(e == NULL || atomp(e)) berror("illegal call to macroexpand_args");
@@ -525,35 +532,43 @@ expptr macroexpand_args(expptr e){
   return intern_exp(constructor(e),a1,a2);
 }
 
-expptr macroexpand2(expptr name, expptr e){
-  expptr (*f)(expptr);
-  f = (expptr (*)(expptr)) getprop(name,macro_token,NULL);
-  if(f == NULL){return e;}
-  expptr val = f(e);
-  pop_dbg_stack();
-  return val;
-}
-
-char * top_string(expptr e){
-  if(e == NULL)return NULL;
-  char c  = constructor(e);
-  if(c == 'A')return arg1(a);
-  if(c == 'A')return top_symbol(arg1(e));
-  if(c == 'O')return arg1(e);
+expptr top_atom(expptr e){
+  if(!cellp(e))return NULL;
+  expptr f = car(e);
+  if(atomp(f) && alpha_atomp(f))return f;
+  if(!cellp(f))return NULL;
+  epptr conn = cdr(f);
+  if(conn_atomp(conn))return conn;
   return NULL;
 }
   
 expptr macroexpand1(expptr e){
-  expptr s = top_symbol(e);
+  expptr s = top_atom(e);
   if(s == NULL)return e;
-  return macroexpand2(s,e);
+  expptr (*f)(expptr);
+  f = (expptr (*)(expptr)) getprop(name,macro_token,NULL);
+  if(f == NULL){return e;}
+  return f(e);
 }
 
-expptr macroexpand(expptr e){
-  if(e == NULL)return NULL;
-  expptr e2 = macroexpand1(e);
-  if(e2 != e) return macroexpand(e2);
-  return macroexpand_args(e);
+/** ========================================================================
+Preamble and init_forms can be added during macro expansion
+======================================================================== **/
+
+void add_init_form(expptr form){
+  expptr form2 = macroexpand(form); //this can recursively add init_forms prior to the following.
+  init_forms = append(init_forms,cons(`{{${form2}}},NULL));
+}
+
+void add_preamble(expptr e){
+  expptr e2 = macroexpand(e); //this macro expansion can add to the preamble first.
+  preamble = append(preamble, cons(e2,NULL));}
+
+expptr full_expansion(expptr e){
+  preamble = NULL;
+  init_forms = NULL;
+  expptr e2 = macroexpand(e);
+  return append(preamble,cons(e2,init_forms));
 }
 
 /** ========================================================================
@@ -563,7 +578,7 @@ section: gensym
 expptr int_exp(int i){
   if(i < 0)berror("attempt to convert negative integer to expression");
   sprintf(ephemeral_buffer,"%d",i);
-  return string_exp(ephemeral_buffer);
+  return string_atom(ephemeral_buffer);
 }
 
 int exp_int(expptr s){
@@ -571,35 +586,68 @@ int exp_int(expptr s){
   return atoi((char *) arg1(s));
 }
 
+int gensym_count;
+
 expptr gensym(char * s){
-  for(int i=1;1;i++){
-    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_mcgen_%s%d",s,i);
+  while(1){
+    int i = rand()%(3*gensym_count);
+    gensym_count++;
+    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_gen%s%d",s,i);
     if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
     int key = preintern_string(ephemeral_buffer);
     if(string_hash_table[key]==NULL)break;}
-  return string_exp(ephemeral_buffer);
+  return string_atom(ephemeral_buffer);
 }
 
 /** ========================================================================
-section: file expansion
+section: read_from_terminal, mcexpand, and file_expressions
 ========================================================================**/
 
+int from_terminal;
+file * read_stream;
+
+expptr read();;
+
+
+read_from_terminal(){
+  from_terminal = 1;
+  paren_level = 0;
+  quotechar = 0;
+  next = ' ';
+  next2 = ' ';
+  read_stream = stdin;
+
+  return read();
+}
+
+expptr read(){//This does not use readchar but assumes that next and next2 are defined.
+  advance_readchar_past_white();
+  arg = mcread_E(0);
+  return arg ? arg : nil;
+}
+
+
+file * fileout;
 void process_def(expptr e);
+expptr read();
 
-void put_return(FILE * ws){
-  fputc('\n',ws);}
+void open_read_stream(char * source){
+  read_stream = fopen(source, "r");
+  if(read_stream == NULL)berror("attempt to open input file failed");
 
-void open_output_file(char * destination){
-  fileout = fopen(destination,"w");
-  if(fileout == NULL)berror("attempt to open output file failed");
+  from_terminal = 0;
+  next = ' ';
+  next2 = ' ';
 }
 
 void mcexpand(char * source, char * destination){
-  open_input_file(source);
-  open_output_file(destination);
+  open_read_stream(source);
   
+  fileout = fopen(destination,"w");
+  if(fileout == NULL)berror("attempt to open output file failed");
+
   while(1){
-    expptr e = read_from_file();
+    expptr e = read();
     if(e != NULL)process_def(e);
     if(readchar == EOF)break;
   }
@@ -608,27 +656,30 @@ void mcexpand(char * source, char * destination){
   fclose(fileout);
 }
 
-void add_preamble(expptr e){
-  expptr e2 = macroexpand(e);
-  preamble = append(preamble, cons(e2,NULL));}
-
-    
-void pprint_reversed(expptr exps){
-  if(exps == NULL)return;
-  pprint_reversed(cdr(exps));
-  pprint(car(exps),fileout,0);
-}
-
 void process_def(expptr e){
   if(e==NULL)return;
-  push_dbg_expression(e);
   preamble = NULL;
   expptr e2 = macroexpand(e);
   if(preamble != NULL){
     pprint(preamble,fileout,0);
     fputc('\n',fileout);}
   pprint(e2,fileout,0);
-  pop_dbg_stack();
+}
+
+expptr file_expressions2();
+
+expptr file_expressions(expptr fname){
+  open_read_stream(exp_string(fname))
+  expptr result = file_expressions2();
+  fclose(filein);
+  return result;
+}
+
+expptr file_expressions2(){
+  if(readchar == EOF)return nil;
+  expptr e = read();
+  expptr rest = file_expressions2();
+  return append(full_expansion(e),rest);
 }
 
 /** ========================================================================
@@ -643,31 +694,19 @@ Comments are removed from REPL inputs only in positions inside parantheses.
 the "lookahead" slots next and next2 are active for file input and for terminal
 input with paren_level > 0.
 
-mcread_open maintains the invariant that when advance_readchar is called we have that paren_level is the level of the position immediately preceding read_stream->next
+mcread_open maintains the invariant that when advance_readchar is called we have
+that paren_level is the level of the position immediately preceding read_stream->next
 ========================================================================**/
 
 char readchar;
-
-typedef struct wrapper{
-  FILE * stream;
-  char next;
-  char next2;} wrapper, * wstream;
-
-wstream file_stream;
-wstream terminal_stream;
-wstream read_stream;
+char next;
+char next2;
 
 int paren_level;
 char quotechar; //this is internal to preprocessing, mcread_string uses its own flag.
 
-wstream cwrap_stream(FILE * f);
-void advance_readchar();
 
-void open_input_file(char * source){
-  filein = fopen(source, "r");
-  if(filein == NULL)berror("attempt to open input file failed");
-  file_stream = cwrap_stream(filein);
-}
+void advance_readchar();
 
 void skipwhite(){while(whitep(readchar))advance_readchar();}
 
@@ -676,53 +715,37 @@ void advance_readchar_past_white(){
   skipwhite();
 }
 
-wstream cwrap_stream(FILE * s){
-  wstream result = (wstream) malloc(sizeof(wrapper));
-  result->stream = s;
-  result->next = ' ';
-  result->next2 = ' ';
-  return result;
-}
-
-void print_stream_state(){
-  fputc('|',stderr);
-  fputc((char) file_stream->next,stderr);
-  fputc((char) file_stream->next2,stderr);
-  fputc('|',stderr);
-}
-
 void advance_lookahead(){
   char nextchar;
-  if(read_stream->next2 == EOF)nextchar = EOF;
-  else nextchar = fgetc(read_stream->stream);
-  read_stream->next = read_stream->next2;
-  read_stream->next2 = nextchar;
+  if(next2 == EOF)nextchar = EOF;
+  else nextchar = fgetc(read_stream);
+  next = next2;
+  next2 = nextchar;
 }
 
 void advance_readchar(){
-  //readchar is undefined on entry --- only read_stream->next and read_stream->next2 are defined.
-  
-  //the following removes comments and quoted returns.
+  //readchar is undefined on entry --- only next and next2 are defined.
+    //the following removes comments and quoted returns.
 
   if(quotechar == 0){
     while(1){
-      if(read_stream->next == '/' && read_stream->next2 == '*'){
-	if(read_stream == terminal_stream && paren_level == 0)
+      if(next == '/' && next2 == '*'){
+	if(from_terminal && paren_level == 0)
 	  berror("comment from terminal outside of parens");
-	while(!(read_stream->next == '*' && read_stream->next2 == '/')){
+	while(!(next == '*' && next2 == '/')){
 	  advance_lookahead();
-	  if(read_stream->next2 == EOF)berror("end of file in comment");
+	  if(next2 == EOF)berror("end of file in comment");
 	}
 	advance_lookahead();
 	advance_lookahead();}
-      else if(read_stream->next == '/' && read_stream->next2 == '/'){
-	if(read_stream == terminal_stream && paren_level == 0)
+      else if(next == '/' && next2 == '/'){
+	if(from_terminal && paren_level == 0)
 	  berror("comment from terminal outside of parens");
-	while(read_stream->next != '\n'){
+	while(next != '\n'){
 	  advance_lookahead();
 	}}
-      else if(read_stream->next == '\\'
-	      && read_stream->next2 == '\n'
+      else if(next == '\\'
+	      && next2 == '\n'
 	      && quotechar == 0){
 	advance_lookahead();
 	advance_lookahead();}
@@ -731,51 +754,43 @@ void advance_readchar(){
   //file segmentation
   if(read_stream == file_stream
      && quotechar == 0
-     && read_stream->next == '\n'
-     && !whitep(read_stream->next2)
-     && !closep(read_stream->next2)){
-       read_stream->next = '\0';}
+     && next == '\n'
+     && !whitep(next2)
+     && !closep(next2)){
+       next = '\0';}
 
-  readchar = read_stream->next;
+  readchar = next;
   
-  if(read_stream == terminal_stream){
+  if(from_terminal){
     //ensuring immediate response at the terminal
     //and limiting non-terminated quotations
 
     int lookahead_level = paren_level;
-    if(openp(read_stream->next))lookahead_level++;
-    if(closep(read_stream->next))lookahead_level--;
+    if(openp(next))lookahead_level++;
+    if(closep(next))lookahead_level--;
     
-    if(read_stream->next2 == '\n' && (quotechar != 0 ||  lookahead_level == 0)){
-      read_stream->next = '\0';
-      read_stream->next2 = ' ';}
-    else if(read_stream->next == '\0'){
-      read_stream->next = ' ';
-      read_stream->next2 = ' ';}
+    if(next2 == '\n' && (quotechar != 0 ||  lookahead_level == 0)){
+      next = '\0';
+      next2 = ' ';}
+    else if(next == '\0'){
+      next = ' ';
+      next2 = ' ';}
     else advance_lookahead();}
   else advance_lookahead();
 
   //maintaining quotechar
-  if(string_quotep(read_stream->next)){
-    if(quotechar == 0){quotechar = read_stream->next;}
-    else if(readchar != '\\' && read_stream->next == quotechar){quotechar = 0;}}
+  if(string_quotep(next)){
+    if(quotechar == 0){quotechar = next;}
+    else if(readchar != '\\' && next == quotechar){quotechar = 0;}}
 }
 
 /** ========================================================================
-lexicalizatrion
+Lexicalization and parethesis expressions
 ======================================================================== **/
 
-int string_quotep(char x){return (x == '"' || x == '\'');}
-
-int binaryp(char c){
-  return c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
-      || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^' || c == '|' || c == '&' || c == '~';
-}
-
-int terminatorp(char c){return (closep(c) || c == EOF || c == '\0' || c == ';');}
-
 char * mcread_symbol(){
-  if(!alphap(readchar))berror("non alphap charcter visible to mcread_symbol");
+  if(!alphap(readchar))berror("mcread_symbol called on non-aplha character");
+  
   int i=0;
   while(alphap(readchar)){
     if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
@@ -784,11 +799,12 @@ char * mcread_symbol(){
   skipwhite();
   if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
   ephemeral_buffer[i]=0;
-  return intern_string(ephemeral_buffer);
+  return string_atom(ephemeral_buffer);
 }
 
 char * mcread_connective(){
-  if(!binaryp(readchar))berror("non binaryp charcter visible to mcread_connective");
+  if(!connp(readchar))) berror("mcread_connective called on non-connective character");
+
   int i=0;
   while(alphap(readchar)){
     if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
@@ -797,14 +813,14 @@ char * mcread_connective(){
   skipwhite();
   if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
   ephemeral_buffer[i]=0;
-  return intern_string(ephemeral_buffer);
+  return string_atom(ephemeral_buffer);
 }
 
 char * mcread_string(){
+  if(!string_quotep(readchar))berror("mcread_string called on non-qutation");
+
   //we must prevent an unterminated string from swalling all further input.
   //we solve this by not allowing return characters in strings.
-  if(!string_quotep(readchar))berror("non string_quotep character visibile to mcread_string");
-
   char q = readchar; //remember the quote character
   ephemeral_buffer[0] = q;
   advance_readchar();
@@ -820,82 +836,31 @@ char * mcread_string(){
   skipwhite();
   if(i == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
   ephemeral_buffer[i]=0;
-  return intern_string(ephemeral_buffer);
+  return string_atom(ephemeral_buffer);
 }
 
-
-/** ========================================================================
-The reader
-
-The reader makes use of the following addional character classifications
-======================================================================== **/
-
-int alphap(char c){
-  return  (c >= 'A' && c <= 'Z')
-    || (c >= 'a' && c <= 'z')
-    || (c >= '0' && c <= '9')
-    || (c == '_');
+expptr mcread_misc(){
+  if(!miscp(readchar))berror("mcread_string called on non-qutation");
+  if(readchar == '\\')sprintf(ephemeral_buffer,"'\%c'",readchar);
+  else sprintf(ephemeral_buffer,"'%c'",readchar);
+  advance_readchar_past_white();
+  return string_atom(ephemeral_buffer);
 }
 
-int precedence(char * s){
-  car op = s[0];
-  if(op==',')return 2;
-  if(op==' ')return 3;
-  if(op=='=' || op=='<' || op=='>' || op =='~') return 4;
-  if(op=='|' || op =='&')return 5;
-  if(op=='+' || op=='-')return 6;
-  if(op=='*' || op=='/')return 7;
-  if(op == '^')return 8;
-  if(op=='@')return 9;
-  if(op=='.')return 10;
-  if(op==' ')return 11;
-  if(op==':')return 12;
-  berror("unknown character in precedence");
-  return 1; //avoids compiler warning
-}
+void declare_unmatched(char, expptr, char);
 
-#define LEFT_THRESHOLD 8
-//operators with precedence >= LEFT_THRESHOLD are left associative.
-
-/** ========================================================================
-Parsing Arguments
-======================================================================== **/
-expptr mcread_tree(int p);
-expptr mcread_arg();
-expptr mcread_unary();
-expptr mcread_application();
-expptr mcread_paren_sequence();
-expptr mcread_open();
-
-expptr mcread_arg(){
-  char c = readchar; //remember readchar
-  if(string_quotep(readchar)){return mcread_string();}
-  return mcread_unary();
-}
-
-expptr mcread_unary(){
-  char c = readchar; //remember readchar
-  if(prefixp(c)){
-    advance_readchar_past_white();
-    return intern_exp(c,mcread_unary(),NULL);}
-  if(openp(c))return intern_exp(c,mcread_open(),NULL);
-  return mcread_application();
-}
-
-expptr mcread_application(){
-  char c = readchar; //remember readchar
-  //c  is not string_quote, prefixp, or openp
-  if(alphap(c)){
-    expptr sym = mcread_symbol();
-    return intern_exp('A',sym,mcread_paren_sequence());}
-  return NULL;
-}
-
-expptr mcread_paren_sequence(){
-  if(!openp(readchar))return NULL;
-  char c = readchar; //remember before advancing
-  expptr first = mcread_open();
-  return intern_exp(c,first,mcread_paren_sequence());
+expptr mcread_open(){
+  if(!openp(readchar))berror("mcread_open called on non-open character");
+  
+  char c = readchar;
+  char cl = close_for(c);
+  paren_level++;
+  advance_readchar_past_white();
+  expptr e = read();
+  if(readchar != cl)declare_unmatched(c,e,cl);
+  paren_level--;
+  advance_readchar_past_white();
+  return intern_paren(c,e);
 }
 
 void declare_unmatched(char openchar, expptr e, char closechar){
@@ -905,110 +870,78 @@ void declare_unmatched(char openchar, expptr e, char closechar){
   berror("");
 }
 
-expptr mcread_open(){ // readchar is openp
-  char openchar = readchar;
-  char closechar = close_for(openchar);
-
-  paren_level++;
-  advance_readchar_past_white();
-  expptr e = mcread_tree(0);
-  if(readchar != closechar)declare_unmatched(openchar,e,closechar);
-  paren_level--;
-  
-  advance_readchar_past_white();
-  expptr val = intern_exp(openchar,e,NULL);
-  return val;
-}
-
 /** ========================================================================
-Parsing
+Deterministic shift-reduce parsing with phantom arguments.
+======================================================================== **/
 
-We note that for any triple ... op1 arg op2 ..., where op1 and op2 are binary connectives, the
-precedence of op1 and op2 determines whether arg binds to the right or to the left.  A higher precedence
-operator binds. If the precedence is the same we have arg binds left for left-assiative priories and
-binds right for right-associative priorities.  Associativity is the same for all same-precedence opertors.
+expptr pcons(expptr x, expptr y){return x? (y? cons(x,y) : x) : y;}
 
-In mcread_tree(p1), p1 is the precedence of the connective to the left of readcar
-or zero if there is no such connective
-
-mcread_tree(p1) returns arg and op such that arg binds left.  The operator argument is returned in the variable readop.
-
-The null connective is represented by a space connective and application of the space connective are represented by expressions tagged with 'O'.
-This simplifies mcread_tree by allowing the null connective to be handled by general code for binary connectives.
-The null connective prints as space. Having the space connective print as space guarantees that adjacent symbols remain separated in the printed string.
-
-The space connective has precedence higher than comma (and higher than the terminator symbol ';') but lower than all other binary connectives.  This causes friendly tree structures
-for C argument lists and statement lists.
-
-If there is no left operator then p1 == 0 which is weaker than all connectives other than the true null connective
-inserted at terminators.  This causes mcread_tree(0) to return the tree between the current readchar and the next terminator.
-
-Each of the following mcread functions can return NULL but if mcread_arg() is followed by mcread_connective() either one of
-the two must be non-null or readchar is a terminator --- the initial readcar must contribute to one of these three cases.
-==================================================================== **/
-
-expptr readop;
-
-expptr last_def;
-char last_readchar;
-
-expptr read_from(wstream s){
-  read_stream = s;
-  paren_level = 0;
-  quotechar = 0;
-
-  //readchar is undefined on entry.  The following sets readchar.
-  advance_readchar_past_white();
-  return mcread_tree(0);
-  //on return readchar is either '\0' or EOF
+expptr mcread_gatom(){
+  if(string_quotep(readchar))return mcread_string();
+  if(alphap(readchar))return mcread_symbol();
+  if(openp(readchar))return mcread_open();
+  if(miscp(readchar)){tag = mcread_misc(); pcons(tag, mcread_atom());}
+  return NULL;
 }
 
-expptr read_from_terminal(){return read_from(terminal_stream);}
-
-expptr read_from_file(){return read_from(file_stream);}
-
-expptr mcread_tree(int p1){
-  if(whitep(readchar))berror("whitespace visible to mcread_tree");
-  expptr a1 = mcread_arg();
-  expptr op2 = mcread_connective();
-  int p2 = op_precedence(op2);
-  while(p2 > p1 || (p2 == p1 && p1 != 0 && p1 < LEFT_THRESHOLD) || (p1 == 0 && readchar ==';')){
-      op2 = mcread_connective();
-      p2 = op_precedence(op2);}
-    else {
-      expptr a2 = mcread_tree(p2);
-      a1 = intern_exp('O',op2,intern_exp(' ',a1,a2));
-      op2 = readop;
-      p2 = op_precedence(op2);}}
-  readop = op2;
-  return a1;
-  if(whitep(readchar))berror("white space on return of mcread_tree");
+expptr mcread_arg(){
+  expptr gatom = mcread_gatom();
+  if(!gatom){return NULL;}
+  return pcons(gatom,mcread_arg());
 }
 
+int precedence(char c){
+  if(terminatorp(c))return 0;
+  if(c==';')return 1;
+  if(c==',')return 2;
+  if(c=='=' || c=='<' || c=='>' || c =='~') return 3;
+  if(c=='|' || c =='&')return 4;
+  if(c=='+' || c=='-')return 5;
+  if(c=='*' || c=='/')return 6;
+  if(c == '^')return 7;
+  if(c=='@')return 8;
+  if(c=='.')return 9;
+  if(c==' ')return 10;
+  if(c==':')return 11;
+  berror("unknown character in precedence");
+  return 1; //avoids compiler warning
+}
+
+#define LEFT_THRESHOLD 7
+
+expptr mcread_E(int p_left){
+  //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
+  //This returns a (possibly phantom) general expression (category E) to be consumed by the stack.
+  arg = mcread_arg();
+  p_right = precedence(readchar);
+  while(p_left < p_right || (p_left == p_right && p_left < LEFT_THRESHOLD))break;
+    expptr op = mcread_operator();
+    arg = pcons(pcons(arg,op),mcread_E(p_right));
+    p_right = precedence(readchar);
+  }
+  return arg;
+}
+ 
 /** ========================================================================
 section: initialization
 ========================================================================**/
 
 void mcA_init(){
-  break_active = 0;
   init_stack_frames();
   init_undo_frames();
   init_strings();
   init_expressions();
+
   rep_column = 0;
-  
-  dbg_freeptr = 0;
-  
-  print_length_token = string_exp("print_length");
-  macro_token = string_exp("macro");
-
-  readchar = ' ';
+  gensym_count = 1;
+  dbg_freeptr = 0
   catch_freeptr = 0;
-  terminal_stream = cwrap_stream(stdin);
-  commaop = intern_exp('o',(expptr) intern_string(","),NULL);
-  colonop = intern_exp('o',(expptr) intern_string(":"),NULL);
-  spaceop = intern_exp('o',(expptr) intern_string(" "),NULL);
+  
+  nil = string_atom("");
+  semi = string_atom(";");
+  dollar = string_atom("$");
+  backslash = string_atom("//");
+  macro_token = string_atom("macro");
 
-  set_macro(intern_exp('`',NULL,NULL), bquote_macro);
+  set_macro(string_atom("`"), bquote_macro);
 }
-

@@ -1,10 +1,5 @@
 #include "mc.h"
 
-void add_init_form(expptr form){
-  expptr form2 = macroexpand(form); //this can recursively add init_forms prior to the following.
-  init_forms = append(init_forms,cons(`{{${form2}}},NULL));
-}
-
 expptr init_form_macro(expptr e){
   ucase{e; {init_form(!form)}:{add_init_form(form); return NULL;}}
   return NULL;
