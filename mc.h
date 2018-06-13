@@ -172,7 +172,7 @@ void match_failure(expptr,expptr);
 gensym
 ========================================================================**/
 
-expptr gensym(expptr sym);
+expptr gensym(char * s);
 
 /** ========================================================================
 properties
