@@ -248,7 +248,7 @@ int length(expptr);
 expptr append(expptr,expptr);
 expptr reverse(expptr);
 
-expptr file_expressions(expptr fname);
+expptr file_expressions(char * fname);
 
 FILE * writestrm;
 
