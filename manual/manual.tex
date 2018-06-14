@@ -539,10 +539,18 @@ The more general case is considered below (we are requiring that we be able to p
 
 Each connective atom is associated with a precedence and each precedence level is associated with a convention for being left-associative or right associative.
 Grouped by precedence, the binary connective characters are
-semicolon, comma, \{{\tt =}, {\tt $\sim$}, {\tt $<$}, {\tt $>$}\}, \{\mtt{|}, {\tt \&}\}, \{{\tt +}, {\tt -}\}, \{{\tt *}, {\tt /}\}, {\tt .}, {\tt @}, \mtt{$\hat{~}$} and colon.
-The precedence of a binary connective is determined by its first character.  The characters have low to high (outer to inner) precedence in the order given with symbols in the same group having the same precedence.
-Note that semicolon has the lowest precedence giving it syntactic power similar to that of parentheses in separating text.  Also note that colon has the highest precedence
-which allows it to function as a ``package connective'' between symbols.
+
+\medskip
+\centerline{\{semicolon\} \{comma\}  \{$\hat{\mathtt{~}}$\}
+  \{\mtt{|}, {\tt \&}\} \{{\tt =}, {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\} \{{\tt *}, {\tt /}\} \{{\tt \%}\} \{{\tt .}, colon,  {\tt @}\}.}
+
+The precedence of a binary connective is determined by its first character.  The characters have low to high (outer to inner) precedence in the order given with symbols
+in the same group having the same precedence.  The precedence can be summarized in outer to inner order as semicolon, comma, an expression separator below comma,
+Boolean connectives, binary predicates,
+four levels of binary functions, and ``symbol connectives'' --- ways of building compound symbols.  Below the level of parentheses, semicolon and comma the UACS precedence
+conventions have various divergences with C syntax.  However, when writing a macro package in MetaC one can simply adopt the MetaC precedence conventions for the
+source code and use parentheses where necessary in the generated C code.
+
 
 To be able to parse any string we intuitively add a phantom argument between each pair of adjacent binary connectives and also add a phantom argument
 at the beginning if the string starts with a connective and a phantom argument at the end if the string ends with a connective.

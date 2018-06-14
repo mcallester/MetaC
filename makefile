@@ -1,6 +1,3 @@
-mcA.c : mcA.mc
-	cp mcA.mc mcA.c
-
 # expandA
 
 mcA.o : mc.h mcA.c
