@@ -3,9 +3,6 @@
 mcA.o : mc.h mcA.c
 	gcc -g mcA.c -c
 
-expandA.c : expandA.mc mcA.c
-	cp expandA.mc expandA.c
-
 expandA : mcA.o expandA.c
 	gcc -g -o expandA mcA.o expandA.c -ldl -lm
 #testA

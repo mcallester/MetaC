@@ -184,24 +184,25 @@ int alphap(char c){
 }
 
 int miscp(char c){
-  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '%' || c == '?';
+  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '?';
 }
 
 int connp(char c){
   return c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
-      || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^' || c == '|' || c == '&' || c == '~' ||c ==';';
+    || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^'
+    || c == '|' || c == '&' || c == '~' ||c ==';' || c == '%';
 }
 
 int whitep(char c){return c == ' ' || c == '\n' || c== '\t';}
 
-int closep(char x){return ((x)==')' || (x)=='}' || (x) == ']');}
+int closep(char c){return (c ==')' || c =='}' || c == ']');}
 
-int openp(char x){return ((x)=='(' || (x)=='}' || (x) == ']');}
+int openp(char c){return (c =='(' ||  c== '{' || c == '[');}
 
-char close_for(char o){
-  if(o == '(')return  ')';
-  if(o == '{')return  '}';
-  if(o == '[')return  ']';
+char close_for(char c){
+  if(c == '(')return  ')';
+  if(c == '{')return  '}';
+  if(c == '[')return  ']';
   berror("illegal char given to close_for");
   return 'a';  // avoids compiler warning
 }
@@ -356,10 +357,10 @@ void putexp(expptr);
 void putone(char);
 
 char * exp_string(expptr e){
-  char * result = &stack_heap[stack_heap_freeptr];
+  char * s = &(stack_heap[stack_heap_freeptr]);
   putexp(e);
   putone('\0');
-  return result;
+  return s;
 }
 
 void putone(char c){
@@ -374,56 +375,54 @@ void putstring(char * s){
 
 void putexp(expptr w){
   if(atomp(w)){
-    char c = constructor(w);
-    if(connp(c) || alphap(c)) {putstring(atom_string(w)); putone(' ');}
-    else putstring(atom_string(w));}
+    char * s = atom_string(w);
+    putstring(s);
+    if(connp(s[0]) || alphap(s[0])) putone(' ');}
   else if(parenp(w)){char c = constructor(w); putone(c); putexp(paren_inside(w));putone(close_for(c));}
   else if(cellp(w)){putexp(car(w)); putexp(cdr(w));}
-}
-
-FILE * writestrm;
-
-void writeone(char c){ fputc(c,writestrm);}
-
-void writestring(char * w){
-  fprintf(writestrm, "%s",w);
 }
 
 /** ========================================================================
 pprint
 ======================================================================== **/
 
+FILE * pprint_stream;
 int pprint_column;
-
-void newline(){
-  fprintf(writestrm, "\n");
-  for(int i=0;i<pprint_column;i++)fprintf(writestrm, " ");
-}
-
 expptr semi;
 expptr comma;
 #define COMMA_THRESHOLD 20
 
+void writeone(char c){ fputc(c,pprint_stream);}
+
+void writestring(char * w){
+  fprintf(pprint_stream, "%s",w);
+}
+
+void newline(){
+  fprintf(pprint_stream, "\n");
+  for(int i=0;i<pprint_column;i++)fprintf(pprint_stream, " ");
+}
+
 void pprint_exp(expptr w){
-  char c = constructor(w);
   if(atomp(w)){
-    putstring(atom_string(w));
-    if(connp(c) || alphap(c))putone(' ');
+    char * s = atom_string(w);
+    writestring(s);
+    if(connp(s[0]) || alphap(s[0]))writeone(' ');
     if(w == semi || (w == comma && pprint_column >= COMMA_THRESHOLD))newline();}
   else if(parenp(w)){
-    putone(c);
+    char c = constructor(w);
+    writeone(c);
     pprint_column += 2;
     if(c == '\{') newline();
     pprint_exp(paren_inside(w));
-    putone(close_for(c));
+    writeone(close_for(c));
     pprint_column -= 2;
-    if(c == '\{')newline();
-    else if(cellp(w)){putexp(car(w)); putexp(cdr(w));}
-  }
+    if(c == '\{')newline();}
+  else if(cellp(w)){pprint_exp(car(w)); pprint_exp(cdr(w));}
 }
 
 void pprint(expptr w, FILE * f, int col){
-  writestrm = f;
+  pprint_stream = f;
   pprint_column = col;
   newline();
   pprint_exp(w);
@@ -441,7 +440,7 @@ expptr app_code(char * proc, expptr arg_code){
   return cons(string_atom(proc), intern_paren('(',arg_code));}
 
 expptr comma_code(expptr arg1_code, expptr arg2_code){
-  return app_code("cons", cons(arg1_code, cons(string_atom(","), arg2_code)));
+  return cons(arg1_code, cons(string_atom(","), arg2_code));
 }
 
 expptr app_code2(char * proc, expptr arg1_code, expptr arg2_code){
@@ -454,19 +453,17 @@ expptr constructor_code(char c){  //this is only used for the three open paren c
 }
 
 expptr atom_quote_code(expptr a){
-  char  * s1 = atom_string(a);
-  char  * s2 = ephemeral_buffer;
-  int i = 0;  s2[0] = '"';  int j = 1;
-  while(s1[i] != 0){
-    if(j >= EPHEMERAL_DIM - 5)berror("Ephemeral buffer exausted");
-    if(s2[i] != '\\' && s2[i] != '"'){
-      s2[j] = s1[i]; i++; j++;}
-    else {
-      s2[j] = '\\'; s2[j+1] = s1[i]; i++; j += 2;}
-  }
-  s2[j] = '"';   s2[j+1] = 0;
-
-  return app_code("string_atom",string_atom(s2));
+  char  * s = atom_string(a);
+  int eph_freeptr = 0;
+  ephemeral_buffer[eph_freeptr++] = '"';
+  if(string_quotep(s[0])) ephemeral_buffer[eph_freeptr++] = '\\';
+  for(int i = 0; s[i] != '\0'; i++)ephemeral_buffer[eph_freeptr++]=s[i];
+  if(string_quotep(s[0])){
+    ephemeral_buffer[eph_freeptr-1] = '\\';
+    ephemeral_buffer[eph_freeptr++] = s[0];}
+  ephemeral_buffer[eph_freeptr++] = '"';
+  ephemeral_buffer[eph_freeptr++] = '\0';
+  return app_code("string_atom",string_atom(ephemeral_buffer));
 }
 
 expptr quote_code(expptr e){
@@ -509,20 +506,13 @@ void set_macro(expptr sym, expptr f(expptr)){
 }
 
 expptr macroexpand1(expptr);
-expptr macroexpand_args(expptr);
 
 expptr macroexpand(expptr e){
-  if(e == NULL)return NULL;
+  if(atomp(e)) return e;
   expptr e2 = macroexpand1(e);
   if(e2 != e) return macroexpand(e2);
-  return macroexpand_args(e);
-}
-
-expptr macroexpand_args(expptr e){
-  if(e == NULL || atomp(e)) berror("illegal call to macroexpand_args");
-  expptr a1 = macroexpand(arg1(e));
-  expptr a2 = macroexpand(arg2(e));
-  return intern_exp(constructor(e),a1,a2);
+  if(parenp(e)) return intern_paren(constructor(e),macroexpand(paren_inside(e)));
+  return intern_exp(constructor (e),macroexpand(car(e)),macroexpand(cdr(e)));
 }
 
 expptr top_atom(expptr e){
@@ -678,9 +668,9 @@ void simple_advance(){
     //we want the paren level between next and next2.
     int next_level = openp(next)? paren_level+1 : closep(next)? paren_level-1 : paren_level;
     if(next_level == 0)next2 = '\0';}
-    readchar = next;
-    next = next2;
-    next2 = (next2 == EOF || (from_terminal && next2 == '\0'))? next2 : fgetc(read_stream);
+  readchar = next;
+  next = next2;
+  next2 = (next2 == EOF || (from_terminal && next2 == '\0'))? next2 : fgetc(read_stream);
 }
 
 void skip_comment1(){
@@ -702,12 +692,14 @@ void advance_readchar(){
   if(next == '/' && next2 == '*'){skip_comment1(); advance_readchar();return;}
   if(next == '/' && next2 == '/'){skip_comment2(); advance_readchar();return;}
   //advance past quoted return --- needed for parsing #define.
-  if(!from_terminal && next == '\\' && next2 == '\n'){simple_advance(); simple_advance();advance_readchar();return;}
+  if(!from_terminal && next == '\\' && next2 == '\n'){
+    simple_advance();
+    simple_advance();
+    advance_readchar();return;}
   //file segmentation
   if(!from_terminal && next == '\n' && !whitep(next2) && !closep(next2)){next = '\0';}
-  //skip white
-  if(whitep(next))advance_readchar(); advance_readchar(); return;
   simple_advance();
+  if(whitep(readchar))advance_readchar();
 }
 
 /** ========================================================================
@@ -728,7 +720,7 @@ expptr mcread_symbol(){
     if(!alphap(next))break;
     simple_advance();}
   ephemeral_putc('\0');
-  advance_readchar();
+  advance_readchar(); //does not use ephemeral buffer
   return string_atom(ephemeral_buffer);
 }
 
@@ -740,7 +732,7 @@ expptr mcread_connective(){
     if(!connp(next))break;
     simple_advance();}
   ephemeral_putc('\0');
-  advance_readchar();
+  advance_readchar(); //does not use ephemeral buffer
   return string_atom(ephemeral_buffer);
 }
 
@@ -760,15 +752,15 @@ expptr mcread_string(){
     if(readchar == '\\' && !quoted) quoted = 1; else quoted = 0;
     simple_advance();}
   ephemeral_putc('\0');
-  advance_readchar();
+  advance_readchar(); //does not use ephemeral buffer
   return string_atom(ephemeral_buffer);
 }
 
 expptr mcread_misc(){
   if(!miscp(readchar))berror("mcread_misc called on non-miscp");
-  if(readchar == '\\')sprintf(ephemeral_buffer,"'\%c'",readchar);
-  else sprintf(ephemeral_buffer,"'%c'",readchar);
-  advance_readchar();
+  ephemeral_buffer[0] = readchar;
+  ephemeral_buffer[1] = '\0';
+  advance_readchar(); //does not use ephemeral buffer
   return string_atom(ephemeral_buffer);
 }
 
@@ -803,7 +795,7 @@ expptr mcread_gatom(){
   if(string_quotep(readchar))return mcread_string();
   if(alphap(readchar))return mcread_symbol();
   if(openp(readchar))return mcread_open();
-  if(miscp(readchar)){expptr tag = mcread_misc(); pcons(tag, mcread_gatom());}
+  if(miscp(readchar)){expptr tag = mcread_misc(); return pcons(tag, mcread_gatom());}
   return NULL;
 }
 
@@ -828,7 +820,7 @@ int precedence(char c){
   return 1; //avoids compiler warning
 }
 
-#define LEFT_THRESHOLD 7
+#define LEFT_THRESHOLD 9
 
 expptr mcread_E(int p_left){
   //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
