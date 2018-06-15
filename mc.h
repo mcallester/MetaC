@@ -118,42 +118,42 @@ typedef struct expstruct{
   struct expstruct * arg2;
 }expstruct,*expptr;
 
+expptr string_atom(char * s);
 
-void uerror(expptr);
+int atomp(expptr e);
 
-expptr intern_exp(char constr, expptr arg1, expptr arg2);
+char * atom_string(expptr a);
+
+
+expptr cons(expptr x, expptr y);
+
+int cellp(expptr e);
+
+expptr car(expptr x);
+
+expptr cdr(expptr x);
+
+
+expptr intern_paren(char openchar, expptr arg);
+
+int parenp(expptr e);
+
+expptr paren_inside(expptr e);
+
+int alphap(char), connp(char), miscp(char), string_quotep(char);
 
 static inline char constructor(expptr e){
   if(e == NULL)berror("attempt to take the constructor of a null expression");
   return e-> constructor;}
 
-static inline expptr arg1(expptr e){
-  if(e == NULL)berror("attempt to take arg1 of a null expression");
-  return e-> arg1;}
-
-static inline expptr arg2(expptr e){
-  if(e == NULL)berror("attempt to take arg2 of a null expression");
-  return e-> arg2;}
-
-expptr op_arg1(expptr e);
-expptr op_arg2(expptr e);
-expptr intern_exp_op(char c, expptr a1, expptr a2);
-
 static inline plist data(expptr e){
   if(e == NULL)berror("attempt to take data of null expression");
   return e -> data;}
 
-int atomp(expptr e);
-int symbolp(expptr e);
-int string_quotep(char x);
 char * intern_string(char * s);
-expptr string_symbol();
-charptr symbol_string(expptr s);
 expptr int_exp(int i);
 int symbol_int(expptr s);
 charptr exp_string(expptr e);
-expptr make_app(expptr sym, expptr arg);
-expptr quote_code(expptr e);
 
 #define DBG_DIM 10000
 #define DBG_DIM_ARGS 5
@@ -279,3 +279,12 @@ void mcE_init1();
 void mcE_init2();
 
 int rep_column;
+
+
+/** ========================================================================
+expression_constants
+======================================================================== **/
+
+expptr comma, colon, semi, backquote, dollar, backslash, exclam, question;
+expptr nil, macro;
+

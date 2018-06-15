@@ -171,7 +171,7 @@ void init_strings(){
 
 
 /** ========================================================================
-character and atom types
+character types
 ========================================================================**/
 
 int string_quotep(char x){return (x == '"' || x == '\'');}
@@ -247,28 +247,47 @@ void init_expressions(){
   for(int i=0;i<EXP_HASH_DIM;i++)exp_hash_table[i] = NULL;
 }
 
-
 expptr string_atom(char * s){return intern_exp('A', (expptr) intern_string(s), NULL);}
 
 int atomp(expptr e){return constructor(e) == 'A';}
 
-char * atom_string(expptr a){return (char *) arg1(a);}
+char * atom_string(expptr a){return (char *) a->arg1;}
 
 
 expptr cons(expptr x, expptr y){return intern_exp(' ',x,y);}
 
 int cellp(expptr e){return constructor(e) == ' ';}
 
-expptr car(expptr x){return arg1(x);}
+expptr car(expptr x){return x->arg1;}
 
-expptr cdr(expptr x){return arg2(x);}
+expptr cdr(expptr x){return x->arg2;}
 
 
 expptr intern_paren(char openchar, expptr arg){return intern_exp(openchar, arg, NULL);}
 
 int parenp(expptr e){return openp(constructor(e));}
 
-expptr paren_inside(expptr e){return arg1(e);}
+expptr paren_inside(expptr e){return e->arg1;}
+
+
+/** ========================================================================
+common expression constants
+======================================================================== **/
+
+void init_exp_constants(){
+  comma = string_atom(",");
+  colon = string_atom(":");
+  semi = string_atom(";");
+  backquote = string_atom("`");
+  dollar = string_atom("$");
+  backslash = string_atom("\\");
+  exclam = string_atom("!");
+  question = string_atom("?");
+
+  nil = string_atom("");
+  macro = string_atom("macro");
+}
+
 
 
 /** ========================================================================
@@ -295,7 +314,7 @@ expptr mapcar(expptr f(expptr), expptr l){
 }
 
 int length(expptr l){
-  if(cellp(l))return length(arg2(l)) + 1;
+  if(cellp(l))return length(cdr(l)) + 1;
   else return 0;
 }
 
@@ -352,12 +371,14 @@ int getprop_int(expptr e, expptr key, int defaultval){
 /** ========================================================================
 printing: exp_string
 ======================================================================== **/
-
 void putexp(expptr);
 void putone(char);
 
+char print_lastchar;
+
 char * exp_string(expptr e){
   char * s = &(stack_heap[stack_heap_freeptr]);
+  print_lastchar = '\0';
   putexp(e);
   putone('\0');
   return s;
@@ -366,6 +387,7 @@ char * exp_string(expptr e){
 void putone(char c){
   if(stack_heap_freeptr == STACK_HEAP_DIM)berror("stack heap exhausted");
   stack_heap[stack_heap_freeptr++] = c;
+  print_lastchar=c;
 }
 
 void putstring(char * s){
@@ -376,55 +398,76 @@ void putstring(char * s){
 void putexp(expptr w){
   if(atomp(w)){
     char * s = atom_string(w);
-    putstring(s);
-    if(connp(s[0]) || alphap(s[0])) putone(' ');}
+    if((connp(s[0]) && connp(print_lastchar)) || (alphap(s[0]) && alphap(print_lastchar))) putone(' ');
+    putstring(s);}
   else if(parenp(w)){char c = constructor(w); putone(c); putexp(paren_inside(w));putone(close_for(c));}
   else if(cellp(w)){putexp(car(w)); putexp(cdr(w));}
 }
-
+     
 /** ========================================================================
 pprint
 ======================================================================== **/
 
 FILE * pprint_stream;
-int pprint_column;
+int pprint_paren_level;
+int pprint_indent_level;
+
+#define PPRINT_DEPTH_LIMIT 1000
+
+char pprint_newlinep[PPRINT_DEPTH_LIMIT];
+
+#define PAREN_LENGTH_LIMIT 60
+
 expptr semi;
 expptr comma;
-#define COMMA_THRESHOLD 20
 
-void writeone(char c){ fputc(c,pprint_stream);}
+void writeone(char c){fputc(c,pprint_stream); print_lastchar = c;}
 
-void writestring(char * w){
-  fprintf(pprint_stream, "%s",w);
+void writestring(char * s){
+  for(int i = 0;s[i] != '\0';i++){
+    writeone(s[i]);}
 }
 
-void newline(){
-  fprintf(pprint_stream, "\n");
-  for(int i=0;i<pprint_column;i++)fprintf(pprint_stream, " ");
+void maybe_newline(){
+  if(pprint_newlinep[pprint_paren_level]){
+    fprintf(pprint_stream, "\n");
+    for(int i=0;i< pprint_indent_level + pprint_paren_level; i++)fprintf(pprint_stream, "  ");}
+}
+
+int exp_length(expptr e){
+  if(atomp(e))return strlen(atom_string(e));
+  if(cellp(e))return exp_length(car(e)) + exp_length(cdr(e));
+  if(parenp(e))return 2+exp_length(paren_inside(e));
+  return 0;
 }
 
 void pprint_exp(expptr w){
+  //pprinting formatting is determined by the represented string independent of tree structure.
+  //formatting is determined by the placement opf parantheses, semicolons and commas.
   if(atomp(w)){
     char * s = atom_string(w);
+    if((connp(s[0]) && connp(print_lastchar)) || (alphap(s[0]) && alphap(print_lastchar))) writeone(' ');
     writestring(s);
-    if(connp(s[0]) || alphap(s[0]))writeone(' ');
-    if(w == semi || (w == comma && pprint_column >= COMMA_THRESHOLD))newline();}
+    if(w == semi || w == comma)maybe_newline();}
   else if(parenp(w)){
+    if(pprint_paren_level == PPRINT_DEPTH_LIMIT-1)berror("pprint depth limit exceeded");
+    pprint_paren_level++;
+    pprint_newlinep[pprint_paren_level] = (exp_length(w) > PAREN_LENGTH_LIMIT);
+    maybe_newline();
     char c = constructor(w);
     writeone(c);
-    pprint_column += 2;
-    if(c == '\{') newline();
     pprint_exp(paren_inside(w));
     writeone(close_for(c));
-    pprint_column -= 2;
-    if(c == '\{')newline();}
+    pprint_paren_level--;}
   else if(cellp(w)){pprint_exp(car(w)); pprint_exp(cdr(w));}
 }
 
-void pprint(expptr w, FILE * f, int col){
+void pprint(expptr w, FILE * f, int indent_level){
   pprint_stream = f;
-  pprint_column = col;
-  newline();
+  pprint_paren_level=0;
+  pprint_indent_level = indent_level;
+  pprint_newlinep[0] = (exp_length(w) + 2) > PAREN_LENGTH_LIMIT;
+  fprintf(f,"\n");
   pprint_exp(w);
   fprintf(f,"\n");
 }
@@ -439,17 +482,8 @@ section: backquote
 expptr app_code(char * proc, expptr arg_code){
   return cons(string_atom(proc), intern_paren('(',arg_code));}
 
-expptr comma_code(expptr arg1_code, expptr arg2_code){
-  return cons(arg1_code, cons(string_atom(","), arg2_code));
-}
-
 expptr app_code2(char * proc, expptr arg1_code, expptr arg2_code){
-  return app_code(proc, comma_code(arg1_code,arg2_code));
-}
-
-expptr constructor_code(char c){  //this is only used for the three open paren characters
-  sprintf(ephemeral_buffer,"'%c'",c);
-  return app_code("string_atom",string_atom(ephemeral_buffer));
+  return cons(string_atom(proc), intern_paren('(',cons(arg1_code, cons(comma, arg2_code))));
 }
 
 expptr atom_quote_code(expptr a){
@@ -466,14 +500,11 @@ expptr atom_quote_code(expptr a){
   return app_code("string_atom",string_atom(ephemeral_buffer));
 }
 
-expptr quote_code(expptr e){
-  if(atomp(e))return atom_quote_code(e);
-  else if(parenp(e))return app_code2("intern_paren",constructor_code(constructor(e)),quote_code(paren_inside(e)));
-  else return app_code("cons",comma_code(quote_code(car(e)),quote_code(cdr(e))));
+expptr constructor_code(char c){  //this is only used for the three open paren characters
+  sprintf(ephemeral_buffer,"'%c'",c);
+  return string_atom(ephemeral_buffer);
 }
 
-expptr backslash;
-expptr dollar;
 expptr backslash_code(expptr);
 
 expptr bquote_code(expptr e){
@@ -481,7 +512,7 @@ expptr bquote_code(expptr e){
   if(parenp(e))return app_code2("intern_paren",constructor_code(constructor(e)),bquote_code(paren_inside(e)));
   if(car(e) == dollar && parenp(cdr(e))){return paren_inside(cdr(e));}
   if(car(e) == backslash)return backslash_code(cdr(e));
-  return app_code("cons",comma_code(quote_code(car(e)),quote_code(cdr(e))));
+  return app_code2("cons",bquote_code(car(e)),bquote_code(cdr(e)));
 }
 
 expptr backslash_code(expptr e){
@@ -499,10 +530,8 @@ expptr bquote_macro(expptr e){ //this is the non-recursive entry point (the macr
 section: macroexpand
 ========================================================================**/
 
-expptr macro_token; //has value `{macro}
-
 void set_macro(expptr sym, expptr f(expptr)){
-   setprop(sym, macro_token, (expptr) f);
+   setprop(sym, macro, (expptr) f);
 }
 
 expptr macroexpand1(expptr);
@@ -530,7 +559,7 @@ expptr macroexpand1(expptr e){
   expptr s = top_atom(e);
   if(s == NULL)return e;
   expptr (*f)(expptr);
-  f = (expptr (*)(expptr)) getprop(s,macro_token,NULL);
+  f = (expptr (*)(expptr)) getprop(s,macro,NULL);
   if(f == NULL){return e;}
   return f(e);
 }
@@ -825,10 +854,11 @@ int precedence(char c){
 expptr mcread_E(int p_left){
   //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
   //This returns a (possibly phantom) general expression (category E) to be consumed by the stack.
+  if(terminatorp(readchar)) return NULL;
   expptr arg = mcread_arg();
-  if(terminatorp(readchar) || closep(readchar)) return arg;
   int p_right = precedence(readchar);
   while(p_left < p_right || (p_left == p_right && p_left < LEFT_THRESHOLD)){
+    if(terminatorp(readchar)) return arg;
     expptr op = mcread_connective();
     arg = pcons(pcons(arg,op),mcread_E(p_right));
     p_right = precedence(readchar);
@@ -852,17 +882,11 @@ void mcA_init(){
   init_undo_frames();
   init_strings();
   init_expressions();
-
+  init_exp_constants();
+  
   gensym_count = 1;
   dbg_freeptr = 0;
   catch_freeptr = 0;
-
-  nil = string_atom("");
-  semi = string_atom(";");
-  dollar = string_atom("$");
-  backslash = string_atom("//");
-  macro_token = string_atom("macro");
-  comma = string_atom(",");
-  
-  set_macro(string_atom("`"), bquote_macro);
+ 
+  set_macro(backquote, bquote_macro);
 }

@@ -2,80 +2,84 @@
 
 expptr casecode1(expptr,expptr,expptr,expptr);
 expptr casecode2(expptr,expptr,expptr);
-expptr constructor_code(char c);
+expptr casecode3(expptr,expptr,expptr);
 
 void match_failure(expptr value, expptr patterns){
   fprintf(stderr,"\n match error: the value \n\n");
   printexp(value);
-  fprintf(stderr,"Does not match any of\n\n");
+  fprintf(stderr,"does not match any of\n\n");
   printexp(patterns);
   berror("");
 }
 
 expptr ucase_macro(expptr e){
-  expptr pattern = `{{ucase{!exp;!rules}}};
-  if(constructor(e) != 'A' || constructor(arg2(e)) != '{')match_failure(e,pattern);
-  expptr arglist = arg1(arg2(e));
-  if(constructor(arglist) != 'O' || arg1(arglist) != spaceop || constructor(op_arg1(arglist)) != ';')match_failure(e,pattern);
-  expptr exp = arg1(op_arg1(arglist));
-  expptr rules = op_arg2(arglist);
-  
-  expptr donelabel = gensym(`{done});
-  expptr topvar = gensym(`{top});
-  return `{
-    {expptr ${topvar} = ${exp};
-      ${casecode1(rules, topvar, donelabel, NULL)}
+  expptr ucase_pattern = `{{ucase{!exp;!rules}}};
+  if(!(cellp(e)
+       && constructor(cdr(e)) != '{'
+       &&     cellp(paren_inside(cdr(e)))
+       && cellp(car(paren_inside(cdr(e))))
+       &&   cdr(car(paren_inside(cdr(e)))) == semi))
+    match_failure(e,ucase_pattern);
+  expptr exp = car(car(paren_inside(cdr(e))));
+  expptr rules =   cdr(paren_inside(cdr(e)));
+
+  expptr donelabel = gensym("done");
+  expptr topvar = gensym("top");
+  return `{{expptr ${topvar} = ${exp};
+      ${casecode1(rules, topvar, donelabel, nil)}
       ${donelabel}: ;}};
 }
 
 expptr casecode1(expptr rules, expptr topvar, expptr donelabel, expptr patterns){
-  expptr rules_patterns =`{{!pattern:!body !rest} {!pattern:!body}};
-  if(rules == NULL || constructor(rules) != 'O')match_failure(rules,rules_patterns);
-  expptr  op = arg1(rules);
-  expptr rule,elseform;
-  if(op == spaceop){
-    rule = op_arg1(rules);
-    if(constructor(rule) != 'O')match_failure(rules,rules_patterns);
-    elseform = casecode1(op_arg2(rules),topvar,donelabel,cons(op_arg1(rule),patterns));}
-  else if(op == colonop){
-    rule = rules;
-    elseform = `{match_failure(${topvar},`{${cons(op_arg1(rule),patterns)}});};}
-  else match_failure(rules,rules_patterns);
-  if(constructor(rule) != 'O' || arg1(rule) != colonop || constructor(op_arg1(rule)) != '{' || constructor(op_arg2(rule)) != '{')match_failure(rules,rules_patterns);
-  expptr pattern = arg1(op_arg1(rule));
-  expptr body = arg1(op_arg2(rule));
-  return `{
-    ${casecode2(cons(cons(pattern,topvar),NULL),
-		       macroexpand(body),
-		       donelabel)}
-    ${elseform}};
+  expptr rules_patterns = `{{{!pattern}:{!body}} {{!pattern}:{!body} !rest}};
+  if(!(cellp(rules)
+       && cellp(car(rules))))
+    match_failure(rules,rules_patterns);
+  if(cdr(car(rules)) == colon){ //only first pattern possible
+    return cons(casecode2(rules,topvar,donelabel),
+		`{match_failure(${topvar}, cons(`{${car(rules)}}, patterns))});}
+  //only second pattern possible
+  return cons(casecode2(car(rules),topvar,donelabel),
+	      casecode1(cdr(rules),topvar,donelabel,cons(`{`{${car(car(rules))}}}, patterns)));
 }
 
-expptr casecode2(expptr pairs, expptr body, expptr donelabel){
-  if(pairs==NULL)return`{${body} ; goto ${donelabel} ;};
-  expptr restpairs = cdr(pairs);
-  expptr thispair = car(pairs);
-  expptr pattern = car(thispair);
-  expptr valvar = cdr(thispair);
-  if(pattern == NULL)return `{if(${valvar} == NULL){${casecode2(restpairs,body,donelabel)}}};
-  char c = constructor(pattern);
-  if(c == '!' || c == '?'){
-    expptr var = arg1(pattern);
-    if(var == NULL)berror("illegal use of exclamation point or question mark in ucase pattern");
-    expptr rest = casecode2(restpairs,body,donelabel);
-    if(c =='?') rest = `{if(constructor(${var}) == 'a'){${rest}}};
-    return `{expptr ${var} = ${valvar};${rest}};}
-  if(c == 'a' || c == 'o' || string_quotep(c))return `{if(${valvar} == ${quote_code(pattern)}){${casecode2(restpairs,body,donelabel)}}};
-  expptr left = gensym(`{leftval});
-  expptr right = gensym(`{rightval});
-  return `{if(${valvar} && constructor(${valvar}) == ${constructor_code(c)}){
-      expptr ${left} = arg1(${valvar});
-      expptr ${right} = arg2(${valvar});
-      ${casecode2(cons(cons(arg1(pattern),left), cons(cons(arg2(pattern),right), restpairs)),
-		  body,
-		  donelabel)}}};
+expptr casecode2(expptr rule, expptr topvar, expptr donelabel){
+  expptr rule_pattern = `{{!pattern}:{!body}};
+  if(!(cellp(rule)
+       && cellp(car(rule))
+       && cdr(car(rule)) == colon
+       && constructor(car(car(rule))) == '{'
+       && constructor(cdr(rule)) == '{'))
+    match_failure(rule, rule_pattern);
+  expptr pattern = paren_inside(car(car(rule)));
+  expptr body = paren_inside(cdr(rule));
+  return casecode3(pattern, topvar, `{${body} goto ${donelabel};});
+}
+
+expptr casecode3(expptr pattern, expptr valvar , expptr body){
+
+  if(atomp(pattern))return `{if(${valvar} == `{${pattern}}){${body}}};
+  
+  if(parenp(pattern)){
+    expptr inside_var = gensym("");
+    return `{if(parensp(${valvar})){
+	{expptr ${inside_var} = paren_inside(${valvar});
+	  ${casecode3(paren_inside(pattern), inside_var,body)}}}};}
+  
+  if(car(pattern) == exclam){
+    if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))berror("illegal syntax for exclamation point in ucase pattern");
+    return `{{${cdr(pattern)} = ${valvar}; ${body}}};}
+
+  if(car(pattern) == question){
+    if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))berror("illegal syntax for question mark in ucase pattern");
+    return `{if(atomp(${valvar})){${cdr(pattern)} = ${valvar}; ${body}}};}
+    
+  expptr leftvar = gensym("");
+  expptr rightvar = gensym("");
+  return `{{expptr ${leftvar} = car(${valvar}); exptr ${rightvar} = cdr(${valvar});
+      casecode3(car(pattern),leftvar,casecode3(cdr(pattern),rightvar,body))}};
 }
 
 void mcB_init(){
-  set_macro(`{ucase},ucase_macro);
+  set_macro(`{ucase}, ucase_macro);
 }
