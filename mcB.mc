@@ -67,17 +67,19 @@ expptr casecode3(expptr pattern, expptr valvar , expptr body){
 	  ${casecode3(paren_inside(pattern), inside_var,body)}}}};}
   
   if(car(pattern) == exclam){
-    if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))berror("illegal syntax for exclamation point in ucase pattern");
+    if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))
+      berror("illegal syntax for exclamation point in ucase pattern");
     return `{{${cdr(pattern)} = ${valvar}; ${body}}};}
 
   if(car(pattern) == question){
-    if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))berror("illegal syntax for question mark in ucase pattern");
+    if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))
+      berror("illegal syntax for question mark in ucase pattern");
     return `{if(atomp(${valvar})){${cdr(pattern)} = ${valvar}; ${body}}};}
     
   expptr leftvar = gensym("");
   expptr rightvar = gensym("");
   return `{{expptr ${leftvar} = car(${valvar}); exptr ${rightvar} = cdr(${valvar});
-      casecode3(car(pattern),leftvar,casecode3(cdr(pattern),rightvar,body))}};
+      ${casecode3(car(pattern),leftvar,casecode3(cdr(pattern),rightvar,body))}}};
 }
 
 void mcB_init(){

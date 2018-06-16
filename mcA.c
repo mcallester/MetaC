@@ -183,10 +183,6 @@ int alphap(char c){
     || (c == '_');
 }
 
-int miscp(char c){
-  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '?';
-}
-
 int connp(char c){
   return c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
     || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^'
@@ -208,6 +204,10 @@ char close_for(char c){
 }
 
 int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
+
+int miscp(char c){
+  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '?';
+}
 
 /** ========================================================================
 interning expressions
@@ -458,7 +458,8 @@ void pprint_exp(expptr w){
     writeone(c);
     pprint_exp(paren_inside(w));
     writeone(close_for(c));
-    pprint_paren_level--;}
+    pprint_paren_level--;
+    if(c == '{')maybe_newline();}
   else if(cellp(w)){pprint_exp(car(w)); pprint_exp(cdr(w));}
 }
 
@@ -742,7 +743,7 @@ void ephemeral_putc(char c){
 }
   
 expptr mcread_symbol(){
-  if(!alphap(readchar))berror("mcread_symbol called on non-alphap character");
+  if(!alphap(readchar))return NULL;
   ephemeral_freeptr = 0;
   while(1){
     ephemeral_putc(readchar);
@@ -754,7 +755,7 @@ expptr mcread_symbol(){
 }
 
 expptr mcread_connective(){
-  if(!connp(readchar))berror("mcread_conn called on non-connp character");
+  if(!connp(readchar))return NULL;
   ephemeral_freeptr = 0;
   while(1){
     ephemeral_putc(readchar);
@@ -766,7 +767,7 @@ expptr mcread_connective(){
 }
 
 expptr mcread_string(){
-  if(!string_quotep(readchar))berror("mcread_string called on non-quotep");
+  if(!string_quotep(readchar))return NULL;
   //we must prevent an unterminated string from swalling all further input.
   //we solve this by not allowing return characters in strings.
   char q = readchar; //remember the quote character
@@ -786,7 +787,7 @@ expptr mcread_string(){
 }
 
 expptr mcread_misc(){
-  if(!miscp(readchar))berror("mcread_misc called on non-miscp");
+  if(!miscp(readchar))return NULL;
   ephemeral_buffer[0] = readchar;
   ephemeral_buffer[1] = '\0';
   advance_readchar(); //does not use ephemeral buffer
@@ -845,8 +846,7 @@ int precedence(char c){
   if(c=='*' || c=='/')return 7;
   if(c == '%')return 8;
   if(c=='@' || c=='.' || c==':')return 9;
-  berror("unknown character in precedence");
-  return 1; //avoids compiler warning
+  return 3; //precedence of combining adjacent argument.
 }
 
 #define LEFT_THRESHOLD 9
