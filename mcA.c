@@ -205,8 +205,10 @@ char close_for(char c){
 
 int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
 
+//the character ! is the metavariable prefix character.
+
 int miscp(char c){
-  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '?';
+  return c == '$' || c == '#' || c == '`' ||c == '\\' || c == '?';
 }
 
 /** ========================================================================
@@ -821,6 +823,7 @@ Deterministic shift-reduce parsing with phantom arguments.
 
 expptr pcons(expptr x, expptr y){return x? (y? cons(x,y) : x) : y;}
 
+
 expptr mcread_gatom(){
   if(string_quotep(readchar))return mcread_string();
   if(alphap(readchar))return mcread_symbol();
@@ -857,12 +860,14 @@ expptr mcread_E(int p_left){
   if(terminatorp(readchar)) return NULL;
   expptr arg = mcread_arg();
   int p_right = precedence(readchar);
-  while(p_left < p_right || (p_left == p_right && p_left < LEFT_THRESHOLD)){
-    if(terminatorp(readchar)) return arg;
+  while(!terminatorp(readchar)
+	&& (p_left < p_right
+	    || (p_left == p_right
+		&& p_left < LEFT_THRESHOLD))){
     expptr op = mcread_connective();
+    //at least one of arg and op must be non-null
     arg = pcons(pcons(arg,op),mcread_E(p_right));
-    p_right = precedence(readchar);
-  }
+    p_right = precedence(readchar);}
   return arg;
 }
 
