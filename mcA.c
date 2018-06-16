@@ -208,7 +208,7 @@ int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
 //the character ! is the metavariable prefix character.
 
 int miscp(char c){
-  return c == '$' || c == '#' || c == '`' ||c == '\\' || c == '?';
+  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '?';
 }
 
 /** ========================================================================
@@ -519,8 +519,10 @@ expptr bquote_code(expptr e){
 }
 
 expptr backslash_code(expptr e){
-  if(cellp(e) && car(e) == backslash)return app_code2("cons", atom_quote_code(backslash), backslash_code(cdr(e)));
-  if(cellp(e) && car(e) == dollar)return app_code2("cons", atom_quote_code(dollar), bquote_code(cdr(e)));
+  if(cellp(e) && car(e) == backslash)
+    return app_code2("cons", atom_quote_code(backslash), backslash_code(cdr(e)));
+  if(cellp(e) && car(e) == dollar)
+    return app_code2("cons", atom_quote_code(dollar), bquote_code(cdr(e)));
   return bquote_code(e);
 }
 
@@ -799,7 +801,7 @@ expptr mcread_misc(){
 void declare_unmatched(char, expptr, char);
 
 expptr mcread_open(){
-  if(!openp(readchar))berror("mcread_open called on non-open character");
+  if(!openp(readchar))return NULL;
   char c = readchar;
   char cl = close_for(c);
   paren_level++;
