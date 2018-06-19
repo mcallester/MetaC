@@ -21,6 +21,10 @@ void MC_doit(expptr e){
 
 int rep_column;
 
+void indent(int column){
+  for(int i = 0; i< rep_column;i++)fputc(' ',stdout);
+}
+
 void read_eval_print(){
   rep_column += 3;
   while(1){
@@ -32,15 +36,15 @@ void read_eval_print(){
 	expptr e = macroexpand(read_from_terminal());
 	if(e == NULL)continue;
 	ucase{e;
-	  {quit}:{if(rep_column == 0)break; else throw_error();}
+	  {quit}:{break;}
 	  {continue}:{if(rep_column != 0)break;}
-	  {describe(?sym)}:{
+	  {describe($sym)}:{
 	    indent(rep_column);
 	    pprint(getprop(sym,`{declaration},NULL),stdout,rep_column);}
-	  {!s;}:{MC_doit(e);}
-	  {{!s}}:{MC_doit(e);}
-	  {?type ?f(!args){!body}}:{MC_doit(e);}
-	  {!e}:{MC_doit(`{return ${e};})}
+	  {$s;}:{MC_doit(e);}
+	  {{$s}}:{MC_doit(e);}
+	  {$type $f($args){$body}}:{MC_doit(e);}
+	  {$e}:{MC_doit(`{return $e;});}
 	}})
       }
   rep_column -=3;

@@ -32,6 +32,15 @@ umacro{sformat($args)}{
 	buffer;})};
 }
 
+expptr args_variables(expptr args){
+  ucase{args;
+    {$type1 $var($type2), $rest}:{return cons(var, args_variables(rest));}
+    {$type1 $var($type2)}:{return cons(var, nil);}
+    {$type $var, $rest}:{return cons(var, args_variables(rest));}
+    {$type $var}:{return cons(var, nil);}}
+  return nil;
+}
+
 init_fun(mcD_init)
 
 /** ========================================================================
@@ -79,16 +88,6 @@ expptr replace_returns(expptr var, expptr donelabel, expptr s){
       return intern_exp(constructor(s),
 			replace_returns(var, donelabel, arg1(s)),
 			replace_returns(var, donelabel, arg2(s)));}}
-  return NULL;
-}
-
-expptr args_variables(expptr args){
-  if(args == NULL)return NULL;
-  ucase{args;
-    {$type1 $var($type2), $rest}:{return cons(var, args_variables(rest))}
-    {$type1 $var($type2)}:{return cons(var, nil);}
-    {$type $var, $rest}:{return cons(var, args_variables(rest));}
-    {$type $var}:{return cons(var, NULL);}}
   return NULL;
 }
 

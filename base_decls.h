@@ -41,21 +41,34 @@ void cbreak();
 
 void berror(charptr s);
 
-void activate_break();
-
-void deactivate_break();
-
-void act_break();
-
 
 /** ========================================================================
 interning (procedures called by the expansion of backquote)
 ========================================================================**/
 
-expptr intern_exp(char constr, expptr arg1, expptr arg2);
-
 charptr intern_string(charptr s);
 
+expptr string_atom(char * s);
+
+int atomp(expptr e);
+
+char * atom_string(expptr a);
+
+expptr cons(expptr x, expptr y);
+
+int cellp(expptr e){return constructor(e) == ' ';}
+
+expptr car(expptr x);
+
+expptr cdr(expptr x);
+
+expptr intern_paren(char openchar, expptr arg);
+
+int parenp(expptr e);
+
+expptr paren_inside(expptr e);
+
+char constructor(expptr e);
 /** ========================================================================
 case
 
@@ -63,9 +76,6 @@ Case needs constructor, arg1, and arg2 which are all preprocessor inlines.
 It also uses case_error
 ========================================================================**/
 
-char constructor(expptr e);
-expptr arg1(expptr e);
-expptr arg2(expptr e);
 void match_failure(expptr topexp, expptr patterns);
 
 /** ========================================================================
@@ -82,13 +92,11 @@ conversions
 
 charptr exp_string(expptr s);
 
-expptr string_symbol(charptr s);
-
 // expptr string_exp(charptr s);
 
 expptr int_exp(int i);
 
-int symbol_int(expptr s);
+int exp_int(expptr s);
 
 /** ========================================================================
 gensym
@@ -103,12 +111,6 @@ reading and printing
 
 expptr read_from_terminal();
 
-void open_input_file(charptr s);
-
-expptr read_from_file();
-
-void open_output_file(charptr s);
-
 void pprint(expptr e, FILEptr f, int i);
 
 /** ========================================================================
@@ -122,24 +124,30 @@ expptr macroexpand(expptr e);
 expptr macroexpand1(expptr e);
 
 /** ========================================================================
-expression walking
-========================================================================**/
-
-int atomp(expptr e);
-
-int symbolp(expptr e);
-
-//expptr mapargs(exptr f(exptr), e expptr);
-
-/** ========================================================================
 cons and nil 
 ========================================================================**/
 
-expptr cons(expptr x, expptr y);  //abbreviates `{{$x},$y}
+expptr append(expptr l1, expptr l2){
+  if(cellp(l1))return cons(car(l1), append(cdr(l1),l2));
+  else return l2;
+}
+
+expptr reverse(expptr l){
+  expptr result = nil;
+  while(cellp(l)){
+    result = cons(car(l), result);
+    l = cdr(l);}
+  return result;
+}
 
 typedef  expptr exp_to_exp(expptr);
+typedef  void exp_to_void(expptr);
 
 expptr mapcar(exp_to_exp f, expptr l);
+
+void mapc(expt_to_void f, expptr l);
+
+int length(expptr l);
 
 /** ========================================================================
 undo frames

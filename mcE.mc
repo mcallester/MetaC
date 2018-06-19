@@ -110,14 +110,14 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
 
   compilecount ++; //avoids argument duplication problem with sformat
   char * s = sformat("TEMP%d.c",compilecount);
-  open_output_file(s);
+  fileout = fopen(s, "w");
 
   new_procedures = nil;
   new_arrays = nil;
   new_statements = nil;
   
   mapc(install,forms);
-  dolist(form,reverse(file_preamble)){print_line(form,fileout);}
+  dolist(form,reverse(file_preamble)){writeexp(form);}
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
 

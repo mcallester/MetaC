@@ -74,8 +74,10 @@ expptr casecode3(expptr pattern, expptr valvar , expptr body){
     
   expptr leftvar = gensym("");
   expptr rightvar = gensym("");
-  return `{expptr ${leftvar} = car(${valvar}); expptr ${rightvar} = cdr(${valvar});
-      ${casecode3(car(pattern),leftvar,casecode3(cdr(pattern),rightvar,body))}};
+  return `{if(cellp($valvar)){
+      expptr ${leftvar} = car(${valvar});
+      expptr ${rightvar} = cdr(${valvar});
+      ${casecode3(car(pattern),leftvar,casecode3(cdr(pattern),rightvar,body))}}};
 }
 
 void mcB_init(){

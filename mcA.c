@@ -22,7 +22,7 @@ void pop_dbg_stack(){
 }
 
 void berror(char *s){
-  fprintf(stderr,"%s\n",s);
+  fprintf(stderr,"\n%s\n",s);
   cbreak();
   throw_error();}
 
@@ -430,6 +430,15 @@ void writestring(char * s){
     writeone(s[i]);}
 }
 
+void writeexp(expptr w){
+  if(atomp(w)){
+    char * s = atom_string(w);
+    if((connp(s[0]) && connp(print_lastchar)) || (alphap(s[0]) && alphap(print_lastchar))) writeone(' ');
+    writestring(s);}
+  else if(parenp(w)){char c = constructor(w); writeone(c); writeexp(paren_inside(w));writeone(close_for(c));}
+  else if(cellp(w)){writeexp(car(w)); writeexp(cdr(w));}
+}
+
 void maybe_newline(){
   if(pprint_newlinep[pprint_paren_level]){
     fprintf(pprint_stream, "\n");
@@ -687,6 +696,7 @@ expptr file_expressions(char * fname){
 
 expptr file_expressions2(){
   if(readchar == EOF)return nil;
+  if(closep(readchar))berror("file contains unmatched close\n");
   expptr e = mcread();
   return cons(e, file_expressions2());
 }

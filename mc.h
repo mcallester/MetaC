@@ -25,7 +25,7 @@ int catch_freeptr;
 jmp_buf catch_stack[CATCH_DIM];
 int error_flg;
 
-#define throw_check() {if(catch_freeptr == 0){berror( "throw without a catch");}}
+#define throw_check() {if(catch_freeptr == 0){fprintf(stderr,"\n throw without a catch\n"); exit(1);}}
 #define catch_check() {if(catch_freeptr == CATCH_DIM){berror("catch stack exhausted");}}
 
 #define throw_error() {throw_check(); error_flg=1; longjmp(catch_stack[catch_freeptr-1], 1);}
@@ -151,7 +151,7 @@ static inline plist data(expptr e){
 
 char * intern_string(char * s);
 expptr int_exp(int i);
-int symbol_int(expptr s);
+int exp_int(expptr s);
 charptr exp_string(expptr e);
 
 #define DBG_DIM 10000
@@ -206,7 +206,7 @@ char readchar;  //this is used in mcD, in file_expressions, for detecting end of
 expptr read_from_terminal();
 expptr read_from_file();
 void pprint(expptr e, FILE * f, int i);
-void print_line(expptr e, FILE * f);
+void writeexp(expptr e);
 void printexp(expptr e);
 void put_return(FILE * ws);
 
