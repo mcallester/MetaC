@@ -47,28 +47,28 @@ expptr proc_def(expptr f);
 void install_base();
 
 void mcE_init2(){
-  file_preamble = NULL;
-  arrays = NULL;
-  procedures = NULL;
+  file_preamble = nil;
+  arrays = nil;
+  procedures = nil;
   symbol_count = 0;
   install_base();  //eval-when compile and load (run in both expandE and REPL).
   compilecount = 0;
 }
 
 void install_base(){
-  dolist(sig,file_expressions(`{base_decls.h})){
+  dolist(sig,file_expressions("base_decls.h")){
     ucase{sig;
-      {?type ?f(!args);}:{
+      {$type $f($args);}:{
 	symbol_index(f);  //synchoronizes compile and load indeces.
 	push(f,procedures);
 	push(sig,signatures);
 	setprop(f,`{signature},sig);}
-      {?type ?x[?dim];}:{
+      {$type $x[$dim];}:{
 	symbol_index(x);  //synchoronizes compile and load indeces.
 	push(x,arrays);
 	push(sig,signatures);
 	setprop(x,`{signature},sig);}
-      {!e}:{push(e,file_preamble);}}}
+      {$e}:{push(e,file_preamble);}}}
 }
 
 /** ========================================================================
@@ -78,28 +78,28 @@ It is expanded during the compilation of REPL (by expandE) after running install
 ======================================================================== **/
 
 umacro{insert_base()}{
-  expptr result = NULL;
+  expptr result = nil;
   dolist(f,procedures){
-    push(`{symbol_value[${symbol_index_exp(f)}] = ${f};}, result);}
+    push(`{symbol_value[${symbol_index_exp(f)}] = $f;}, result);}
   dolist(X,arrays){
-    push(`{symbol_value[${symbol_index_exp(X)}] = ${X};}, result);}
+    push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);}
   return result;
 }
 
 init_fun(mcE_init1)  //mcE_init1 just installs the above macro.
 
 expptr new_procedure_insertion (expptr f){
-  return `{symbol_value[${symbol_index_exp(f)}] = ${f};};
+  return `{symbol_value[${symbol_index_exp(f)}] = $f;};
 }
 
 expptr new_array_insertion (expptr x){
-  ucase{getprop(x,`{signature},NULL);
-    {?type ?x[?dim];}:{return `{symbol_value[${symbol_index_exp(x)}] = malloc(${dim}*sizeof(${type}));};}}
-  return NULL; //avoids compiler warning
+  ucase{getprop(x,`{signature},nil);
+    {$type $x[$dim];}:{return `{symbol_value[${symbol_index_exp(x)}] = malloc($dim*sizeof($type));};}}
+  return nil; //avoids compiler warning
 }
 
 expptr array_extraction (expptr x){
-  return `{${x} = symbol_value[${symbol_index_exp(x)}];};
+  return `{$x = symbol_value[${symbol_index_exp(x)}];};
 }
 
 /** ========================================================================
@@ -112,9 +112,9 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
   char * s = sformat("TEMP%d.c",compilecount);
   open_output_file(s);
 
-  new_procedures = NULL;
-  new_arrays = NULL;
-  new_statements = NULL;
+  new_procedures = nil;
+  new_arrays = nil;
+  new_statements = nil;
   
   mapc(install,forms);
   dolist(form,reverse(file_preamble)){print_line(form,fileout);}
@@ -125,7 +125,7 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
   dolist(f,procedures){pprint(getprop(f,`{signature},NULL),fileout,0);}
   dolist(x,arrays){
     ucase{getprop(x,`{signature},NULL);
-      {?type ?x[?dim];}:{pprint(`{${type} * ${x};},fileout,0);}}}
+      {$type $x[$dim];}:{pprint(`{$type * $x;},fileout,0);}}}
 
   //procedure value extractions.  array extractions are done in doit.
   dolist(f,procedures){pprint(proc_def(f),fileout,0);} 
@@ -149,21 +149,21 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
 
 void install(expptr statement){ //only the following patterns are allowed.
   ucase{statement;
-    {typedef !def;}:{install_preamble(statement);}
-    {typedef !def1,!def2;}:{install_preamble(statement);}
-    {#define !def}:{install_preamble(statement);}
-    {#include < !file >}:{install_preamble(statement);}
-    {#include !x}:{install_preamble(statement);}
-    {return !e;}:{push(statement,new_statements);}
-    {?type ?X[0];}:{install_var(type,X,`{1})}
-    {?type ?X[0] = !e;}:{install_var(type,X,`{1}); push(`{${X}[0] = ${e};},new_statements);}
-    {?type ?X[?dim];}:{install_var(type,X,dim)}
-    {?type ?f(!args){!body}}:{install_proc(type, f, args, body);}
-    {?type !e;}:{unrecognized_statement(statement);}
-    {?type * !e;}:{unrecognized_statement(statement);}
-    {!e;}:{push(statement,new_statements)}
-    {{!statement}}:{push(statement,new_statements)}
-    {!e}:{unrecognized_statement(statement)}}
+    {typedef $def;}:{install_preamble(statement);}
+    {typedef $def1,$def2;}:{install_preamble(statement);}
+    {#define $def}:{install_preamble(statement);}
+    {#include < $file >}:{install_preamble(statement);}
+    {#include $x}:{install_preamble(statement);}
+    {return $e;}:{push(statement,new_statements);}
+    {$type $X[0];}:{install_var(type,X,`{1});}
+    {$type $X[0] = $e;}:{install_var(type,X,`{1}); push(`{$X[0] = $e;},new_statements);}
+    {$type $X[$dim];}:{install_var(type,X,dim);}
+    {$type $f($args){$body}}:{install_proc(type, f, args, body);}
+    {$type $e;}:{unrecognized_statement(statement);}
+    {$type * $e;}:{unrecognized_statement(statement);}
+    {$e;}:{push(statement,new_statements)}
+    {{$statement}}:{push(statement,new_statements)}
+    {$e}:{unrecognized_statement(statement);}}
 }
 
 void install_preamble(expptr e){
@@ -174,8 +174,8 @@ void install_preamble(expptr e){
 
 void install_var(expptr type, expptr X, expptr dim){
   expptr oldsig = getprop(X,`{signature}, NULL);
-  expptr newsig = `{${type} ${X}[${dim}];};
-  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change the type declaration _; ${oldsig} _; to ${newsig} _;});
+  expptr newsig = `{$type $X[$dim];};
+  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change the type declaration, $oldsig , to $newsig});
   if(oldsig == NULL){
     setprop(X,`{signature},newsig);
     push(X, arrays);
@@ -186,8 +186,8 @@ void install_var(expptr type, expptr X, expptr dim){
 void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   expptr oldsig = getprop(f,`{signature}, NULL);
   expptr oldbody = getprop(f,`{body},NULL);
-  expptr newsig = `{${type} ${f}(${args});};
-  if(oldsig != NULL && newsig != oldsig)uerror(`{{attempt to change} ${oldsig} to ${newsig}});
+  expptr newsig = `{$type $f($args);};
+  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change, $oldsig, to, $newsig});
   if(oldsig == NULL){
     setprop(f,`{signature},newsig);
     push(f, procedures);
@@ -200,7 +200,7 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
 
 void unrecognized_statement(expptr form){
   uerror( `{{unrecognized statement}
-      ${form}
+      $form
       {types must be single symbols}
       {all global variables must be arrays}
     });
@@ -222,13 +222,13 @@ expptr symbol_index_exp(expptr sym){
 
 expptr proc_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
-    {?type ?f(!args);}:{
+    {$type $f($args);}:{
       if(getprop(f,`{new},NULL)){
 	setprop(f,`{new},NULL);
-	return `{${type} ${f}(${args}){${getprop(f,`{body},NULL)}}};}
+	return `{$type $f($args){${getprop(f,`{body},NULL)}}};}
       else {return
-	  `{${type} ${f}(${args}){
-	    ${type} (* _mc_f)(${args});
+	  `{$type $f($args){
+	    $type (* _mc_f)($args);
 	    _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
 	    ${(type == `{void} ?
 	       `{(* _mc_f)(${args_variables(args)});}

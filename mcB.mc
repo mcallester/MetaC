@@ -63,14 +63,14 @@ expptr casecode3(expptr pattern, expptr valvar , expptr body){
   
   if(parenp(pattern)){
     expptr inside_var = gensym("");
-    return `{if(parenp($valvar)){
+    return `{if(parenp($valvar) && constructor($valvar) == ${constructor_code(constructor(pattern))}){
 	expptr $inside_var = paren_inside($valvar);
 	${casecode3(paren_inside(pattern), inside_var, body)}}};}
   
   if(car(pattern) == dollar){
     if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))
       berror("illegal syntax for variable in ucase pattern");
-    return `{expptr ${cdr(pattern)} = ${valvar}; ${body}};}
+    return `{{expptr ${cdr(pattern)} = ${valvar}; ${body}}};}
     
   expptr leftvar = gensym("");
   expptr rightvar = gensym("");

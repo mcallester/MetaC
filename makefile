@@ -68,8 +68,8 @@ expandD : mcD.o expandD.c
 
 #testD
 
-testD.c : expandB testD.mc
-	./expandB testD.mc testD.c
+testD.c : expandD testD.mc
+	./expandD testD.mc testD.c
 
 testD.o : testD.c
 	gcc -g testD.c -c

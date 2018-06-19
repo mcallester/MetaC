@@ -26,9 +26,9 @@ this is hard to fix because the argument types are very difficult to determine.
 
 umacro{sformat($args)}{
   return `{({
-	int needed_size = snprintf(NULL,0,${args});
+	int needed_size = snprintf(NULL,0,$args);
 	char * buffer = (char *) stack_alloc(needed_size+1);
-	sprintf(buffer,args);
+	sprintf(buffer,$args);
 	buffer;})};
 }
 
@@ -55,7 +55,7 @@ umacro{sframe $type $f($args){$body} }{
 	pop_dbg_stack();}};};
   expptr var = gensym(`{result});
   return `{$type $f($args){
-      push_dbg_expression(`{$f($args)});
+c      push_dbg_expression(`{$f($args)});
       ${args_assignments(args_variables(args))}
       $type $var;
       catch_return($var $body)
