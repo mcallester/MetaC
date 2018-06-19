@@ -925,7 +925,7 @@ int precedence(char c){
 expptr mcread_E(int p_left){
   //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
   //This returns a (possibly phantom) general expression (category E) to be consumed by the stack.
-  if(terminatorp(readchar)) return NULL;
+  if(terminatorp(readchar)) return nil;
   expptr arg = mcread_arg();
   int p_right = precedence(readchar);
   while(!terminatorp(readchar)

@@ -33,10 +33,11 @@ umacro{sformat($args)}{
 }
 
 expptr args_variables(expptr args){
+  if(args == nil)return nil;
   ucase{args;
-    {$type1 $var($type2), $rest}:{return cons(var, args_variables(rest));}
+    {$type1 $var($type2), $rest}:{return cons(cons(var,comma), args_variables(rest));}
     {$type1 $var($type2)}:{return cons(var, nil);}
-    {$type $var, $rest}:{return cons(var, args_variables(rest));}
+    {$type $var, $rest}:{return cons(cons(var,comma), args_variables(rest));}
     {$type $var}:{return cons(var, nil);}}
   return nil;
 }

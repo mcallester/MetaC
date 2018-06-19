@@ -56,7 +56,7 @@ char * atom_string(expptr a);
 
 expptr cons(expptr x, expptr y);
 
-int cellp(expptr e){return constructor(e) == ' ';}
+int cellp(expptr e);
 
 expptr car(expptr x);
 
@@ -127,25 +127,16 @@ expptr macroexpand1(expptr e);
 cons and nil 
 ========================================================================**/
 
-expptr append(expptr l1, expptr l2){
-  if(cellp(l1))return cons(car(l1), append(cdr(l1),l2));
-  else return l2;
-}
+expptr append(expptr l1, expptr l2);
 
-expptr reverse(expptr l){
-  expptr result = nil;
-  while(cellp(l)){
-    result = cons(car(l), result);
-    l = cdr(l);}
-  return result;
-}
+expptr reverse(expptr l);
 
 typedef  expptr exp_to_exp(expptr);
 typedef  void exp_to_void(expptr);
 
 expptr mapcar(exp_to_exp f, expptr l);
 
-void mapc(expt_to_void f, expptr l);
+void mapc(exp_to_void f, expptr l);
 
 int length(expptr l);
 

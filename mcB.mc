@@ -37,10 +37,11 @@ expptr casecode1(expptr rules, expptr topvar, expptr donelabel, expptr patterns)
     match_failure(rules,rules_patterns);
   if(cdr(car(rules)) == colon){ //only first pattern possible
     return cons(casecode2(rules,topvar,donelabel),
-		`{match_failure($topvar, ${quote_code(cons(car(rules), patterns))});});}
+		`{match_failure($topvar, ${quote_code(cons(car(car(rules)), patterns))});});}
   //only second pattern possible
+  if(!cellp(car(car(rules))))match_failure(rules,rules_patterns);
   return cons(casecode2(car(rules),topvar,donelabel),
-	      casecode1(cdr(rules),topvar,donelabel,cons(car(car(rules)), patterns)));
+	      casecode1(cdr(rules),topvar,donelabel,cons(car(car(car(rules))), patterns)));
 }
 
 expptr casecode2(expptr rule, expptr topvar, expptr donelabel){

@@ -117,7 +117,7 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
   new_statements = nil;
   
   mapc(install,forms);
-  dolist(form,reverse(file_preamble)){writeexp(form);}
+  dolist(form,reverse(file_preamble)){pprint(form,fileout,rep_column);}
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
 
@@ -137,7 +137,7 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
 	${mapcar(new_array_insertion, new_arrays)}
 	${mapcar(array_extraction, arrays)} // procedure extractions are done by procdefs above
 	${reverse(new_statements)}
-	return string_symbol("done");}},
+	return string_atom("done");}},
     fileout,0);
   fclose(fileout);
   

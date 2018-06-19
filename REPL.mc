@@ -16,7 +16,7 @@ expptr load(expptr forms);
 
 void MC_doit(expptr e){
   fputc('\n',stdout);
-  pprint(load(append(preamble,append(init_forms,cons(e,NULL)))),stdout,0);
+  pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,0);
 }
 
 int rep_column;
@@ -31,10 +31,10 @@ void read_eval_print(){
     catch_error({
 	indent(rep_column);
 	fprintf(stdout, "MC>");
-	preamble = NULL;
-	init_forms = NULL;
+	preamble = nil;
+	init_forms = nil;
 	expptr e = macroexpand(read_from_terminal());
-	if(e == NULL)continue;
+	if(!e || e == nil)continue;
 	ucase{e;
 	  {quit}:{break;}
 	  {continue}:{if(rep_column != 0)break;}
