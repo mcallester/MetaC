@@ -243,7 +243,7 @@ int containsp(expptr e1, expptr e2);
 expptr cons(expptr x, expptr y);
 expptr car(expptr x);
 expptr cdr(expptr x);
-expptr mapc(expptr f(expptr), expptr l);
+void mapc(void f(expptr), expptr l);
 expptr mapcar(expptr f(expptr), expptr l);
 int length(expptr);
 expptr append(expptr,expptr);

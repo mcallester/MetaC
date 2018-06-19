@@ -311,6 +311,10 @@ expptr mapcar(expptr f(expptr), expptr l){
   return nil;
 }
 
+void mapc(void f(expptr), expptr l){
+  while (cellp(l)){f(car(l)); l = cdr(l);}
+}
+
 int length(expptr l){
   if(cellp(l))return length(cdr(l)) + 1;
   else return 0;

@@ -1,10 +1,11 @@
-# expandA
+# expandA  mcA implements universal syntax and backquote.  expandA expands backquote.
 
 mcA.o : mc.h mcA.c
 	gcc -g mcA.c -c
 
 expandA : mcA.o expandA.c
 	gcc -g -o expandA mcA.o expandA.c -ldl -lm
+
 #testA
 
 testA.c : expandA testA.mc
@@ -13,7 +14,7 @@ testA.c : expandA testA.mc
 testA.o : testA.c
 	gcc -g testA.c -c
 
-# expandB
+# expandB mcB implements pattern matching ucase in terms of backquote.  expandB expands both ucase and backquote.
 
 mcB.c : expandA mcB.mc
 	 ./expandA mcB.mc mcB.c
@@ -35,7 +36,7 @@ testB.c : expandB testB.mc
 testB.o : testB.c
 	gcc -g testB.c -c
 
-#expandC
+#expandC  expandC expands macro definition (umacro) as well as ucase and backquote.
 
 mcC.c : expandB mcC.mc
 	./expandB mcC.mc mcC.c
@@ -49,15 +50,9 @@ expandC.c : expandB expandC.mc
 expandC : mcC.o expandC.c
 	gcc -g -o expandC mcA.o mcB.o mcC.o expandC.c -ldl -lm
 
-#testC
+#the compilation of expandD is a simple enough test of expandC.
 
-testC.c : expandB testC.mc
-	./expandB testC.mc testC.c
-
-testC.o : testC.c
-	gcc -g testC.c -c
-
-#expandD
+#expandD  expandD expands some additional generic macros --- push, dolist and sformat.
 
 mcD.c :  expandC mcD.mc
 	./expandC mcD.mc mcD.c
@@ -79,7 +74,7 @@ testD.c : expandB testD.mc
 testD.o : testD.c
 	gcc -g testD.c -c
 
-#expandE
+#expandE mcE provides code for the REPL aand dynamic linking.  expandE only provides one additional macro, install_base, for installing the base symbols.
 
 mcE.c :  expandD mcE.mc
 	./expandD mcE.mc mcE.c

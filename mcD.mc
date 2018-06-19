@@ -5,21 +5,16 @@ umacro{push($x,$y)}{
 }
 
 umacro{dolist($x,$y){$body}}{
-  expptr yval = gensym(`{yval});
+  expptr yval = gensym("yval");
   return `{{
-      expptr ${x};
-      expptr ${yval} = ${y};
-      while(${yval} != NULL){
-	${x} = car(${yval});
+      expptr $x;
+      expptr $yval = $y;
+      while($yval != nil){
+	if(!cellp($yval))berror("illegal list in dolist");
+	$x = car(${yval});
 	${body}
-	${yval} = cdr(${yval});}}};
+	$yval = cdr($yval);}}};
 }
-
-umacro{mapc(!f,$list)}{
-  expptr x = gensym(`{x});
-  return `{dolist(${x}, ${list}){${f}(${x});}};
-}
-      
 
 /** ========================================================================
 sformat is like sprintf but stack-allocates the buffer rather than take a buffer argument.
@@ -36,6 +31,8 @@ umacro{sformat($args)}{
 	sprintf(buffer,args);
 	buffer;})};
 }
+
+init_fun(mcD_init)
 
 /** ========================================================================
 stack frames for the debugger;
@@ -111,4 +108,4 @@ expptr args_assignments(expptr args){
 ======================================================================== **/
 
 
-init_fun(mcD_init)
+
