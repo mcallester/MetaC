@@ -288,3 +288,5 @@ expression_constants
 expptr comma, colon, semi, backquote, dollar, backslash, exclam, question;
 expptr nil, macro;
 
+expptr bquote_code(expptr);
+expptr quote_code(expptr);

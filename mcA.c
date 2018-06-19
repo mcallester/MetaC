@@ -184,9 +184,9 @@ int alphap(char c){
 }
 
 int connp(char c){
-  return c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
+  return c == '#' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
     || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^'
-    || c == '|' || c == '&' || c == '~' ||c ==';' || c == '%';
+    || c == '|' || c == '&' || c == '~' ||c ==';' || c == '%' || c == '!' || c == '?';
 }
 
 int whitep(char c){return c == ' ' || c == '\n' || c== '\t';}
@@ -205,11 +205,7 @@ char close_for(char c){
 
 int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
 
-//the character ! is the metavariable prefix character.
-
-int miscp(char c){
-  return c == '!' || c == '$' || c == '#' || c == '`' ||c == '\\' || c == '?';
-}
+//the characters \, $ and ` are treated explicitly in the grammar.
 
 /** ========================================================================
 interning expressions
@@ -468,6 +464,7 @@ void pprint_exp(expptr w){
 void pprint(expptr w, FILE * f, int indent_level){
   pprint_stream = f;
   pprint_paren_level=0;
+  print_lastchar = '\0';
   pprint_indent_level = indent_level;
   pprint_newlinep[0] = (exp_length(w) + 2) > PAREN_LENGTH_LIMIT;
   fprintf(f,"\n");
@@ -490,6 +487,8 @@ expptr app_code2(char * proc, expptr arg1_code, expptr arg2_code){
 }
 
 expptr atom_quote_code(expptr a){
+  if(a == backslash){
+    return app_code("string_atom",string_atom("\"\\\\\""));}
   char  * s = atom_string(a);
   int eph_freeptr = 0;
   ephemeral_buffer[eph_freeptr++] = '"';
@@ -508,27 +507,42 @@ expptr constructor_code(char c){  //this is only used for the three open paren c
   return string_atom(ephemeral_buffer);
 }
 
-expptr backslash_code(expptr);
+expptr quote_code(expptr e){
+  //this is used mcB for quotting patterns containing dollar.
+  if(atomp(e))return atom_quote_code(e);
+  if(parenp(e))return app_code2("intern_paren",constructor_code(constructor(e)),quote_code(paren_inside(e)));
+  return app_code2("cons",quote_code(car(e)),quote_code(cdr(e)));
+}
+
+expptr bquote_code(expptr);
+
+int Vp(expptr e){
+  return (cellp(e)
+	  && ( (car(e) == dollar)
+	       || ((car(e) == backslash)
+		   && Vp(cdr(e)))));
+}
+
+expptr backslash_code(expptr e){ //we have Vp(e).
+  if(car(e) == dollar){
+    return app_code2("cons",atom_quote_code(dollar), bquote_code(cdr(e)));}
+  return  app_code2("cons", atom_quote_code(backslash), backslash_code(cdr(e)));
+}
 
 expptr bquote_code(expptr e){
   if(atomp(e))return atom_quote_code(e);
   if(parenp(e))return app_code2("intern_paren",constructor_code(constructor(e)),bquote_code(paren_inside(e)));
-  if(car(e) == dollar && parenp(cdr(e))){return paren_inside(cdr(e));}
-  if(car(e) == backslash)return backslash_code(cdr(e));
+  if(car(e) == dollar){
+    if(parenp(cdr(e))){return paren_inside(cdr(e));}
+    if(atomp(cdr(e)) && alphap(atom_string(cdr(e))[0]))return cdr(e);}
+  if(car(e) == backslash && Vp(e)){
+    return backslash_code(cdr(e));}
   return app_code2("cons",bquote_code(car(e)),bquote_code(cdr(e)));
 }
 
-expptr backslash_code(expptr e){
-  if(cellp(e) && car(e) == backslash)
-    return app_code2("cons", atom_quote_code(backslash), backslash_code(cdr(e)));
-  if(cellp(e) && car(e) == dollar)
-    return app_code2("cons", atom_quote_code(dollar), bquote_code(cdr(e)));
-  return bquote_code(e);
-}
-
 expptr bquote_macro(expptr e){ //this is the non-recursive entry point (the macro procedure) for backquote
-  if(!parenp(cdr(e)))berror("syntax error: backquote must be followed by parentheses");
- return bquote_code(paren_inside(cdr(e)));
+  if(parenp(cdr(e)))return bquote_code(paren_inside(cdr(e)));
+  return e;
 }
 
 /** ========================================================================
@@ -790,14 +804,6 @@ expptr mcread_string(){
   return string_atom(ephemeral_buffer);
 }
 
-expptr mcread_misc(){
-  if(!miscp(readchar))return NULL;
-  ephemeral_buffer[0] = readchar;
-  ephemeral_buffer[1] = '\0';
-  advance_readchar(); //does not use ephemeral buffer
-  return string_atom(ephemeral_buffer);
-}
-
 void declare_unmatched(char, expptr, char);
 
 expptr mcread_open(){
@@ -825,36 +831,72 @@ Deterministic shift-reduce parsing with phantom arguments.
 
 expptr pcons(expptr x, expptr y){return x? (y? cons(x,y) : x) : y;}
 
+expptr mcread_parenstar(){
+  expptr p = mcread_open();
+  if(p)return pcons(p,mcread_parenstar());
+  return NULL;
+}
 
-expptr mcread_gatom(){
-  if(string_quotep(readchar))return mcread_string();
-  if(alphap(readchar))return mcread_symbol();
-  if(openp(readchar))return mcread_open();
-  if(miscp(readchar)){expptr tag = mcread_misc(); return pcons(tag, mcread_gatom());}
+int junkp(expptr x){
+  return
+    x == backslash
+    || x == dollar
+    || (cellp(x) && junkp(cdr(x)));
+}
+
+expptr mcread_V();
+
+expptr mcread_S(){
+  expptr s = mcread_symbol();
+  if(s)return s;
+  return mcread_V();
+}
+
+expptr mcread_V(){
+  if(readchar == '$'){
+    advance_readchar();
+    expptr s = mcread_symbol();
+    if(s) return cons(dollar,s);
+    expptr p = mcread_open();
+    if(p) return cons(dollar,p);
+    return dollar; //junk
+  }
+  if(readchar == '\\'){
+    advance_readchar();
+    return pcons(backslash,mcread_V());}
   return NULL;
 }
 
 expptr mcread_arg(){
-  expptr gatom = mcread_gatom();
-  if(!gatom){return NULL;}
-  return pcons(gatom,mcread_arg());
+  expptr s = mcread_string(); //quoted string
+  if(s) return s;
+  expptr S = mcread_S();
+  if(S){
+    if(junkp(S)) return S;
+    return pcons(S,mcread_parenstar());}
+  if(readchar == '`'){
+    advance_readchar();
+    return pcons(backquote, mcread_open());}
+  expptr p = mcread_open();
+  if(p) return p;
+  return NULL;
 }
 
 int precedence(char c){
   if(terminatorp(c))return 0;
   if(c==';')return 1;
   if(c==',')return 2;
-   if(c=='^')return 3;
-  if(c=='|' || c =='&')return 4;
-  if(c=='=' || c=='<' || c=='>' || c =='~') return 5;
-  if(c=='+' || c=='-')return 6;
-  if(c=='*' || c=='/')return 7;
-  if(c == '%')return 8;
-  if(c=='@' || c=='.' || c==':')return 9;
+  if(c=='|')return 4;
+  if(c =='&' || c == '!' || c == '?')return 5;
+  if(c=='=' || c=='<' || c=='>' || c =='~') return 6;
+  if(c=='+' || c=='-')return 7;
+  if(c=='*' || c=='/')return 8;
+  if(c == '%')return 9;
+  if(c == '^' || c=='@' || c=='.' || c==':' || c == '#')return 10;
   return 3; //precedence of combining adjacent argument.
 }
 
-#define LEFT_THRESHOLD 9
+#define LEFT_THRESHOLD 10
 
 expptr mcread_E(int p_left){
   //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left

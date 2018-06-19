@@ -21,13 +21,13 @@
 
 \begin{document}
 \maketitle
-
+†
 \begin{abstract}
   MetaC is a Lisp-inspired programming environment for C. MetaC provides a read-eval-print loop (REPL) capable of evaluating (compiling and running)
   C statements and expressions.  The REPL is capable of incremental procedure definition and redefinition (dynamic linking).  MetaC also provides
   a macro feature similar to that of Lisp and powerful symbolic programming features for writing computed macros.  Most of the symbolic programming features of
   MetaC are implemented as bootstrapped MetaC macros.  MetaC is intended to be a development environment for frameworks implemented as
-  macro packages. Frameworks written in MetaC (and MetaC itself) use a universal algebraic concrete syntax (UACSS) ---
+  macro packages. Frameworks written in MetaC (and MetaC itself) use a ``universal syntax'' ---
   a simplification of the C concrete syntax but based on the Lisp philosophy that a single concrete syntax suffices for a wide variety of languages with
   a wide variety of semantics.  MetaC macro packages
   should be viewed as compilers from framework expressions to C code.  MetaC gives the framework developer complete control over the C code
@@ -46,7 +46,7 @@ Once one has cloned the MetaC repository (git@github.com:mcallester/MetaC.git) o
 bash$ make MC
 ...
 
-basth$ MC
+bash$ MC
 
 MC>
 \end{verbatim}
@@ -64,7 +64,7 @@ MC>
 In the above example the backquote expression given to the REPL macro-expands to a C expression which evaluates to the expression ``hello world''.
 Backquote is described in more detail below.
 
-\subsection{C Statements, C expressions, and UACS Expressions}
+\subsection{C Statements, C expressions, and Universal Syntax}
 
 We can also declare global variables and execute statements from the REPL.
 
@@ -96,9 +96,9 @@ given a C statement, the REPL simply prints ``done'' after executing
 the statement.
 When given a C expression the REPL computes and prints
 the value.  The REPL assumes that the value of a C expression
-is a UACS tree (also called a UACS expression giving a second, and confusing,
+is a universal syntax tree (also called an expression, giving a second, and confusing,
 sense of the term ``expression''). The procedure {\tt int\_exp} above
-converts an integer to a UACS expression.  UACS expressions are abstract
+converts an integer to a universal syntax expression.  Universal syntax expressions are abstract
 syntax trees but can viewed as representations of strings.
 
 If a C statement executes a {\tt return} outside of any
@@ -187,9 +187,9 @@ are not allowed in $C$. As noted above, this restriction greatly simplifies dyna
 To simplify the implementation of MetaC all type expressions appearing in procedure signatures and global array declarations must be single symbols.
 Arbitrary types can be given single symbol names using {\tt typedef}.
 
-\subsection{Backquote and UACS Expression Trees}
+\subsection{Backquote and Universal Syntax Expressions}
 
-We now consider backquote and UACS expressions in more detail.  Backquote can be used in a manner analogous to string formatting.
+We now consider backquote and universal syntax expressions in more detail.  Backquote can be used in a manner analogous to string formatting.
 
 \begin{verbatim}
 MC> expptr friend[0] = `{Bob Givan};
@@ -207,7 +207,7 @@ My friend Bob Givan is 6 feet tall.
 MC> 
 \end{verbatim}
 
-While UACS expressions can be viewed as representations of strings, UACS
+While universal syntax expressions can be viewed as representations of strings, universal syntax
 expressions are actually abstract syntax trees. The tree structure
 plays an important role in pattern matching. The tree structure is
 more apparent in the following example.
@@ -296,134 +296,106 @@ The general form of a macro definition is
 umacro{<pattern>}{<body>}
 \end{verbatim}
 where instances of {\tt <pattern>} in MetaC code are to be replaced by the value returned by {\tt <body>} under the variable bindings determined by the match.
-The procedure {\tt macroexpand} takes a UACS expression
+The procedure {\tt macroexpand} takes a universal syntax expression
 and returns the result of repeatedly expanding outermost macros until no further macro expansion is possible.  Macro expansion can generate effects as well as return an expansion.  The REPL performs
 macro expansion on the given expression and also performs the effects of that expansion.  {\tt umacro} is itself a MetaC macro and we can feed the above macro definition to the REPL.
 
 The macro expansion of the above macro definition defines a procedure to compute the macro expansion and installs that procedure on a macro property of the symbol {\tt mydolist}.
 In a typical use a macro patterns is a symbol followed by a sequence of parenthesis expressions., in which case the expansion procedure is attached to the given symbol,
-or generalized application expression or a binary connection expressions.  UACS expression types are discussed in the next section.
+or generalized application expression or a binary connection expressions.  Universal syntax expression types are discussed in the next section.
 The procedure for macro expansion is attached to either the head symbol of the application
 or the binary operator of the binary connection expression.
 
-\section{Universal Algebraic Concrete Syntax (UACS)}
+\section{Universal Syntax}
 
 It is not obvious how to implement light weight expression quotation and expression pattern matching for C expressions.  The syntax of C is complex.
-We bypass this complexity by introducing universal algebraic concrete syntax (UACS). UACS is ``universal'' in that it has the following three properties.
+We bypass this complexity by introducing a syntax with the following three ``universal'' properties.
 
 \begin{enumerate}
-\item UACS syntax trees are semantics-free.  They are simply trees viewed as representations of character strings.
+\item Universal syntax syntax trees are semantics-free.  They are simply trees viewed as representations of character strings.
 
-\item The UACS reader can read any parenthesis-balanced character string.
+\item The universal syntax reader can read any parenthesis-balanced character string.
   Here parenthesis-balanced means that every open parenthesis, brace or bracket has a matching closing character and that string quotations
   are properly closed.
   
-\item The printer inverts the reader. If we read a string $s$ into a UACS expression
-  $e$ and then print $e$ back into a string $s'$ we have that $s$ and $s'$ are ``whitespace equivalent'' as defined in section~\ref{sec:lex}.
-  This implies that $s$ and $s'$ will be treated equivalently by the C compiler.
+\item The printer inverts the reader. If we read a string $s$ into a universal syntax expression
+  $e$ and then print $e$ back into a string $s'$ we have that $s$ and $s'$ are equivalent in a strong sense.  Here we want
+  $s$ and $s'$ to be ``whitespace equivalent'' so as to be treated equivalently by the C lexer.
 \end{enumerate}
 
 The emphasis here is on the representation of strings.  The reader does not always invert the printer ---
 the expression $\fopen \fopen \mathtt{one~two} \fclose \;\mathtt{three}\fclose$ prints as {\tt one two three} which reads as
 $\fopen \mathtt{one}\; \fopen \mathtt{two~three} \fclose \fclose$.  But the represented string is preserved.  This is fundamentally different from
-most programming languages supporting symbolic computation (such as Lisp) where it is assumed that the reader should invert the printer.
+most programming languages supporting symbolic computation (such as Lisp) where it is assumed that the tree structure, rather than the represented string, is fundamental
+and hence that the reader should invert the printer.
 
-The above universality properties allow one to assign semantics to UACS expressions based on the strings that they represent.  We can assign C
+The above universality properties allow one to assign semantics to universal syntax expressions based on the strings that they represent.  We can assign C
 semantics to an expression by printing the expression and passing the resulting string to a C compiler.  This string-based semantics is not always
-compositional with respect to the UACS bracketing.  However, the tree structure imposed by the reader is designed to approximate the
-compositional structure of C syntax.  In most cases pattern matching on UACS expressions recovers substructure that is semantically meaningful under C
-semantics. Parentheses and semicolons are particularly helpful in aligning UACS trees with C syntax.
+compositional with respect to the universal syntax bracketing.  However, the tree structure imposed by the reader is designed to approximate the
+compositional structure of C syntax.  In most cases pattern matching on universal syntax expressions recovers substructure that is semantically meaningful under C
+semantics. Parentheses and semicolons are particularly helpful in aligning universal syntax trees with C syntax.
 
-\subsection{Comment Removal, Segmentation and Lexicalization}
-\label{sec:lex}
+\subsection{Universal Expressions: cons-car-cdr}
 
-The MetaC preprocessor removes C-style comments and divides files into segments where each segment is to be read as a separate expression.
-A new segment starts at the beginning of any line whose first character is not a space, tab or close character (right parenthesis, brace or bracket).
-A file must be parenthesis-balanced within each segment.
-For the REPL a segment ends at the first return character not occurring inside parentheses.
-
-Lexicalization segments a pre-processed into to a sequence of character strings. The UACS lexer preserves all non-white characters.  For UACS lexer the strings in lexicalized sequence are classified into
-the following types.
-
-\begin{itemize}
-\item Symbols,  A symbol is a character string consisting of only alpha-numeric characters --- upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar.
-  For example {\tt foo\_bar1}.
-\item Connectives.  A connective is a character string consisting of only ``connective characters'' --- the characters comma,
-  colon, semicolon, {\tt =}, {\tt $\sim$}, {\tt $<$}, {\tt $>$}, \mtt{|}, {\tt \&}, {\tt +}, {\tt -}, {\tt *}, {\tt /}, {\tt .}, {\tt @}, \mtt{$\hat{~}$}.
-  For example the strings {\tt ->} and {\tt ==}.
-\item Quoted strings.  A character string starting and ending with the same string quotation character.  For example {\tt "foo bar"}, {\tt "!:\&?;"} or {\tt 'a'}.
-\item Misc characters.  These are non-white single characters other than those mentioned above and other than parenthesis characters.  In particular, one of the characters
-  {\tt \$}, {\tt $\backslash$}, {\tt `}, {\tt !}, {\tt ?}, {\tt \#} and {\tt \%}.
-\end{itemize}
-
-
-The UACS lexicalization preserves all quoted character strings and all non-white characters outside of string quotation.  Two strings are called whitespace-equivalent
-if they lexicalize to the same sequence.  For many strings $s$ we have that $s'$ is whitespace equivalent to $s$ if and only if $s$ and $s'$ have the same sequence
-of non-white characters.
-Two strings that lexicalize equivalently under the UACS lexer will also lexicalize equivalently under the C lexer although the C lexicalization may be different from
-that of the UACS lexicalization.  Ultimately an unlexicalized character string is passed from MetaC to the C compiler. The MetaC programmer should keep in mind the
-character strings that UACS expressions represent.
-
-\subsection{UACS Expressions: cons-car-cdr}
-
-A UACS expression is either an atom (a lexical item character string),
+A universal syntax expression is either an atom (a wrapper around a string),
 a pair $\fopen e_1 e_2 \fclose$ where $e_1$ and $e_2$ are expressions, or a ``parenthesis expression'' the form $(e)$,
-$\{ e\}$, or $[e]$ where $e$ is an expression.  A cons-car-dcr interface to expressions can be implemented as follows.
+$\{ e\}$, or $[e]$ where $e$ is an expression.   All three of these datatypes have the same C type {\tt expptr} (Expression Pointer).
+Each has a constructor procedure, a predicate, and accessor functions.  The constructor, predicate and accessors for atoms, pairs and parenthesis expressions
+are the following.
+The atom data type has the constructor, test and accessor function for atoms are the following.
 
 \begin{verbatim}
-expptr cons(expptr x, expptr y){return `{${x} ${y}};}
+expptr string_atom(char *);
+int atomp(expptr);
+char * atom_string(expptr); //the argument must be an atom.
 
-expptr car(expptr cell){
-  ucase{cell;
-         {!x !y}:{return x;}}}
+expptr cons(expptr,expptr);
+int cellp(expptr);
+expptr car(expptr); //the argument must be a cell. returns the first component.
+expptr cdr(expptr); //the argument must be a cell. returns the second component.
 
-expptr cdr(expptr cell){
-  ucase{cell;
-         {!x !y}:{return y;}}}
-
-expptr add_parens(expptr e){return `{(${e})};}
-
-expptr inside(expptr parens){
-  ucase(parens;
-        {(!e)}:{return e;}}}
-
-int atomp(expptr s){
-    ucase{s;
-          {?s}:{return 1;}
-          {!x}:{return 0;}}}
+expptr intern_paren(char,expptr); // the char must be one of '(', '{' or '['
+int parenp(expptr);
+expptr paren_inside(expptr);
 \end{verbatim}
 
-As part of this interface we can convert an atom (or any expression) to a C string with the MetaC procedure {\tt exp\_string}.
-The procedure {\tt exp\_atring} is a version of the MetaC printer.
+\subsection{Universal Expressions: Phantom Brackets}
 
-\subsection{UACS Expressions: Phantom Brackets}
-
-A UACS expression can be represented by ``phantom brackets'' where there is a pair of brackets for each pair expression (cons cell).
+The MetaC reader maps a character string to a universal syntax expression.  A specification of the reader is given in section~\ref{sec:reader}.
+The expression produced by the reader
+can be represented by ``phantom brackets'' around the given string
+where there is a pair of brackets for each cons cell.
 For example the expression \mtt{\{one two three\}} reads as $\{\fopen \mathtt{one}\;\fopen \mathtt{two~three}\fclose \fclose\}$.
-To reduce the clutter of brackets we will adopt the Lisp convention of not showing all the cell brackets for right-associative sequences (lists).
-For example $\fopen \mathtt{zero}\;\fopen \mathtt{one}\;\fopen \mathtt{two~three}\fclose \fclose \fclose$.
-will be written as $\fopen\mathtt{zero~one~two~three}\fclose$.  Note that these ``lists'' are atom-terminated rather than the Lisp convention of
-nil termination. We will also often write $\fopen \fopen a_1 \;o\fclose\;a_2\fclose$ where $o$ is a connective atom
-as $\fopen a_1\;o\;a_2 \fclose$.  For example, the expression \mtt{\{a + b\}} reads as
-$\{\fopen \fopen \mathtt{a~+} \fclose \;\mathtt{b} \fclose \}$ which is then abbreviated as
-$\{\fopen \mathtt{a~+~b} \fclose \}$.  Left-association for binary connectives gives a
-C-consistent treatment of semicolon as a binary connective while supporting expressions of the form $\fopen e \;;\fclose$.
-It will generally be clear from context which abbreviation is being used.
-A set of examples of strings and the phantom brackets generated by the reader is given in figure~\ref{fig:reader}.
+Examples of strings and the phantom bracking imposed by the reading those strings is given in figure~{ref{fig:reader}}.
 The printer simply removes the phantom brackets and prints the string that the expression represents.
 
-To emphasize the significance of left-association for binary connectives we note that
-the UACS reader bracketing of
-$$\{e_1\;;\;e_2\;;\;e_3\;;\}$$
-can be written using either the binary connective convention as
-$$\{\fopen e_1\;;\;\fopen e_2\;;\;\fopen e_3\;;\fclose\fclose\fclose\}$$
-or the right-associative sequence convention as
-$$\{\fopen \fopen e_1\;;\fclose \;\fopen e_2\;;\fclose \;\fopen e_3\;;\fclose\fclose\},$$
+To reduce the clutter of brackets we will adopt two conventions for supressing brackets when exhibiting phantom brackets.
+The first convention is the Lisp right-branching convention of not showing all the cell brackets for right-associative (right-branching) sequences.
+For example $\fopen \mathtt{zero}\;\fopen \mathtt{one}\;\fopen \mathtt{two~three}\fclose \fclose \fclose$.
+will be written as $\fopen\mathtt{zero~one~two~three}\fclose$.  Note that these ``lists'' are atom-terminated rather than the Lisp convention of
+nil termination.
+
+The second convention is that we will sometimes write $\fopen \fopen a_1 \;o\fclose\;a_2\fclose$ where $o$ is a connective atom
+as the left-branching structure $\fopen a_1\;o\;a_2 \fclose$.  For example, the expression \mtt{\{a + b\}} reads as
+$\{\fopen \fopen \mathtt{a~+} \fclose \;\mathtt{b} \fclose \}$ which is then abbreviated as
+$\{\fopen \mathtt{a~+~b} \fclose \}$.  Left-branching for binary connectives gives a
+C-consistent treatment of semicolon as a binary connective while also supporting the interpretation of semicolon as a statement terminator.
+This is discussed in more detail below.
+
+It will generally be clear from context whether we using the Lisp right-branching list convention
+or the left-branching connective convention.
+A set of examples of strings and the phantom brackets generated by the reader is given in figure~\ref{fig:reader}.
+
+
+To emphasize the significance of left-branching binary connectives we note that
+the MetaC reader bracketing of
+$$\{e_1\;;\;e_2\;;\;e_3\;;\;e_4\}$$
+can be written using either the left-braching binary connective convention as
+$$\{\fopen e_1\;;\;\fopen e_2\;;\;\fopen e_3\;;\;e_4\fclose\fclose\fclose\}$$
+or the right-braching sequence convention as
+$$\{\fopen \fopen e_1\;;\fclose \;\fopen e_2\;;\fclose \;\fopen e_3\;;\fclose\;e_4\fclose\},$$
 both of which abbreviate the same full bracketing
-$$\{\fopen \fopen e_1\;;\fclose \;\fopen \fopen e_2\;;\fclose \;\fopen e_3\;;\fclose\fclose\fclose\}.$$
-Hence the string {\tt (a\;;\;b\;;)} matches both the pattern
-the pattern $\{(!x\;!y)\}$ with $x$ bound to $\fopen a\;;\fclose$ and $y$ bound to $\fopen\mathtt{b}\;;\fclose$,
-and also matched  $\{(!x\;;\;!y)\}$ with $x$ bound to {\tt a} and $y$ bound to  $\fopen\mathtt{b}\;;\fclose$.
+$$\{\fopen \fopen e_1\;;\fclose \;\fopen \fopen e_2\;;\fclose \;\fopen \fopen e_3\;;\fclose\;e_4\fclose\fclose\fclose\}.$$
 
 \begin{figure}
 \begin{eqnarray*}
@@ -435,10 +407,8 @@ and also matched  $\{(!x\;;\;!y)\}$ with $x$ bound to {\tt a} and $y$ bound to  
   \mathtt{x+y*z} & \Rightarrow & \fopen \mathtt{x~+}\; \fopen \mathtt{y~*~z} \fclose\fclose \\
   \mathtt{(x+y)*z} & \Rightarrow & \fopen (\fopen \mathtt{x~+~y} \fclose )\;\mathtt{*~z}\fclose \\
   \mathtt{foo}(\mathtt{int~x}) & \Rightarrow & \fopen \mathtt{foo}\; (\fopen \mathtt{int}\;  \; \mathtt{x}\fclose)\fclose \\
-  \mathtt{foo(int~x,~float~y)} & \Rightarrow & \fopen \mathtt{foo} \; (\fopen\fopen\fopen \mathtt{int}\; \mathtt{x}\fclose\;
-  \mathtt{,}\fclose\; \fopen\mathtt{float} \; \mathtt{y} \fclose\fclose )\;\fclose \\ 
-  ?\mathtt{f}(\mathtt{!args}) & \Rightarrow & \fopen\;\fopen?\;\mathtt{f}\fclose\; (\fopen \mathtt{!} \;\mathtt{args}\fclose)\;\fclose \\
-  \backslash \$\{\mathtt{x}\} & \Rightarrow & \fopen \backslash\;\; \fopen\$ \;\;\{\mathtt{x}\}\fclose\fclose
+  \mathtt{foo(int~x,~float~y)} & \Rightarrow & \fopen \mathtt{foo} \; (\fopen\fopen \mathtt{int}\; \mathtt{x} \fclose\;
+  \mathtt{,}\; \fopen\mathtt{float} \; \mathtt{y} \fclose\fclose )\;\fclose
 \end{eqnarray*}
 
 \caption{{\bf Examples of Reader Bracketings.} Bracketings are shown for the expression that results form reading the given strings.
@@ -450,11 +420,131 @@ and also matched  $\{(!x\;;\;!y)\}$ with $x$ bound to {\tt a} and $y$ bound to  
 \label{fig:reader}
 \end{figure}
 
+
+\subsection{The Reader Specification}
+\label{sec:reader}
+
+The MetaC reader can be described in three phases --- preprocessing, lexicalization, and parsing.
+
+The MetaC preprocessor removes C-style comments and divides files into segments where each segment is to be read as a separate expression.
+A new segment starts at the beginning of any line whose first character is not a space, tab or close character (right parenthesis, brace or bracket).
+A file must be parenthesis-balanced within each segment.
+For the REPL a segment ends at the first return character not occurring inside parentheses.
+
+Lexicalization segments a pre-processed character sting into to a sequence of atoms.
+The MetaC lexer preserves all non-white characters.  For the MetaC lexer each atom is one of the following.
+
+\begin{itemize}
+\item Symbols,  A symbol is a character string consisting of only alpha-numeric characters --- upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar.
+  For example {\tt foo\_bar1}.
+\item Connectives.  A connective is a character string consisting of only ``connective characters'' --- the connective characters consist of all non-alphanumeric, non-white, non-parenthesis, characters
+  other than the three special characters {\tt \$}, {\tt `} and $\backslash$.
+\item Quoted strings.  A character string starting and ending with the same string quotation character.  For example {\tt "foo bar"}, {\tt "!:\&?;"} or {\tt 'a'}.
+\item Single character atoms for parenthesis characters and the three special characters $\mtt{`}$, $\mtt{\$}$, and $\backslash$.
+\end{itemize}
+
+Two strings will be called whitespace-equivalent if they lexicalize to the same sequence of atoms.
+Two strings that lexicalize equivalently under the MetaC lexer will also lexicalize equivalently under the C lexer.
+
+\newcommand{\sym}{\mathrm{SYM}}
+\newcommand{\conn}{\mathrm{CONN}}
+\newcommand{\quot}{\mathrm{QUOTE}}
+\newcommand{\misc}{\mathrm{MISC}}
+\newcommand{\app}{\mathrm{APP}}
+\newcommand{\var}{\mathrm{VAR}}
+
+
+
+The reader is specified by a the grammar shown in figure~\ref{fig:grammar}.
+To simplify the specification of the reader we enclose the given string in parentheses so that, without loss of generality, the input is assumed to be of the form
+$\{s\}$ where $s$ is the lexical sequence to be read.  The grammar has a nonterminal $P$ for parenthesis expression which we take as the top level nonterminal.
+The nonterminals $\sym$ and $\quot$ range over alpha-numeric string atoms and quoted string atoms respectively.
+For each positive integer $p$ we have a nonterminal $\conn_p$ ranging over connective atoms of precedence $p$.
+We have a nonterminal $E_p$ for expressions formed with connectives
+of precedence $p$.  We also has a nonterminal $E_\infty$ for expressions that are formed at higher precedence than any connective expression.
+The precedence levels are divided into a set ${\cal L}$ of left-associative precedence levels and a set ${\cal R}$ of right associative precedence levels.
+There is a special precedence level 3 for combining expressions with the ``null connective''. The null connective is left-associative.
+The null connective is higher precedence that semicolon and comma but lower precedence than all other connectives.
+The nonterminal $E_\infty$ includes an epsilon production allowing null arguments.
+
+\begin{figure}
+  
+\begin{eqnarray*}
+  P & ::= & (E_p) \;|\; \{E_p\} \;|\; [E_p] \\
+  E_p & ::= & \fopen \fopen E_\ell\;\conn_p\fclose \;E_r\fclose\;\;\;\;p \in {\cal R}, \;\ell > p, \; r \geq p \\
+  E_p & ::= & \fopen \fopen E_\ell\;\conn_p\fclose \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p \\
+  E_3 & ::= & \fopen E_\ell \;E_r\fclose \;\;\;\ell > 3,\;r \geq 3\\
+  E_\infty & ::= & \quot \;|\; \fopen S \; \;P^* \fclose \;|\; \fopen `\;P\fclose \;|\; P \;|\; \epsilon \;|\; \mathrm{JUNK}\\
+  S & ::= & \;\sym \;|\; V \\
+  V & ::= & \fopen \$\;\sym\fclose \;|\; \fopen \$\;P\fclose \;|\; \fopen \backslash \; V \fclose\\
+  P^* & ::= &  \epsilon  \;|\; \fopen P\;P^* \fclose \\
+  \mathrm{JUNK} & ::= & ` \;|\; \mathrm{SJUNK} \\
+  \mathrm{SJUNK} & :: = & \$ \;|\;  \backslash \;|\; \fopen \backslash\;\mathrm{SJUNK} \fclose\\
+\end{eqnarray*}
+
+\caption{{\bf The grammar defining the MetaC reader.} The input string is assumed to be of the form $(s)$ so that endpoints are explicitly labeled.
+The nonterminal $\sym$ generates non-empty alpha-numeric strings; $\conn_p$ generates non-empty connective
+strings of precedence $p$; and $\quot$ generates string quotations.  ${\cal R}$ is a set of right-associative precedence levels and ${\cal L}$ is a set of left-associative levels.
+Only the highest precedence level is left-associative. MetaC classifies all printable ASCII characters as being either alpha-numeric, connective, string quotations, parenthesis characters or one of the three special characters
+{\tt `}, $\$$ or $\backslash$.
+The reader will accept any parenthesis-balanced string. $\epsilon$ denotes the empty string. Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$.
+Although the grammar is ambiguous, the reader is deterministic as specified by the constraints that
+$E_\infty$ expressions must be maximal and that the use of the $\epsilon$ production for $E_\infty$ must be minimized.  See the text for details.
+  }
+\label{fig:grammar}
+\end{figure}
+
+The nonterminal $S$ ranges over symbols or variables where $V$ ranges over variables.  Variables are handles specially in pattern matching ({\tt ucase}) and pattern instantiation (backquote).
+Expression of the form $\fopen S\;P^*\fclose$ include {\tt foo}, {\tt foo(x)}, {\tt foo(int x)\{return x;\}},
+{\tt \$x}, {\tt \$f(x)}, and {\tt \$\{f(x)\}}.
+
+
+The above grammar is ambiguous.  For example the string {\tt \{foo (a) (b)\}} can be parsed as either the left-branching structure $\{\fopen\fopen\sym\;P^*\fclose\;P\fclose\}$
+or the  right-branching structure $\{\fopen\sym\;P^*\fclose\}$.
+The reader is of course deterministic --- {\tt \{foo (a) (b)\}} is read as right-branching.  While a deterministic grammar for the reader can be given, it is simpler
+to specify a deterministic parsing process for the above ambiguous grammar.
+The implementation runs a deterministic left-to-right shift-reduce process.
+However, the parser is easier to specify as operating in global stages.  In the first stage one identifies all maximal $E_\infty$ substrings.
+The maximal $E_\infty$ requirement specifies that {\tt \{foo (a) (b)\}} is parsed as a single (right-branching)
+$E_\infty$ expression. However the string {\tt \{!\;foo\;(a)\;(b)\}} is read as the longer $E_\infty$ expression $\{\fopen \fopen \mathtt{!~foo}\fclose\ \fopen \mathtt{(a)~(b)} \fclose \fclose$.
+The grammar does have the property that any given string has a unique segmentation into maximal $E_\infty$ expressions each of which has a unique structure.
+
+After identifying maximal $E_\infty$ expressions we are left with a sequence of arguments (the $E_\infty$ expressions) and connectives.
+However, it is possible that this sequence contains multiple consecutive connectives or multiple consecutive arguments.  We then place an argument between any two consecutive
+connectives using the $\epsilon$ production for $E_\infty$ and also add an $\epsilon$ term at the beginning of the sequence if the sequence starts with a connective and an
+epsilon argument at the end if the sequence ends in a connective.  We now have a sequence of arguments and connectives starting and ending with arguments and where there
+are no two consecutive connectives.  Next set $k$ to be the largest precedence of any connective and form all the $E_k$ substrings. We then repeatedly decrement $k$ and identify all the $E_k$ substrings
+until we have identifies all $E_p$ substrings for all $p$.  At this point the entire string must be parsed as $E_p$ where $p$ is the smallest precedence of the connectives
+where we think of adjacent arguments as having an implicit precedence 3 connetive between them.
+
+\noindent This process can parse any parenthesis-balanced string.
+
+The above specification of the reader can result in cells of the form $\fopen e\;\epsilon \fclose$ or $\fopen \epsilon \;e\fclose$.   The implementation avoids producing such cells
+and the reader can be viewed as replacing $\fopen e\;\epsilon \fclose$ or $\fopen \epsilon \;e\fclose$ by $e$ so that
+all cells are of the form $\fopen e_1\;e_2\fclose$ where $e_1$ and $e_2$ are expressions representing non-empty strings.  An empty parenthesis string {\tt ()}
+is read as a parenthesis expression containing an atom for the empty string.
+
+\noindent Grouped by precedence, the binary connective characters are
+
+\medskip
+\centerline{\{\mtt{;}\} \{\mtt{,}\}  \{$\epsilon$\}
+  \{\mtt{|}\} \{{\tt \&}, {\tt ?}, {\tt !}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\} \{{\tt *}, {\tt /}\} \{$\hat{~}$, {\tt \%}, {\tt .}, \mtt{:},  {\tt @}, {\tt \#}\}.}
+
+\noindent The precedence of a binary connective is determined by its first character.  The characters have low to high (outer to inner) precedence in the order given with symbols
+in the same group having the same precedence.  Here $\epsilon$ represents the null connective at precedence level 3.
+The precedence can be summarized in outer to inner order as semicolon, comma, the null connective,
+Two levels of Boolean connectives, binary predicates,
+two levels of binary functions, and innermost connectives which can be viewed as providing a way of building structured atoms.  Below the level of parentheses, semicolon and comma the universal syntax precedence
+conventions have various divergences with C syntax.  However, when writing a macro package in MetaC one can simply adopt the MetaC precedence conventions for the
+source code and use parentheses where necessary in the generated C code.
+
 \subsection{Backquote and Pattern Matching Revisited}
 
-The semantics of backquote is defined in terms of cons-car-cdr view of UACS expressions independent of the UACS reader.
+The semantics of backquote is defined in terms of cons-car-cdr view of expressions independent of the MetaC reader.
 In the typical case, the C value of a backquote expression
-$\fopen ` \;\{e\}\fclose$ is the expression $e$ with subexpressions of the form $\fopen \$\;\{w\}\fclose$ replaced by the expression which is the C value of the string represented by the expression $w$.
+$\fopen ` \;\{e\}\fclose$ is the expression (tree) $e$ with subexpressions (subtrees) of the form $\fopen \$\;x \fclose$, where $x$ is a symbol,
+replaced by the C value of $x$
+and subexpressions (subtrees) of the form $\fopen \$\;\{w\}\fclose$ replaced by the expression which is the C value of the string represented by the expression $w$.
 
 Unfortunately this evaluation rule for backquote expressions is incomplete.  One of the most
 confusing situations is where the expansion of a macro contains a backquote.  Writing such a macro typically involves nested backquotes.  While nested backquotes
@@ -480,115 +570,8 @@ We can even have multiple layers of quotation as in the following.
 \end{equation}
 If the value of variable {\tt x} is the expression {\tt a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
 
-As with backquote, pattern matching is defined in terms of the cons-car-cdr view of expressions independent of the UACS reader.  We define a substitution to be a mapping from
+As with backquote, pattern matching is defined in terms of the cons-car-cdr view of expressions independent of the MetaC reader.  We define a substitution to be a mapping from
 symbol atoms to expressions. For a substitution $\sigma$ and a pattern $\{e\}$ we define the expressions $\sigma(e)$
-to be the result of replacing each subexpression of $e$ of the form $\fopen !\;x \fclose$ where $x$ is a symbol atom with $\sigma(x)$ and each subexpression of the form
-$\fopen ?\;x \fclose$ where $x$ is a symbol atom by $\sigma(x)$ provided that $\sigma(x)$ is an atom.  A pattern $\{e\}$ matches an expression $w$ with substitution $\sigma$
+to be the result of replacing each subexpression (subtree) of $e$ of the form $\fopen \$\;x \fclose$ where $x$ is a symbol atom with $\sigma(x)$.  A pattern expression (tree) $\{e\}$ matches an expression (tree) $w$ with substitution $\sigma$
 if $\sigma(e) = w$. An exception to this is the case where a variable occurs multiple times in the pattern.  As of June 2018 multiple occurrences of a variable in a pattern is not supported.
-
-\subsection{The Reader Specification}
-\label{sec:reader}
-
-\newcommand{\sym}{\mathrm{SYM}}
-\newcommand{\conn}{\mathrm{CONN}}
-\newcommand{\quot}{\mathrm{QUOTE}}
-\newcommand{\misc}{\mathrm{MISC}}
-\newcommand{\gatom}{\mathrm{GATOM}}
-\newcommand{\argg}{\mathrm{ARG}}
-\newcommand{\e}{\mathrm{E}}
-\newcommand{\paren}{\mathrm{PAREN}}
-\newcommand{\foo}{\mathtt{foo}}
-\newcommand{\barr}{\mathtt{bar}}
-  
-We now give a grammar specifying the UACS reader.  We also attempt to describe the reader in an intelligible way independent of the formal grammar.
-The grammar will define a linear-time deterministic shift-reduce parsing process.
-
-To read a string $s$ it will be convenient to enclose $s$ in parenthesis and read the string $(s)$.  This gives the reader access to ``endpoint tokens'' marking the beginning and end of the string.
-Reading $(s)$ results in a parenthesis expression $(e)$ where the string $s$ is read as the expression $e$.
-
-The grammar uses nonterminals
-$\sym$, $\conn$, $\quot$ and $\misc$ to range over symbol atoms (alphanumeric strings), binary connective atoms (strings over the connective symbols), quoted string atoms, and
-the miscellaneous character atoms respectively.  There is also a nonterminal $\paren$ to range over parenthesis expressions.
-
-
-The UACS reader has the property that a string of the form {\tt $\$$\{...\}} always reads to a single expression of the form $\fopen \$\;\{e\}\fclose$ independent of the context in which the string appears.
-The general rule is that any sequence of the miscellaneous characters followed by either a symbol atom, a string quotation atom, or a parenthesis expression reads as a single expression independent of context.
-A sequence of miscellaneous characters followed a close character or a connective atom also reads as a single expression.  The reader grammar has a nonterminal $\gatom$, for generalized atom, ranging over
-this class of expressions. This definition of the range of the nonterminal $\gatom$ can be expressed by the following context-sensitive grammar rules
-where the close character can be interpreted as any of the three parenthesis expression closing characters.
-\begin{eqnarray*}
-  \gatom & \rightarrow & \sym \;\;|\;\; \quot \;\;|\;\; \paren \;\;|\;\; \misc\;\gatom \\
-  \gatom\;) & \rightarrow & \misc\;) \\
-  \gatom\; \conn & \rightarrow & \misc\; \conn \\
-\end{eqnarray*}
-Note that any occurrence of a miscellaneous character is contained in some $\gatom$ expression.
-
-There is also has a nonterminal $\argg$ that ranges over sequences of $\gatom$'s that are followed by a binary connective or a closed parenthesis character.
-This is defined by the following grammar.
-\begin{eqnarray*}
-  \argg\;) & \rightarrow & \gatom\;) \\
-  \argg\; \conn & \rightarrow & \gatom\; \conn \\
-  \argg & \rightarrow & \gatom \; \argg
-\end{eqnarray*}
-The string {\tt (!x !y)} is now deterministically parsed as $(\gatom\; \gatom)$ and then as $(\argg)$.  The string $(f(x) + !y)$ is now
-parsed as $(\gatom\;\gatom\; +\; \gatom)$ and then as $(\argg\; + \;\argg)$.
-
-We now consider the problem of parsing a sequence of arguments and connectives.  We first consider the normal case
-where the sequence alternates arguments and connectives and starts and ends with arguments.
-The more general case is considered below (we are requiring that we be able to parse any string).
-
-Each connective atom is associated with a precedence and each precedence level is associated with a convention for being left-associative or right associative.
-Grouped by precedence, the binary connective characters are
-
-\medskip
-\centerline{\{semicolon\} \{comma\}  \{$\hat{\mathtt{~}}$\}
-  \{\mtt{|}, {\tt \&}\} \{{\tt =}, {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\} \{{\tt *}, {\tt /}\} \{{\tt \%}\} \{{\tt .}, colon,  {\tt @}\}.}
-
-The precedence of a binary connective is determined by its first character.  The characters have low to high (outer to inner) precedence in the order given with symbols
-in the same group having the same precedence.  The precedence can be summarized in outer to inner order as semicolon, comma, an expression separator below comma,
-Boolean connectives, binary predicates,
-four levels of binary functions, and ``symbol connectives'' --- ways of building compound symbols.  Below the level of parentheses, semicolon and comma the UACS precedence
-conventions have various divergences with C syntax.  However, when writing a macro package in MetaC one can simply adopt the MetaC precedence conventions for the
-source code and use parentheses where necessary in the generated C code.
-
-
-To be able to parse any string we intuitively add a phantom argument between each pair of adjacent binary connectives and also add a phantom argument
-at the beginning if the string starts with a connective and a phantom argument at the end if the string ends with a connective.
-This determines a parse tree which may contain phantom arguments.  The phantom argument are then removed by replacing any cell with a phantom argument by the non-phantom sibling.
-This gives the following readings.
-\begin{eqnarray*}
-\mathtt{(x~+~*~y)} & \Rightarrow & (\fopen\mtt{x~+}\;\fopen \mathtt{*~y}\fclose \fclose) \\
-\mathtt{(x~*~+~y)} & \Rightarrow & (\fopen\fopen\mtt{x~*} \fclose\;+\;\mathtt{y}\fclose) \\
-\mathtt{(+~a~+~b)} & \Rightarrow & (\fopen \mathtt{+}\;\fopen \mathtt{a~+b}\fclose\fclose) \\
-\mathtt{(a~+~b~+)} & \Rightarrow & (\fopen \mathtt{a~+}\;\fopen \mathtt{b~+}\fclose\fclose) \\
-\mathtt{(a~;~b~;)} & \Rightarrow & (\fopen \mathtt{a~;}\;\fopen \mathtt{b~;}\fclose\fclose) \\
-& = & (\fopen \fopen \mathtt{a~;}\fclose\;\fopen \mathtt{b~;}\fclose\fclose)\end{eqnarray*}
-Parsing sequences of arguments and connectives with precedence and associativity conventions should be
-familiar.  However, for completeness, and to handle subtleties of phantom arguments,
-We give grammar rules. We will let $\conn_p$ be a nonterminal ranging over
-connectives with precedence $p$ and let $\e_p$ be a nonterminal ranging over
-expressions containing connectives where $p$ is the lowest precedence of any connective in the expression.
-We let $\tilde{\e}_p$ be a nonterminal ranging over expressions
-of the form $\fopen e\;o\fclose$ with $\e_p \rightarrow^* e$ and $o$ is a connective with precedence $q$ where $q > p$ or $q = p$ with $p$ being a left associative precedence.
-The grammar rules for the case where all arguments are explicit can be written as
-\begin{eqnarray*}
- (\;\tilde{\e}_p  & \rightarrow &   (\;\argg \; \conn_p \\
-  \tilde{\e}_p \;\tilde{\e}_q & \rightarrow & \tilde{\e}_p \;\argg \;\conn_q\;\;\mbox{for $q > p$ or $q= p$ and $p$ right associative} \\
-  \e_p \;\conn_q & \rightarrow & \tilde{\e}_p \;\argg \;\conn_q \;\;\mbox{for $q < p$ or $q= p$ and $p$ left associative} \\
-  \e_p\;) &\rightarrow & \tilde{\e}_p \;\argg)
-\end{eqnarray*}
-Phantom arguments are handled by the following rules which also define a deterministic parsing algorithm.
-\begin{eqnarray*}
-   (\;\tilde{\e}_p  & \rightarrow &   (\; \conn_p \\
-  \tilde{\e}_p \;\tilde{\e}_q & \rightarrow & \tilde{\e}_p  \;\conn_q\;\;\mbox{for $q > p$ or $q= p$ and $p$ right associative} \\
-  \e_p \;\conn_q & \rightarrow & \tilde{\e}_p \;\conn_q \;\;\mbox{for $q < p$ or $q= p$ and $p$ left associative} \\
-    \e_p\;) &\rightarrow & \tilde{\e}_p)
-\end{eqnarray*}
-
-Finally we have
-$$\paren \Rightarrow (\e_p) \;\;|\;\; (\argg)\;\;| \;\;()$$
-where analogous rules hold for the other parethesis characters as well.  The empty parenthesis expression contains the atom for the empty string.
-In the implementation the empty string is denoted by {\tt nil} which is also used as a general list terminator.
-
-The system of rules presented in this section define a linear time deterministic shift-reduce parsing process.
 \end{document}

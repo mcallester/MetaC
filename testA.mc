@@ -1,2 +1,2 @@
-`{foo[3] "foo" ${`{bar}} \${${`{gritch}}}}
+`{foo[3] "foo" ${bar} $bar ${`{bar}} \${foo} \\${foo}}
 
