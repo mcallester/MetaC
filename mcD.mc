@@ -1,10 +1,10 @@
 #include "mc.h"
 
-umacro{push(!x,?y)}{
-  return `{${y} = cons(${x},${y});};
+umacro{push($x,$y)}{
+  return `{$y = cons($x,$y);};
 }
 
-umacro{dolist(?x,!y){!body}}{
+umacro{dolist($x,$y){$body}}{
   expptr yval = gensym(`{yval});
   return `{{
       expptr ${x};
@@ -15,7 +15,7 @@ umacro{dolist(?x,!y){!body}}{
 	${yval} = cdr(${yval});}}};
 }
 
-umacro{mapc(!f,!list)}{
+umacro{mapc(!f,$list)}{
   expptr x = gensym(`{x});
   return `{dolist(${x}, ${list}){${f}(${x});}};
 }
@@ -29,50 +29,55 @@ warning --- this replicates the arguments and hence the arguments should be vari
 this is hard to fix because the argument types are very difficult to determine.
 ========================================================================**/
 
-umacro{sformat(!args)}{
+umacro{sformat($args)}{
   return `{({
 	int needed_size = snprintf(NULL,0,${args});
 	char * buffer = (char *) stack_alloc(needed_size+1);
-	sprintf(buffer,${args});
+	sprintf(buffer,args);
 	buffer;})};
 }
 
 /** ========================================================================
 stack frames for the debugger;
-======================================================================== **/
+
+This code would be better written using the gnu extension for expression statements
+supporting functional programming.
+
+There should be mapexp macro for code walking.
 
 expptr args_variables(expptr args);
 expptr args_assignments(expptr args);
 
-umacro{sframe{?type ?f(!args){!body}}}{
+umacro{sframe $type $f($args){$body} }{
+  //this should have an unwind protect
   if(type == `{void}){
-    return `{${type} ${f}(${args}){
-	push_dbg_expression(`{${f}(${args})});
+    return `{$type $f($args){
+	push_dbg_expression(`{$f($args)});
 	${args_assignments(args_variables(args))}
-	${body};
-	pop_dbg_stack();}};}
+	$body;
+	pop_dbg_stack();}};};
   expptr var = gensym(`{result});
-  return `{${type} ${f}(${args}){
-      push_dbg_expression(`{${f}(${args})});
+  return `{$type $f($args){
+      push_dbg_expression(`{$f($args)});
       ${args_assignments(args_variables(args))}
-      ${type} ${var};
-      catch_return(${var} ${body})
+      $type $var;
+      catch_return($var $body)
       pop_dbg_stack();
-      return ${var};
+      return $var;
     }}}
 
-umacro{catch_return{?var !statement}}{
-  expptr donelabel = gensym(`{done});
+umacro{catch_return{$var $statement}}{
+  expptr donelabel = gensym("done");
   return `{{
       ${replace_returns(var,donelabel,statement)}
-      ${donelabel}:}}
+      $donelabel:}}
 }
 
 expptr replace_returns(expptr var, expptr donelabel, expptr s){
   ucase{s;
-    {return !e ;}:{
-      return `{${var} = ${e}; goto ${donelabel};}}
-    {!x}:{
+    {return $e ;}:{
+      return `{$var = $e; goto $donelabel;}}
+    {$x}:{
       if(atomp(s)) return s;
       return intern_exp(constructor(s),
 			replace_returns(var, donelabel, arg1(s)),
@@ -83,10 +88,10 @@ expptr replace_returns(expptr var, expptr donelabel, expptr s){
 expptr args_variables(expptr args){
   if(args == NULL)return NULL;
   ucase{args;
-    {?type1 ?var(?type2), !rest}:{return cons(var, args_variables(rest))}
-    {?type1 ?var(?type2)}:{return cons(var, NULL);}
-    {?type ?var, !rest}:{return `{${var}, ${args_variables(rest)}};}
-    {?type ?var}:{return cons(var, NULL);}}
+    {$type1 $var($type2), $rest}:{return cons(var, args_variables(rest))}
+    {$type1 $var($type2)}:{return cons(var, nil);}
+    {$type $var, $rest}:{return cons(var, args_variables(rest));}
+    {$type $var}:{return cons(var, NULL);}}
   return NULL;
 }
 
@@ -102,5 +107,8 @@ expptr args_assignments(expptr args){
     args = cdr(args);}
   return result;
 }
+
+======================================================================== **/
+
 
 init_fun(mcD_init)

@@ -229,7 +229,8 @@ void add_init_form(expptr e);
 expptr args_variables(expptr args);
 
 void match_failure();
-expptr top_symbol(expptr e);
+
+expptr top_atom(expptr e);
 
 expptr replace_returns(expptr,expptr,expptr);
   

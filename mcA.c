@@ -477,6 +477,16 @@ void printexp(expptr e){
 
 /** ========================================================================
 section: backquote
+
+dollar variables (metavariables) should be viewed as "reverse deBruijn numbers" where
+number one (a naked dollar) refers to the OUTERMOST backquote and each backslash moves in one backquote.
+An expression is closed if every dollar is bound by some enclosing backquote.
+With reverse numbering, when a closed expression e is substituted into a context C[.] with an encolsing backquote
+the indeces in e should be incretmented.
+
+Macros generally place bodies in contexts with bound variables (inside lambda bindings).
+In such situations gensym is used to avoid capture.
+But I have never encountered a macro that places a body inside a backquote.
 ========================================================================**/
 
 expptr app_code(char * proc, expptr arg_code){
@@ -812,7 +822,7 @@ expptr mcread_open(){
   char cl = close_for(c);
   paren_level++;
   expptr e = mcread();
-  if(readchar != cl)declare_unmatched(c,e,cl);
+  if(readchar != cl)declare_unmatched(c,e,readchar);
   paren_level--;
   advance_readchar();
   return intern_paren(c,e);

@@ -224,12 +224,12 @@ bar(a+b)
 MC>
 \end{verbatim}
 
-As described in the next section, the pattern {\tt foo(!x)} will match the expression {\tt foo(a+b)} with {\tt x} bound to the expression (tree) {\tt a+b}.
+As described in the next section, the pattern {\tt foo($\$$x)} will match the expression {\tt foo(a+b)} with {\tt x} bound to the expression (tree) {\tt a+b}.
 
 \subsection{Pattern Matching}
 
-MetaC provides a pattern matching case statement.
-The general form of the case construct is the following.
+MetaC provides a pattern matching case construct {\tt ucase} (universal case).
+The general form of the case construct is
 
 \begin{verbatim}
 ucase{e;
@@ -238,16 +238,15 @@ ucase{e;
   {<patternn>}:{<bodyn>}}
 \end{verbatim}
 
-Variables are marked in patterns by the symbol tags {\tt !} and {\tt ?}.  The variable {\tt !x} can match any expression while {\tt ?x} can only match symbols (or other lexicalized
-tokens without internal structure as described in section~\ref{sec:lex}).
+Variables are marked in patterns by the prefix $\$$.
 
 \begin{verbatim}
 MC> int value(expptr e){
       ucase{e;
-        {!x+!y}:{return value(x)+value(y);}
-        {!x*!y}:{return value(x)*value(y);}
-        {(!x)}:{return value(x);}
-        {!z}:{return symbol_int(z);}}
+        {$x+$y}:{return value(x)+value(y);}
+        {$x*$y}:{return value(x)*value(y);}
+        {($x)}:{return value(x);}
+        {$z}:{return symbol_int(z);}}
      return 0;
    }
 
@@ -260,11 +259,15 @@ MC>value(`{3+(2*5)})
 MC>
 \end{verbatim}
 
-In many cases the choice of the particular tree structure imposed by the MetaC reader is unimportant.  For example, the expression {\tt a+b+c} will match the pattern
-{\tt !x+!y+!z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\tt !x*!y}
-will not match the expression {\tt a+b*c} because the reader brackets {\tt a+b*c} as  $\fopen \mathtt{a~+} \fopen \mathtt{b * c} \fclose\fclose$. The pattern {\tt !x*!y} does match {\tt (a+b)*c}.
+In many situations the choice of the particular tree structure imposed by the MetaC reader is not important as long as the same conventions are used in both the patterns and the expressions
+they are matching.  For example, the expression {\tt a+b+c} will match the pattern
+{\tt $\$$x+$\$$y+$\$$z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\tt $\$$x*$\$$y}
+will not match the expression {\tt a+b*c} because the reader brackets {\tt a+b*c} as  $\fopen \mathtt{a~+} \fopen \mathtt{b * c} \fclose\fclose$. The pattern {\tt $\$$x*$\$$y} does match {\tt (a+b)*c}.
 
-As of June 2018 repeated variables, such as in the pattern {\tt \{!x + !x\}}, are not supported (and not checked for).
+When a {\tt ucase} is executed the patterns are tries sequentially and stops after the first match.  If no pattern matches an error is generated.  One can always add a final pattern of $\{\$x\}$ to provide a default
+catch-all case if that is desired.
+
+As of June 2018 repeated variables, such as in the pattern {\tt \{$\$$x + $\$$x\}}, are not supported (and not checked for).
 If a variable is repeated it will be matched at its last occurrences under depth-first left to right traversal.
 
 \subsection{Gensym and Macro Definitions}
@@ -273,7 +276,7 @@ MetaC supports computed macros which can exploit pattern matching, backquote pat
 As a very simple example we can define a {\tt dolist} macro at the REPL.
 
 \begin{verbatim}
-MC> umacro{mydolist(!x, !L){!body}}{
+MC> umacro{mydolist($\$$x, $L){$body}}{
      expptr rest = gensym(`{rest});
      return `{for(explist ${rest} = ${L};
                   ${rest} != NULL;
@@ -479,7 +482,7 @@ The nonterminal $E_\infty$ includes an epsilon production allowing null argument
   V & ::= & \fopen \$\;\sym\fclose \;|\; \fopen \$\;P\fclose \;|\; \fopen \backslash \; V \fclose\\
   P^* & ::= &  \epsilon  \;|\; \fopen P\;P^* \fclose \\
   \mathrm{JUNK} & ::= & ` \;|\; \mathrm{SJUNK} \\
-  \mathrm{SJUNK} & :: = & \$ \;|\;  \backslash \;|\; \fopen \backslash\;\mathrm{SJUNK} \fclose\\
+  \mathrm{SJUNK} & :: = & \$ \;|\;  \backslash \;|\; \fopen \backslash\;\mathrm{JUNK} \fclose\\
 \end{eqnarray*}
 
 \caption{{\bf The grammar defining the MetaC reader.} The input string is assumed to be of the form $(s)$ so that endpoints are explicitly labeled.
@@ -506,7 +509,7 @@ to specify a deterministic parsing process for the above ambiguous grammar.
 The implementation runs a deterministic left-to-right shift-reduce process.
 However, the parser is easier to specify as operating in global stages.  In the first stage one identifies all maximal $E_\infty$ substrings.
 The maximal $E_\infty$ requirement specifies that {\tt \{foo (a) (b)\}} is parsed as a single (right-branching)
-$E_\infty$ expression. However the string {\tt \{!\;foo\;(a)\;(b)\}} is read as the longer $E_\infty$ expression $\{\fopen \fopen \mathtt{!~foo}\fclose\ \fopen \mathtt{(a)~(b)} \fclose \fclose$.
+$E_\infty$ expression. However the string {\tt \{$\$$\;foo\;(a)\;(b)\}} is read as the longer $E_\infty$ expression $\{\fopen \fopen \mathtt{!~foo}\fclose\ \fopen \mathtt{(a)~(b)} \fclose \fclose$.
 The grammar does have the property that any given string has a unique segmentation into maximal $E_\infty$ expressions each of which has a unique structure.
 
 After identifying maximal $E_\infty$ expressions we are left with a sequence of arguments (the $E_\infty$ expressions) and connectives.

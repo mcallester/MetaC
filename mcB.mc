@@ -15,7 +15,7 @@ void match_failure(expptr value, expptr patterns){
 expptr ucase_macro(expptr e){
   expptr ucase_pattern = `{{ucase{\$exp;\$rules}}};
   if(!(cellp(e)
-       && constructor(cdr(e)) != '{'
+       && constructor(cdr(e)) == '{'
        &&     cellp(paren_inside(cdr(e)))
        && cellp(car(paren_inside(cdr(e))))
        &&   cdr(car(paren_inside(cdr(e)))) == semi))
@@ -37,7 +37,7 @@ expptr casecode1(expptr rules, expptr topvar, expptr donelabel, expptr patterns)
     match_failure(rules,rules_patterns);
   if(cdr(car(rules)) == colon){ //only first pattern possible
     return cons(casecode2(rules,topvar,donelabel),
-		`{match_failure($topvar, ${quote_code(cons(car(rules), patterns))})});}
+		`{match_failure($topvar, ${quote_code(cons(car(rules), patterns))});});}
   //only second pattern possible
   return cons(casecode2(car(rules),topvar,donelabel),
 	      casecode1(cdr(rules),topvar,donelabel,cons(car(car(rules)), patterns)));
@@ -64,18 +64,18 @@ expptr casecode3(expptr pattern, expptr valvar , expptr body){
   if(parenp(pattern)){
     expptr inside_var = gensym("");
     return `{if(parenp($valvar)){
-	{expptr $inside_var = paren_inside($valvar);
-	  ${casecode3(paren_inside(pattern), inside_var, body)}}}};}
+	expptr $inside_var = paren_inside($valvar);
+	${casecode3(paren_inside(pattern), inside_var, body)}}};}
   
   if(car(pattern) == dollar){
     if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))
       berror("illegal syntax for variable in ucase pattern");
-    return `{{${cdr(pattern)} = ${valvar}; ${body}}};}
+    return `{expptr ${cdr(pattern)} = ${valvar}; ${body}};}
     
   expptr leftvar = gensym("");
   expptr rightvar = gensym("");
-  return `{{expptr ${leftvar} = car(${valvar}); exptr ${rightvar} = cdr(${valvar});
-      ${casecode3(car(pattern),leftvar,casecode3(cdr(pattern),rightvar,body))}}};
+  return `{expptr ${leftvar} = car(${valvar}); expptr ${rightvar} = cdr(${valvar});
+      ${casecode3(car(pattern),leftvar,casecode3(cdr(pattern),rightvar,body))}};
 }
 
 void mcB_init(){
