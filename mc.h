@@ -121,6 +121,8 @@ expptr string_atom(char * s);
 
 int atomp(expptr e);
 
+int symbolp(expptr e);
+
 char * atom_string(expptr a);
 
 
@@ -254,10 +256,6 @@ FILE * writestrm;
 
 void indent(int i);
 
-expptr commaop;
-expptr colonop;
-expptr spaceop;
-
 /** ========================================================================
 dynamic linking
 ========================================================================**/
@@ -285,7 +283,7 @@ int rep_column;
 expression_constants
 ======================================================================== **/
 
-expptr comma, colon, semi, backquote, dollar, backslash, exclam, question;
+expptr period, comma, colon, semi, backquote, dollar, backslash, exclam, question;
 expptr nil, macro;
 
 expptr bquote_code(expptr);

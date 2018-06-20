@@ -5,15 +5,13 @@ umacro{push($x,$y)}{
 }
 
 umacro{dolist($x,$y){$body}}{
+  //we need make "break" and "continue" work form inside iteration macros.
   expptr yval = gensym("yval");
   return `{{
       expptr $x;
-      expptr $yval = $y;
-      while($yval != nil){
-	if(!cellp($yval))berror("illegal list in dolist");
-	$x = car(${yval});
-	${body}
-	$yval = cdr($yval);}}};
+      for(expptr $yval = $y; cellp($yval); $yval = cdr($yval)){
+	$x = car($yval);
+	$body}}};
 }
 
 /** ========================================================================

@@ -135,7 +135,7 @@ MC> explist mycons(expptr x, explist l){
 done
 
 MC> expptr list_exp(explist l){
-     if(l == NULL) return NULL;
+     if(l == NULL) return nil;
      return `{ ${l->car} ${list_exp(l->cdr)} };
 }
 

@@ -13,7 +13,9 @@ void match_failure(expptr value, expptr patterns){
 }
 
 expptr ucase_macro(expptr e){
+
   expptr ucase_pattern = `{{ucase{\$exp;\$rules}}};
+
   if(!(cellp(e)
        && constructor(cdr(e)) == '{'
        &&     cellp(paren_inside(cdr(e)))
@@ -31,7 +33,9 @@ expptr ucase_macro(expptr e){
 }
 
 expptr casecode1(expptr rules, expptr topvar, expptr donelabel, expptr patterns){
-  expptr rules_patterns = `{{{\$pattern}:{\$body}} {{\$pattern}:{\$body} \$rest}};
+
+  expptr rules_patterns = `{{\$pattern:{\$body}} {\$pattern:{\$body} \$rest}};
+
   if(!(cellp(rules)
        && cellp(car(rules))))
     match_failure(rules,rules_patterns);
@@ -45,17 +49,36 @@ expptr casecode1(expptr rules, expptr topvar, expptr donelabel, expptr patterns)
 }
 
 expptr casecode2(expptr rule, expptr topvar, expptr donelabel){
-  expptr rule_pattern = `{{\$pattern}:{\$body}};
+
+  expptr rule_pattern = `{\$ptest:{\$body}};
+
   if(!(cellp(rule)
        && cellp(car(rule))
        && cdr(car(rule)) == colon
-       && constructor(car(car(rule))) == '{'
+       && parenp(cdr(rule))
        && constructor(cdr(rule)) == '{'))
     match_failure(rule, rule_pattern);
-  expptr pattern = paren_inside(car(car(rule)));
+  expptr ptest = car(car(rule));
   expptr body = paren_inside(cdr(rule));
-  
-  return casecode3(pattern, topvar, `{$body goto $donelabel;});
+
+  expptr ptest_patterns = `{{\$pattern} {{\$pattern}.(\$test)}};
+
+  if(parenp(ptest) && constructor(ptest) == '{'){
+    expptr pattern = paren_inside(ptest);
+    return casecode3(pattern, topvar, `{$body goto $donelabel;});}
+
+  if(!(cellp(ptest)
+       && cellp(car(ptest))
+       && cdr(car(ptest)) == period
+       && parenp(car(car(ptest)))
+       && constructor(car(car(ptest))) == '{'
+       && parenp(cdr(ptest))
+       && constructor(cdr(ptest)) == '('))
+    match_failure(ptest,ptest_patterns);
+  expptr pattern = paren_inside(car(car(ptest)));
+  expptr test = paren_inside(cdr(ptest));
+
+  return casecode3(pattern, topvar, `{if($test){$body goto $donelabel;}});
 }
 
 expptr casecode3(expptr pattern, expptr valvar , expptr body){
@@ -69,10 +92,9 @@ expptr casecode3(expptr pattern, expptr valvar , expptr body){
 	${casecode3(paren_inside(pattern), inside_var, body)}}};}
   
   if(car(pattern) == dollar){
-    if(!(atomp(cdr(pattern)) && alphap(atom_string(cdr(pattern))[0])))
-      berror("illegal syntax for variable in ucase pattern");
-    return `{{expptr ${cdr(pattern)} = ${valvar}; ${body}}};}
-    
+    if(!(symbolp(cdr(pattern))))berror("illegal syntax for variable in ucase pattern");
+    return `{{expptr ${cdr(pattern)} = $valvar; $body}};}
+
   expptr leftvar = gensym("");
   expptr rightvar = gensym("");
   return `{if(cellp($valvar)){

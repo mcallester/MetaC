@@ -104,3 +104,12 @@ REPL.c : REPL.mc expandE
 REPL : REPL.c
 	gcc -g -o REPL mcA.o mcB.o mcC.o mcD.o mcE.o REPL.c -ldl -lm
 
+#testREPL
+
+testREPL.c : testREPL.mc expandE
+	./expandE testREPL.mc testREPL.c
+
+testREPL : testREPL.c
+	gcc -g -o testREPL mcA.o mcB.o mcC.o mcD.o mcE.o testREPL.c -ldl -lm
+
+

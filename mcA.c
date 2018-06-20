@@ -218,6 +218,7 @@ expptr exp_hash_table[EXP_HASH_DIM];
 int exp_count;
 
 expptr intern_exp(char constr, expptr a1, expptr a2){
+  if(constr == '\0')berror("bad constructuctor in tern_exp");
   expptr e;
   unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & EXP_HASH_DIM-1;
   expptr oldexp;
@@ -249,23 +250,38 @@ expptr string_atom(char * s){return intern_exp('A', (expptr) intern_string(s), N
 
 int atomp(expptr e){return constructor(e) == 'A';}
 
-char * atom_string(expptr a){return (char *) a->arg1;}
+int symbolp(expptr e){return atomp(e) && alphap(atom_string(e)[0]);}
 
+char * atom_string(expptr a){
+  if(constructor(a) != 'A'){
+    berror("attempt to get string of non-atom");}
+  return (char *) a->arg1;}
 
-expptr cons(expptr x, expptr y){return intern_exp(' ',x,y);}
+expptr cons(expptr x, expptr y){
+  if(!x || !y)berror("null argument given to cons");
+  return intern_exp(' ',x,y);}
 
 int cellp(expptr e){return constructor(e) == ' ';}
 
-expptr car(expptr x){return x->arg1;}
+expptr car(expptr x){
+  if(constructor(x) != ' '){
+    berror("taking car of non-cell");}
+  return x->arg1;}
 
-expptr cdr(expptr x){return x->arg2;}
+expptr cdr(expptr x){
+  if(constructor(x) != ' '){
+    berror("taking cdr of non-cell");}
+  return x->arg2;}
 
-
-expptr intern_paren(char openchar, expptr arg){return intern_exp(openchar, arg, NULL);}
+expptr intern_paren(char openchar, expptr arg){
+  if(!arg)berror("null argument given to intern_paren");
+  return intern_exp(openchar, arg, NULL);}
 
 int parenp(expptr e){return openp(constructor(e));}
 
-expptr paren_inside(expptr e){return e->arg1;}
+expptr paren_inside(expptr e){
+  if(!openp(constructor(e)))berror("paren_inside applied to non-paren");
+  return e->arg1;}
 
 
 /** ========================================================================
@@ -273,6 +289,7 @@ common expression constants
 ======================================================================== **/
 
 void init_exp_constants(){
+  period = string_atom(".");
   comma = string_atom(",");
   colon = string_atom(":");
   semi = string_atom(";");
@@ -557,7 +574,7 @@ expptr bquote_code(expptr e){
   if(parenp(e))return app_code2("intern_paren",constructor_code(constructor(e)),bquote_code(paren_inside(e)));
   if(car(e) == dollar){
     if(parenp(cdr(e))){return paren_inside(cdr(e));}
-    if(atomp(cdr(e)) && alphap(atom_string(cdr(e))[0]))return cdr(e);}
+    if(symbolp(cdr(e)))return cdr(e);}
   if(car(e) == backslash && Vp(e)){
     return backslash_code(cdr(e));}
   return app_code2("cons",bquote_code(car(e)),bquote_code(cdr(e)));
@@ -830,16 +847,19 @@ expptr mcread_string(){
 
 void declare_unmatched(char, expptr, char);
 
+expptr mcread_E(int);
+
 expptr mcread_open(){
   if(!openp(readchar))return NULL;
   char c = readchar;
   char cl = close_for(c);
+  advance_readchar();
   paren_level++;
-  expptr e = mcread();
+  expptr e = mcread_E(0);
   if(readchar != cl)declare_unmatched(c,e,readchar);
   paren_level--;
   advance_readchar();
-  return intern_paren(c,e);
+  return intern_paren(c,e ? e : nil);
 }
 
 void declare_unmatched(char openchar, expptr e, char closechar){
@@ -925,7 +945,7 @@ int precedence(char c){
 expptr mcread_E(int p_left){
   //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
   //This returns a (possibly phantom) general expression (category E) to be consumed by the stack.
-  if(terminatorp(readchar)) return nil;
+  if(terminatorp(readchar)) return NULL;
   expptr arg = mcread_arg();
   int p_right = precedence(readchar);
   while(!terminatorp(readchar)

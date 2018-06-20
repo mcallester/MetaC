@@ -1,67 +1,51 @@
-int x[10];
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <math.h>
+#include <setjmp.h>
+#include <time.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/file.h>
+#include <fcntl.h>
+#include <string.h>
+#include "mc.h"
 
-for(int i = 0; i < 10; i++)x[i] = i;
+expptr load(expptr forms);
 
-for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
-
-int_exp(x[5])
-
-{int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-
-typedef struct expliststruct{
-      expptr car;
-      struct expliststruct * cdr;
-    } expliststruct, *explist;
-
-explist mycons(expptr x, explist l){
-      explist cell = malloc(sizeof(expliststruct));
-      cell->car = x;
-      cell->cdr = l;
-      return cell;}
-
-expptr list_exp(explist l){
-     if(l == NULL) return NULL;
-     return `{ ${l->car} ${list_exp(l->cdr)} };
+void MC_doit(expptr e){
+  fputc('\n',stdout);
+  pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,0);
 }
 
-list_exp(mycons(`{foo},mycons(`{bar},NULL)))
-
-int y[0] = 2;
-
-y[0] += 1;
-
-int_exp(y[0])
-
-expptr friend[0] = `{Bob Givan};
-
-int height[0] = 6;
-
-`{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
-
-expptr x[0] = `{a+b};
-
-`{bar(${x[0]})}
-
-int value(expptr e){
-  ucase{e;
-   {!x+!y}:{return value(x)+value(y);}
-   {!x*!y}:{return value(x)*value(y);}
-   {(!x)}:{return value(x);}
-   {?z}:{return symbol_int(z);}}
-return 0;
+void read_eval_print(){
+  dolist(e,file_expressions("testREPLdata.mc")){
+    if(e == nil)continue;
+    fprintf(stdout, "\nMC>");
+    pprint(e,stdout,0);
+    preamble = nil;
+    init_forms = nil;
+    expptr e2 = macroexpand(e);
+    ucase{e2;
+      {$s;}:{MC_doit(e2);}
+      {{$s}}:{MC_doit(e2);}
+      {$type $f($args){$body}}:{MC_doit(e2);}
+      {$e}:{MC_doit(`{return $e2;});}}}
 }
 
-int_exp(value(`{5+2*10}))
+int main(int argc, char **argv){
+  mcA_init();
+  mcB_init();
+  mcC_init();
+  mcD_init();
+  mcE_init1();
+  mcE_init2();
+  rep_column = -3;
+  
+  catch_error(insert_base())
+  if(error_flg != 0)return error_flg;
 
-umacro{mydolist(?x, !L){!body}}{
-     expptr rest = gensym(`{rest});
-     return `{for(explist ${rest} = ${L};
-                  ${rest} != NULL;
-                  ${rest} = ${rest}->cdr;)
-               {expptr ${x} = ${rest}->car; ${body}}}}
-
-macroexpand(`{dolist(item,list){f(item);}})
-
-
-
-	
+  read_eval_print();
+  return 0;
+}

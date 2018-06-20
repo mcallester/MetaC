@@ -23,7 +23,6 @@ better code analysis of the new langauge.
 ======================================================================== **/
 
 expptr file_preamble;
-expptr signatures;
 expptr procedures;
 expptr arrays;
 
@@ -61,12 +60,10 @@ void install_base(){
       {$type $f($args);}:{
 	symbol_index(f);  //synchoronizes compile and load indeces.
 	push(f,procedures);
-	push(sig,signatures);
 	setprop(f,`{signature},sig);}
       {$type $x[$dim];}:{
 	symbol_index(x);  //synchoronizes compile and load indeces.
 	push(x,arrays);
-	push(sig,signatures);
 	setprop(x,`{signature},sig);}
       {$e}:{push(e,file_preamble);}}}
 }
@@ -152,15 +149,15 @@ void install(expptr statement){ //only the following patterns are allowed.
     {typedef $def;}:{install_preamble(statement);}
     {typedef $def1,$def2;}:{install_preamble(statement);}
     {#define $def}:{install_preamble(statement);}
-    {#include < $file >}:{install_preamble(statement);}
+    {#include <$file>}:{install_preamble(statement);}
     {#include $x}:{install_preamble(statement);}
     {return $e;}:{push(statement,new_statements);}
-    {$type $X[0];}:{install_var(type,X,`{1});}
-    {$type $X[0] = $e;}:{install_var(type,X,`{1}); push(`{$X[0] = $e;},new_statements);}
-    {$type $X[$dim];}:{install_var(type,X,dim);}
-    {$type $f($args){$body}}:{install_proc(type, f, args, body);}
-    {$type $e;}:{unrecognized_statement(statement);}
-    {$type * $e;}:{unrecognized_statement(statement);}
+    {$type $X[0];}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1});}
+    {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1}); push(`{$X[0] = $e;},new_statements);}
+    {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{install_var(type,X,dim);}
+    {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, body);}
+    {$type $e;}.(symbolp(type)):{unrecognized_statement(statement);}
+    {$type * $e;}.(symbolp(type)):{unrecognized_statement(statement);}
     {$e;}:{push(statement,new_statements)}
     {{$statement}}:{push(statement,new_statements)}
     {$e}:{unrecognized_statement(statement);}}
@@ -179,7 +176,6 @@ void install_var(expptr type, expptr X, expptr dim){
   if(oldsig == NULL){
     setprop(X,`{signature},newsig);
     push(X, arrays);
-    push(newsig,signatures);
     push(X,new_arrays);}
 }
 
@@ -190,8 +186,7 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change, $oldsig, to, $newsig});
   if(oldsig == NULL){
     setprop(f,`{signature},newsig);
-    push(f, procedures);
-    push(newsig,signatures);}
+    push(f, procedures);}
   if(oldsig == NULL || oldbody == NULL || oldbody != newbody){
     push(f, new_procedures);
     setprop(f,`{body},newbody);
@@ -199,10 +194,10 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
 }
 
 void unrecognized_statement(expptr form){
-  uerror( `{{unrecognized statement}
-      $form
-      {types must be single symbols}
-      {all global variables must be arrays}
+  uerror( `{unrecognized statement,
+	$form ,
+	types must be single symbols,
+	all global variables must be arrays,
     });
 }
 
