@@ -71,3 +71,5 @@ umacro{mydolist($x, $L){$body}}{
 	 {expptr $x = car($rest); $body}};}
 
 macroexpand(`{mydolist(item,list){f(item);}})
+
+int_exp(value(`{foo}))

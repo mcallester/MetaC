@@ -119,32 +119,36 @@ One can also define new data types and procedures from the REPL.
 
 \begin{verbatim}
 
-MC> typedef struct expliststruct{
-      expptr car;
-      struct expliststruct * cdr;
-    } expliststruct, *explist;
+MC>typedef struct myexpstruct{
+   char * label;
+   struct myexpstruct * car;
+   struct myexpstruct * cdr;} myexpstruct, *myexp;
 
 done
 
-MC> explist mycons(expptr x, explist l){
-      explist cell = malloc(sizeof(expliststruct));
-      cell->car = x;
-      cell->cdr = l;
-      return cell;}
+MC> myexp mycons(char*s,myexp x,myexp y){
+    myexp cell=malloc(sizeof(myexpstruct));
+    cell->label=s;
+    cell->car=x;
+    cell->cdr=y;
+    return cell;}
 
 done
 
-MC> expptr list_exp(explist l){
-     if(l == NULL) return nil;
-     return `{ ${l->car} ${list_exp(l->cdr)} };
+MC> expptr myexp_exp(myexp x){
+   if(x==NULL)return string_atom("nil");
+   return
+    `{${string_atom(x->label)}
+      ${myexp_exp(x->car)}
+      ${myexp_exp(x->cdr)}};
 }
 
 done
 
-MC> list_exp(mycons(`{foo},mycons(`{bar},NULL)))
+MC> myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 
-foo bar
 
+foo bar nil nil nil
 MC>
 \end{verbatim}
 
@@ -213,11 +217,11 @@ plays an important role in pattern matching. The tree structure is
 more apparent in the following example.
 
 \begin{verbatim}
-MC> expptr x[0] = `{a+b};
+MC> expptr e[0] = `{a+b};
 
 done
 
-MC> `{bar(${x[0]})}
+MC> `{bar(${e[0]})}
 
 bar(a+b)
 
@@ -241,20 +245,44 @@ ucase{e;
 Variables are marked in patterns by the prefix $\$$.
 
 \begin{verbatim}
-MC> int value(expptr e){
-      ucase{e;
-        {$x+$y}:{return value(x)+value(y);}
-        {$x*$y}:{return value(x)*value(y);}
-        {($x)}:{return value(x);}
-        {$z}:{return symbol_int(z);}}
-     return 0;
-   }
+
+MC>int numeralp(expptr x)
+    {if(!atomp(x))return 0;
+    char*s=atom_string(x);
+    for(int i=0;s[i]!='\0';i++){if(s[i]<'0'||s[i]>'9')return 0;}
+    return 1;
+}
 
 done
 
-MC>value(`{3+(2*5)})
+MC> int value(expptr e)
+  {ucase
+    {e;
+      {$x+$y}:{return value(x)+value(y);}
+      {$x*$y}:{return value(x)*value(y);}
+      {($x)}:{return value(x);}
+      {$z}.(numeralp(z)):{return atoi(atom_string(z));}
+    }
+  return 0;
+  }
 
-30
+done
+
+MC>int_exp(value(`{5+2*10}))
+
+25
+
+MC>int_exp(value(`{foo}))
+
+
+ match error: the value 
+
+
+foo
+does not match any of
+
+
+{$z}.(numeralp(z)){($x)}{$x*$y}{$x+$y}
 
 MC>
 \end{verbatim}
@@ -276,20 +304,24 @@ MetaC supports computed macros which can exploit pattern matching, backquote pat
 As a very simple example we can define a {\tt dolist} macro at the REPL.
 
 \begin{verbatim}
-MC> umacro{mydolist($\$$x, $L){$body}}{
-     expptr rest = gensym(`{rest});
-     return `{for(explist ${rest} = ${L};
-                  ${rest} != NULL;
-                  ${rest} = ${rest}->cdr;)
-               {expptr ${x} = ${rest}->car; ${body}}}}
+
+MC>umacro{mydolist($x,$L){$body}}{
+   expptr rest=gensym("rest");
+   return
+    `{for(explist$rest=$L; cellp($rest);$rest=cdr($rest);){
+      expptr$x=car($rest);
+      $body}};
+}
 
 done
 
-MC>macroexpand(`{dolist(item,list){f(item);}})
+MC>macroexpand(`{mydolist(item,list){f(item);}})
 
-for(explist _mcgen_rest1=list; _mcgen_rest1 !=NULL; _mcgen_rest1=_mcgen_rest1->cdr;)
-    {expptr item=_mcgen_rest1->car;
-     f(item);}
+for
+  (explist _genrest33=list;
+   cellp(_genrest33);
+  _genrest33=cdr(_genrest33);
+  ){expptr item=car(_genrest33);f(item);}
 
 MC>
 \end{verbatim}
@@ -315,7 +347,7 @@ It is not obvious how to implement light weight expression quotation and express
 We bypass this complexity by introducing a syntax with the following three ``universal'' properties.
 
 \begin{enumerate}
-\item Universal syntax syntax trees are semantics-free.  They are simply trees viewed as representations of character strings.
+\item Universal syntax trees are semantics-free.  They are simply trees viewed as representations of character strings.
 
 \item The universal syntax reader can read any parenthesis-balanced character string.
   Here parenthesis-balanced means that every open parenthesis, brace or bracket has a matching closing character and that string quotations
