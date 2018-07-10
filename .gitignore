@@ -21,3 +21,5 @@ expandC2
 expandD
 expandE
 REPL
+testREPL
+IDE
