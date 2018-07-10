@@ -49,6 +49,7 @@
     (setq mc-process (start-process "MetaC" (mc-buffer) "/Users/davidmcallester/18/MC/IDE")))
   (with-current-buffer (mc-buffer) (shell-mode))
   (set-process-filter mc-process (function MC:filter))
+  (setq *load-count* 0)
   (setq *eval-count* 0))
 
 (add-hookm c-mode-hook
@@ -57,8 +58,14 @@
 (setq *code-buffer* nil)
 
 (defun MC:load-definition ()
-  (print 'got-to-load-def)
   (interactive)
+  (setq *load-count* 1)
+  (MC:load-definition-internal))
+
+(add-hookm c-mode-hook
+  (define-key c-mode-map "\C-c\C-c" 'MC:load-definition))
+
+(defun MC:load-definition-internal ()
   (move-end-of-line nil)
   (MC:beginning-of-def)
   (let ((top (point)))
@@ -82,25 +89,29 @@
 	(end-of-buffer)
 	(insert exp)))))
 
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-c\C-c" 'MC:load-definition))
-
-(setq *continue* nil)
-
 (defun MC:load-region ()
   (interactive)
-  (setq *region-end* (region-end))
-  (goto-char (region-beginning))
-  (setq *continue* t)
-  (MC:load-definition))
+  (let ((top (region-beginning)))
+    (setq *load-count* (MC:num-cells-region))
+    (goto-char top)
+    (print *load-count*)
+    (MC:load-definition-internal)))
 
 (add-hookm c-mode-hook
   (define-key c-mode-map "\C-c\C-r" 'MC:load-region))
 
+(defun MC:num-cells-region ()
+  (setq *region-end* (region-end))
+  (goto-char (region-beginning))
+  (let ((count 0))
+    (while (< (point) *region-end*)
+      (setq count (+ count 1))
+      (MC:next-def))
+    count))
+
 (defun MC:filter (proc string)
-  (print string)
   (if (or (< (length string) 15)
-	     (not (string= (substring string -14 -4) "MC Success")))
+	  (not (string= (substring string -14 -4) "MC Success")))
       (progn
 	(MC:insert-to-REPL proc string)
 	(when *code-buffer*
@@ -112,12 +123,10 @@
       (when *code-buffer*
 	(with-current-buffer *code-buffer*
 	  (insert (substring string 0 -14))))))
-  (MC:next-def)
-  (if *continue*
-      (if (< (point) *region-end*)
-	  (MC:load-definition)
-	(progn (setq *continue* nil)
-	       (setq *code-buffer* nil)))
+  (when *code-buffer* (MC:next-def))
+  (if (> *load-count* 1)
+      (progn (setq *load-count* (- *load-count* 1))
+	     (MC:load-definition-internal))
     (setq *code-buffer* nil)))
 
 (defun MC:insert-to-REPL (proc string)
@@ -148,10 +157,6 @@
 (defun MC:goto-code ()
   (interactive)
   (switch-to-buffer *source-buffer*))
-
-(defun mybeep ()
-  (interactive)
-  (beep))
 
 (add-hookm shell-mode-hook
   (define-key shell-mode-map "\M-\C-c" 'MC:goto-code))
