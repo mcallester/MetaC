@@ -19,6 +19,8 @@
 \title{MetaC}
 \author{David McAllester}
 
+\setcounter{tocdepth}{2}
+
 \begin{document}
 \maketitle
 †
@@ -33,6 +35,12 @@
   should be viewed as compilers from framework expressions to C code.  MetaC gives the framework developer complete control over the C code
   generated for framework expressions.  Frameworks written in MetaC inherit the REPL and g†eneral programming environment of MetaC.
 \end{abstract}
+
+\newpage
+
+\tableofcontents
+
+\newpage
 
 \section{Introduction and Overview}
 
@@ -341,6 +349,60 @@ or generalized application expression or a binary connection expressions.  Unive
 The procedure for macro expansion is attached to either the head symbol of the application
 or the binary operator of the binary connection expression.
 
+\subsection{A Notebook IDE}
+
+The MetaC interactive development environment (IDE) unifies the concept of a source file with the concept of a notebook.
+During active code development a .mc file behaves as a notebook. Once the code is mature, a .mc file can be macro-expanded to a .c
+file which can then be compiled to an object file and linked into an executable the the traditional way.  Extending the REPL executable by linking additional object files
+is discussed in section~\ref{sec:extensions}.
+
+An emacs-based interactive development environment (IDE)
+is included in the MetaC repository in the file mc.el.  This file should be loaded form the users .emacs file so that the the proper hooks run when opening .mc files.
+Files with extention .mc open in c-mode extened with MetaC commands.
+
+The two fundamental IDE commands are C-M-s, which starts or restarts a kernel, and C-cC-c which executes a the ``cell'' at the current cursor position.  A cell is defined
+by the MetaC segementation convention under which a cell starts at a non-empty line whose first character is other than a white space character, a close paren character or
+the slash character.  The cell ends at the beginning of the next non-empty line whose first character is other then white space or close paren character.  Note that lines starting
+with a slash (typically a comment) terminates a cell but does not start a new cell.
+In the current implementation (July 2018) it is important that comments lines either start with a slash or start with some non-empty indentation.
+Clearly there is room for improvement in the parsing of .mc files in the IDE, but the current version is usable as long as one cognizant of the conventions.
+
+Starting the kernel with the command C-M-s creates a MetaC REPL process associated with the buffer *MetaC*.  The REPL can be run as usual from that buffer
+but the REPL buffer typically remains hidden when treating a .mc file as a notebook.  When a cell is executed with the command C-cC-c the text of the cell is (invisibly) passed to the REPL
+and the text returned by the REPL is placed inside a comment below the cell.  If a comment already occurs directly below the cell this comment is replaced by a new comment containing the
+response of the REPL.  As in a Jupyter notebook, the values returned from the REPL are numbered so that one can see when the cell was executed relative to other cell execution in the notebook.
+If C-M-s is run when a kernel is already running the kernel process is killed and a new one started (as in a Jupyter notebook).  When the kernel is restarted
+the execution numbering is reset to start with 1.  Changing a procedure signature (argument and return types) requires restarting the kernel.
+
+If an error occurs doing the execution of a cell the comment following the cell states that an error occured and suggests running the command C-M-m to switch to the *MetaC* buffer
+to see the error message and possibly interact with the REPL as a debugger.  Debugging features are described in section~\ref{sec:debugger}.
+
+In addition to starting (or restarting) the kernel and to executing individual cells, we have the following commands.
+
+\begin{itemize}
+\item[C-cr] This executes all cells in the current region sequentially with a different execution number for each cell execution.
+
+\item[C-M-a] This moves to the begging of the current cell.
+
+\item[C-M-p] This moves to the beginning of the preceding cell.
+
+\item[C-M-n] This moves to the beginning of the next cell.
+
+\item[C-M-m] This goes to the *MetaC* buffer so that one can see error messages and interact with the REPL as a debugger.  See section~\ref{sec:debugger} for a discussion of debugging features.
+
+\item[C-M-c] This goes back from the *MetaC* buffer (which is in shell-mode) to the last .mc file from which C-M-m was run.
+\end{itemize}
+
+\subsection{Extending the REPL executable}
+\label{sec:exntensions}
+
+Comming soon.
+
+\subsection{Debugging Features}
+\label{sec:debugging}
+
+Coming soon.
+
 \section{Universal Syntax}
 
 It is not obvious how to implement light weight expression quotation and expression pattern matching for C expressions.  The syntax of C is complex.
@@ -597,16 +659,24 @@ The symbol {\tt \$} can be included in the value of a backquote expression by qu
 \label{bq2}
 `\{`\{a + \$\{y\} + \backslash\$\{z\}\}\}
 \end{equation}
+
 If the value of variable {\tt y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
 We can even have multiple layers of quotation as in the following.
 \begin{equation}
 \label{bq3}
 `\{`\{`\{\$\{x\} + \backslash\$\{y\} + \backslash\backslash\$\{z\}\}\}\}
 \end{equation}
+
 If the value of variable {\tt x} is the expression {\tt a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
 
 As with backquote, pattern matching is defined in terms of the cons-car-cdr view of expressions independent of the MetaC reader.  We define a substitution to be a mapping from
 symbol atoms to expressions. For a substitution $\sigma$ and a pattern $\{e\}$ we define the expressions $\sigma(e)$
 to be the result of replacing each subexpression (subtree) of $e$ of the form $\fopen \$\;x \fclose$ where $x$ is a symbol atom with $\sigma(x)$.  A pattern expression (tree) $\{e\}$ matches an expression (tree) $w$ with substitution $\sigma$
 if $\sigma(e) = w$. An exception to this is the case where a variable occurs multiple times in the pattern.  As of June 2018 multiple occurrences of a variable in a pattern is not supported.
+
+
+
+
+
+
 \end{document}

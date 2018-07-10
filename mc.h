@@ -206,11 +206,11 @@ void open_output_file(char * s);
 char readchar;  //this is used in mcD, in file_expressions, for detecting end of file.
 
 expptr read_from_terminal();
-expptr read_from_file();
+expptr file_expressions(char * fname);
 void pprint(expptr e, FILE * f, int i);
 void writeexp(expptr e);
 void printexp(expptr e);
-void put_return(FILE * ws);
+
 
 
 /** ========================================================================
@@ -250,7 +250,7 @@ int length(expptr);
 expptr append(expptr,expptr);
 expptr reverse(expptr);
 
-expptr file_expressions(char * fname);
+
 
 FILE * writestrm;
 

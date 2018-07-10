@@ -15,14 +15,13 @@
 expptr load(expptr forms);
 
 void MC_doit(expptr e){
-  fputc('\n',stdout);
   pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,0);
 }
 
 int rep_column;
 
 void indent(int column){
-  for(int i = 0; i< rep_column;i++)fputc(' ',stdout);
+  for(int i = 0; i< column;i++)fputc(' ',stdout);
 }
 
 void read_eval_print(){

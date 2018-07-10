@@ -502,6 +502,19 @@ void pprint(expptr w, FILE * f, int indent_level){
   fprintf(f,"\n");
 }
 
+//the following removes the return preceding pprint_exp.
+
+void IDE_pprint(expptr w, FILE * f, int indent_level){
+  pprint_stream = f;
+  pprint_paren_level=0;
+  print_lastchar = '\0';
+  pprint_indent_level = indent_level;
+  pprint_newlinep[0] = (exp_length(w) + 2) > PAREN_LENGTH_LIMIT;
+  pprint_exp(w);
+  fprintf(stdout,"MC Success");
+  fputc('\n',stdout);
+}
+
 void printexp(expptr e){
   pprint(e,stdout,rep_column);}
 

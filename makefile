@@ -112,4 +112,12 @@ testREPL.c : testREPL.mc expandE
 testREPL : testREPL.c
 	gcc -g -o testREPL mcA.o mcB.o mcC.o mcD.o mcE.o testREPL.c -ldl -lm
 
+#REPL
+
+IDE.c : IDE.mc expandE
+	./expandE IDE.mc IDE.c
+
+IDE : IDE.c
+	gcc -g -o IDE mcA.o mcB.o mcC.o mcD.o mcE.o IDE.c -ldl -lm
+
 

@@ -1,18 +1,24 @@
 int x[10];
+/** done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
+/** done **/
 
 for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
+/** 0123456789done **/
 
 int_exp(x[5])
+/** 5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
+/** 45 **/
 
 typedef struct myexpstruct{
   char * label;
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
+/** done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
