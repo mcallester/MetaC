@@ -40,7 +40,7 @@
 (defun mc-buffer ()
   (let ((buff (get-buffer-create "*MetaC*")))
     (with-current-buffer buff
-      (setq major-mode 'shell-mode)
+      (shell-mode)
       (when enable-multibyte-characters
 	(toggle-enable-multibyte-characters)))
     buff))
@@ -54,7 +54,9 @@
   (interactive)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (mc-buffer) (erase-buffer))
-  (start-process-shell-command "MetaC" (mc-buffer) "gdb IDE")
+  (start-process "MetaC" (mc-buffer) *gdb*)
+  (pop-to-buffer (mc-buffer)))
+
   (MC:command "break cbreak")
   (MC:command "run")
   (set-process-filter (mc-process) (function MC:filter))
