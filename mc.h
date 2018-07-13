@@ -291,3 +291,5 @@ expptr quote_code(expptr);
 expptr constructor_code(char);
 
 void uerror(expptr);
+
+int in_repl;

@@ -23,6 +23,7 @@ void pop_dbg_stack(){
 
 void berror(char *s){
   fprintf(stderr,"\n%s\n",s);
+  if(!in_repl){fprintf(stderr,"}error}");}
   cbreak();
   throw_error();}
 
@@ -497,7 +498,7 @@ void pprint(expptr w, FILE * f, int indent_level){
   print_lastchar = '\0';
   pprint_indent_level = indent_level;
   pprint_newlinep[0] = (exp_length(w) + 2) > PAREN_LENGTH_LIMIT;
-  fprintf(f,"\n");
+  if(in_repl){fprintf(f,"\n");}
   pprint_exp(w);
   fprintf(f,"\n");
 }
@@ -511,8 +512,6 @@ void IDE_pprint(expptr w, FILE * f, int indent_level){
   pprint_indent_level = indent_level;
   pprint_newlinep[0] = (exp_length(w) + 2) > PAREN_LENGTH_LIMIT;
   pprint_exp(w);
-  fprintf(stdout,"MC Success");
-  fputc('\n',stdout);
 }
 
 void printexp(expptr e){
@@ -876,7 +875,7 @@ expptr mcread_open(){
 }
 
 void declare_unmatched(char openchar, expptr e, char closechar){
-  fprintf(stderr,"unmatched parentheses %c\n",openchar);
+  fprintf(stderr,"unmatched parentheses %c%c\n",openchar,close_for(openchar));
   pprint(e,stderr,rep_column);
   fprintf(stderr, "%c\n", closechar);
   berror("");
@@ -993,6 +992,8 @@ void mcA_init(){
   gensym_count = 1;
   dbg_freeptr = 0;
   catch_freeptr = 0;
+
+  in_repl = 1;
  
   set_macro(backquote, bquote_macro);
 }

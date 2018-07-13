@@ -17,7 +17,8 @@ expptr load(expptr forms);
 void IDE_pprint(expptr e, FILE * f, int level);
 
 void MC_doit(expptr e){
-  IDE_pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,rep_column);
+  pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,rep_column);
+  if(!in_repl){fprintf(stdout,"}return}");}
 }
 
 int rep_column;
@@ -37,6 +38,8 @@ void read_eval_print(){
 	expptr e = macroexpand(read_from_terminal());
 	if(!e || e == nil)continue;
 	ucase{e;
+	  {REPL}:{in_repl = 1;}
+	  {IDE}:{in_repl = 0;}
 	  {quit}:{break;}
 	  {continue}:{if(rep_column != 0)break;}
 	  {describe($sym)}:{
@@ -59,6 +62,7 @@ int main(int argc, char **argv){
   mcE_init1();
   mcE_init2();
   rep_column = -3;
+  in_repl = 0;
   
   catch_error(insert_base())
   if(error_flg != 0)return error_flg;

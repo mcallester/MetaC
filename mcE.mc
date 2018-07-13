@@ -134,7 +134,7 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
 	${mapcar(new_array_insertion, new_arrays)}
 	${mapcar(array_extraction, arrays)} // procedure extractions are done by procdefs above
 	${reverse(new_statements)}
-	return string_atom("done");}},
+	return string_atom("");}},
     fileout,0);
   fclose(fileout);
   
