@@ -38,58 +38,138 @@
   (define-key c-mode-map "\M-\C-n" 'MC:next-def))
 
 (defun mc-buffer ()
-  (let ((buff (get-buffer-create "*MetaC*")))
-    (with-current-buffer buff
-      (shell-mode)
-      (when enable-multibyte-characters
-	(toggle-enable-multibyte-characters)))
-    buff))
+  (get-buffer-create "*MetaC*"))
 
-(defun mc-prpocess ()
+(defun mc-process ()
     (get-buffer-process (mc-buffer)))
 
-(defun MC:null-filter (proc string))
+(defun MC:null-filter (proc string) nil)
 
 (defun MC:start-metac ()
   (interactive)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (mc-buffer) (erase-buffer))
   (start-process "MetaC" (mc-buffer) *gdb*)
-  (pop-to-buffer (mc-buffer)))
-
-  (MC:command "break cbreak")
-  (MC:command "run")
-  (set-process-filter (mc-process) (function MC:filter))
+    (with-current-buffer (mc-buffer) (shell-mode))
+  (set-process-filter (mc-process) (function MC:null-filter))
+  ;;(with-current-buffer (mc-buffer)
+    ;;(MC-mode)
+    ;;(when enable-multibyte-characters
+    ;;(toggle-enable-multibyte-characters)))
+  (process-send-string (mc-process) (format "file %s\n" *MC-IDE*))
+  (process-send-string (mc-process) "break cbreak\n")
+  (process-send-string (mc-process) "run\n")
   (setq *eval-count* 1)
-  (setq *prefix* nil))
+  (setq *mc-accumulator* nil)
+  (setq *gdb-mode* nil)
+  (print "kernel restarted"))
 
 (add-hookm c-mode-hook
   (define-key c-mode-map "\M-\C-s" 'MC:start-metac))
 
-(defun MC:command (string)
-  (when (buffer-live-p (mc-buffer))
-    (with-current-buffer (mc-buffer)
-      (end-of-buffer)
-      (insert string)
-      (comint-send-input))))
+(defun MC:load-definition ()
+  (interactive)
+  (setq *load-count* 1)
+  (MC:load-definition-internal))
 
-(defun MC:insert-to-REPL (string)
-  (when (buffer-live-p (mc-buffer))
-    (with-current-buffer (mc-buffer)
-      (end-of-buffer)
-      (insert string)
-      (set-marker (process-mark (mc-process)) (point)))))
+(add-hookm c-mode-hook
+  (define-key c-mode-map "\C-c\C-c" 'MC:load-definition))
 
-(setq *mc-accumulator* nil)
+(defun MC:load-region ()
+  (interactive)
+  (let ((top (region-beginning)))
+    (setq *load-count* (MC:num-cells-region))
+    (goto-char top)
+    (MC:load-definition-internal)))
+
+(add-hookm c-mode-hook
+  (define-key c-mode-map "\C-c\C-r" 'MC:load-region))
+
+(defun MC:load-definition-internal ()
+  (set-process-filter (mc-process) (function MC:filter))
+  (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
+  (setq buffer-file-coding-system 'utf-8-unix)
+  (move-end-of-line nil)
+  (MC:beginning-of-def)
+  (let ((top (point)))
+    (re-search-forward "\n[^] \n\t})]")
+    (backward-char)
+    (re-search-backward "[^ \n\t]")
+    (beginning-of-line 2)
+    (let ((exp (buffer-substring top (point))))
+      (if (string= (buffer-substring (point) (min (+ (point) 3) (point-max))) "/**")
+	  (let ((start (point)))
+	    (search-forward "*/")
+	    (delete-region start (point)))
+	(progn (newline) (backward-char)))
+      (insert "/**  **/")
+      (backward-char 4)
+      (insert (format "%d: " *eval-count*))
+      (setq *eval-count* (+ *eval-count* 1))
+      (setq *source-buffer* (current-buffer))
+      (setq *gdb-mode* nil)
+      (process-send-string (mc-process) exp))))
 
 (defun MC:filter (proc string)
-  (if (eq (current-buffer) (mc-buffer))
-      (comint-output-filter proc string)
-    (progn
-      (setq *mc-accumulator* (concat *mc-accumulator* string))
-      (when (MC:contains-terminatorp *mc-accumulator*)
-	(let ((cell (MC:parse-output)))
-	  (funcall *continuation* (car cell) (cdr cell)))))))
+  (setq *mc-accumulator* (concat *mc-accumulator* (MC:clean-string string)))
+  (MC:process-output))
+
+(defun MC:process-output ()
+  (when (> (length *mc-accumulator*) 0)
+    (print '****)
+    (print *mc-accumulator*)
+    (if (MC:contains-terminatorp *mc-accumulator*) ;;can return from gdb-mode
+	(let* ((cell (MC:parse-output)) ;;this updates *mc-accumualtor*
+	       (tag (car cell))
+	       (value (cdr cell)))
+	  (print tag)
+	  (print value)
+	  (setq *gdb-mode* nil)
+	  (MC:dotag tag value))
+      (when *gdb-mode*
+	(insert *mc-accumulator*)
+	(set-marker (process-mark (mc-process)) (point))
+	(setq *mc-accumulator* nil)))))
+
+(defun MC:dotag (tag value)
+  (cond ((string= tag "ignore")
+	 (MC:process-output))
+	((string= tag "result")
+	 (insert value)
+	 (MC:next-def)
+	 (MC:process-output)
+	 (setq *load-count* (- *load-count* 1))
+	 (when  (> *load-count* 0)
+	   (MC:load-definition-internal)))
+	((string= tag "compilation error")
+	 (insert "compilation error")
+	 (with-current-buffer (message-buffer) (erase-buffer) (insert value))
+	 (display-buffer (message-buffer))
+	 (MC:process-output))
+	((string= tag "execution error")
+	 (insert "execution error (running gdb)")
+	 (setq *source-buffer* (current-buffer))
+	 (pop-to-buffer (mc-buffer))
+	 (erase-buffer)
+	 (insert value)
+	 (set-marker (process-mark (mc-process)) (point))
+	 (setq *gdb-mode* t)
+	 (MC:process-output))
+	((string= tag "IDE") ;;returning from gdb session
+	 (pop-to-buffer *source-buffer*)
+	 (delete-other-windows)
+	 (setq *gdb-mode* nil)
+	 (MC:process-output))
+	(t (error (format "unrecognized tag %s" tag)))))
+
+(defun MC:clean-string (string)
+  ;;removes carriage return chacters
+  (let ((i 0))
+    (dotimes (j (length string))
+      (when (not (= (aref string j) 13)) ;;carriage return
+	(aset string i (aref string j))
+	(setq i (+ i 1))))
+    (substring string 0 i)))
 
 (defun MC:contains-terminatorp (s)
   (let ((level 0))
@@ -116,75 +196,13 @@
 	  (if (= (aref *mc-accumulator* i) ?{)
 	      (setq level (+ level 1))))
 	(setq i (+ i 1)))
-      (let ((value (substring *mc-accumulator* 0 i1))
-	    (tag (substring *mc-accumulator* (+ i1 1) i)))
-	(setq *mc-accumulator* (substring *mc-accumulator* i2))
+      (let ((value (substring *mc-accumulator* 0 (max 0 (- i1 2))))
+	    (tag (substring *mc-accumulator* i1 (- i 1))))
+	(setq *mc-accumulator* (substring *mc-accumulator* i))
 	(cons tag value)))))
 
-(defun MC:load-definition-internal ()
-  (move-end-of-line nil)
-  (MC:beginning-of-def)
-  (let ((top (point)))
-    (re-search-forward "\n[^] \n\t})]")
-    (backward-char)
-    (re-search-backward "[^ \n\t]")
-    (beginning-of-line 2)
-    (let ((exp (buffer-substring top (point))))
-      (if (string= (buffer-substring (point) (min (+ (point) 3) (point-max))) "/**")
-	  (let ((start (point)))
-	    (search-forward "*/")
-	    (delete-region start (point)))
-	(progn (newline) (backward-char)))
-      (insert "/**  **/")
-      (backward-char 4)
-      (insert (format "%d: " *eval-count*))
-      (setq *eval-count* (+ *eval-count* 1))
-      (MC:insert-to-REPL exp)
-      (process-send-string (mc-process) exp))))
-
-(defun MC:load-definition ()
-  (interactive)
-  (setq *continuation* 'MC:load-def-continuation)
-  (MC:load-definition-internal))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-c\C-c" 'MC:load-definition))
-
-(defun MC:error (text)
-  (insert "error")
-  (setq *code-buffer* (current-buffer))
-  (pop-to-buffer (mc-buffer))
-  (erase-buffer)
-  (MC:insert-to-REPL text))
-
-(defun MC:load-def-continuation (tag value)
-  (unless (string= tag "ignore")
-    (if (string= tag "error")
-	(MC:error)
-      (progn
-	(insert value)
-	(MC:next-def)))))
-
-(defun MC:load-region ()
-  (interactive)
-  (let ((top (region-beginning)))
-    (setq *load-count* (MC:num-cells-region))
-    (goto-char top)
-    (setq *continuation* 'load-reg-continuation)
-    (MC:load-definition-internal)))
-
-(defun load-reg-continuation (tag value)
-  (unless (string= tag "ignore")
-    (if (string= tag "error")
-	(MC:error)
-      (progn
-	(MC:next-def)
-	(setq *load-count* (- *load-count* 1))
-	(when (> *load-count* 0)
-	  (MC:load-definition-internal))))))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-c\C-r" 'MC:load-region))
+(defun message-buffer ()
+  (get-buffer-create "*MC-Messages*"))
 
 (defun MC:num-cells-region ()
   (save-excursion
@@ -195,8 +213,6 @@
 	  (setq count (+ count 1))
 	  (MC:next-def))
 	count))))
-
-(setq *source-buffer* nil)
 
 (defun MC:goto-metac ()
   (interactive)
@@ -219,3 +235,24 @@
 (add-hookm shell-mode-hook
   (define-key shell-mode-map "\M-\C-m" 'beep))
 
+;;;the following three definitions are not currently used
+;;;something like the first two will be needed when berror recursively
+;;;invokes the REPL rather than gdb
+
+(defun MC:return-key ()
+  (interactive)
+  (process-send-string (mc-process) "REPL\n")
+  (comint-send-input))
+
+(define-minor-mode MC-mode
+  "the mode for Meta-C buffers built on shell-mode"
+  :init-value nil
+  :lighter "MC"
+  :keymap  '(([?\r] . MC:return-key)))
+  
+(defun MC:command (string)
+  (when (buffer-live-p (mc-buffer))
+    (with-current-buffer (mc-buffer)
+      (end-of-buffer)
+      (insert string)
+      (comint-send-input))))

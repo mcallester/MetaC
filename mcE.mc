@@ -103,9 +103,9 @@ expptr array_extraction (expptr x){
 The load function is given a list of fully macro-expanded expressions.
 ======================================================================== **/
 
-expptr load(expptr forms){ // forms must both be fully macro expanded.
+expptr load(expptr forms){ // forms must be fully macro expanded.
 
-  compilecount ++; //avoids argument duplication problem with sformat
+  compilecount ++; //should not be inside sformat --- sformat duplicates.
   char * s = sformat("TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
 
@@ -134,11 +134,13 @@ expptr load(expptr forms){ // forms must both be fully macro expanded.
 	${mapcar(new_array_insertion, new_arrays)}
 	${mapcar(array_extraction, arrays)} // procedure extractions are done by procdefs above
 	${reverse(new_statements)}
-	return string_atom("");}},
+	return string_atom("done");}},
     fileout,0);
   fclose(fileout);
   
   void * header = compile_load_file(sformat("TEMP%d",compilecount));
+  if(!in_repl){fprintf(stdout, "}ignore}");}
+  in_doit = 1;
   expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
   return (*_mc_doit)(symbol_value);
@@ -156,9 +158,9 @@ void install(expptr statement){ //only the following patterns are allowed.
     {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1}); push(`{$X[0] = $e;},new_statements);}
     {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{install_var(type,X,dim);}
     {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, body);}
+    {$f($args);}:{push(statement,new_statements)}
     {$type $e;}.(symbolp(type)):{unrecognized_statement(statement);}
     {$type * $e;}.(symbolp(type)):{unrecognized_statement(statement);}
-    {$e;}:{push(statement,new_statements)}
     {{$statement}}:{push(statement,new_statements)}
     {$e}:{unrecognized_statement(statement);}}
 }
@@ -231,23 +233,28 @@ expptr proc_def(expptr f){
   return NULL;
 }
 
+void comp_error(){
+    if(!in_repl){
+      fprintf(stdout, "}compilation error}");}
+    else{
+      fprintf(stdout,"\n evaluation aborted\n\n");}
+    throw_error();}
+
 voidptr compile_load_file(charptr fstring){
   int flg;
+  
   char * s1 = sformat("cc -g -fPIC -Wall -c -Werror %s.c -o %s.o",fstring,fstring);
   flg = system(s1);
-  if(flg != 0){
-    fprintf(stderr,"\n evaluation aborted\n\n");
-    throw_error();}
+  if(flg != 0)comp_error();
+
   char * s2 = sformat("cc -g -fPIC -shared -lm -Werror %s.o -o %s.so",fstring,fstring);
   flg = system(s2);
-  if(flg != 0){
-    fprintf(stderr,"\n evaluation aborted\n\n");
-    throw_error();}
+  if(flg != 0)comp_error();
+
   char * s3 = sformat("./%s.so",fstring);
   voidptr header = dlopen(s3, RTLD_LAZY|RTLD_GLOBAL);
   if(header == NULL){
-    fprintf(stderr,"\nunable to open shared library %s with error %s\n", s3, dlerror());
-    fprintf(stderr,"\n evaluation aborted\n\n");
-    throw_error();}
+    fprintf(stdout,"\nunable to open shared library %s with error %s\n", s3, dlerror());
+    comp_error();}
   return header;
 }

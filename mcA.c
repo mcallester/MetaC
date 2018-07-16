@@ -22,10 +22,16 @@ void pop_dbg_stack(){
 }
 
 void berror(char *s){
-  fprintf(stderr,"\n%s\n",s);
-  if(!in_repl){fprintf(stderr,"}error}");}
-  cbreak();
-  throw_error();}
+  fprintf(stdout,"\n%s\n",s);
+  if(in_repl){cbreak(); throw_error();}
+  else if(in_doit){
+    fprintf(stdout,"}execution error}");
+    fflush(stdout);
+    cbreak(); throw_error();}
+  else {
+    fprintf(stdout,"}compilation error}");
+    throw_error();}
+}
 
 void uerror(expptr e){
   printexp(e);
@@ -78,7 +84,7 @@ float heap_reserve;
 
 void * undo_alloc(int size){
   if(undo_heap_freeptr + size > UNDO_HEAP_DIM*(1-heap_reserve)){
-    fprintf(stderr,"undo heap exhausted\n");
+    fprintf(stdout,"undo heap exhausted\n");
     heap_reserve = heap_reserve/2;
     cbreak();
     throw_error();}
@@ -503,17 +509,6 @@ void pprint(expptr w, FILE * f, int indent_level){
   fprintf(f,"\n");
 }
 
-//the following removes the return preceding pprint_exp.
-
-void IDE_pprint(expptr w, FILE * f, int indent_level){
-  pprint_stream = f;
-  pprint_paren_level=0;
-  print_lastchar = '\0';
-  pprint_indent_level = indent_level;
-  pprint_newlinep[0] = (exp_length(w) + 2) > PAREN_LENGTH_LIMIT;
-  pprint_exp(w);
-}
-
 void printexp(expptr e){
   pprint(e,stdout,rep_column);}
 
@@ -875,9 +870,9 @@ expptr mcread_open(){
 }
 
 void declare_unmatched(char openchar, expptr e, char closechar){
-  fprintf(stderr,"unmatched parentheses %c%c\n",openchar,close_for(openchar));
-  pprint(e,stderr,rep_column);
-  fprintf(stderr, "%c\n", closechar);
+  fprintf(stdout,"unmatched parentheses %c%c\n",openchar,close_for(openchar));
+  pprint(e,stdout,rep_column);
+  fprintf(stdout, "%c\n", closechar);
   berror("");
 }
 
@@ -994,6 +989,6 @@ void mcA_init(){
   catch_freeptr = 0;
 
   in_repl = 1;
- 
+  in_doit = 0;
   set_macro(backquote, bquote_macro);
 }

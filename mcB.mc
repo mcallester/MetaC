@@ -5,10 +5,9 @@ expptr casecode2(expptr,expptr,expptr);
 expptr casecode3(expptr,expptr,expptr);
 
 void match_failure(expptr value, expptr patterns){
-  fprintf(stderr,"\n match error: the value \n\n");
-  cbreak();
+  fprintf(stdout,"match error: the value \n\n");
   printexp(value);
-  fprintf(stderr,"does not match any of\n\n");
+  fprintf(stdout,"does not match any of\n\n");
   printexp(patterns);
   berror("");
 }

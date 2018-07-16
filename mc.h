@@ -293,3 +293,4 @@ expptr constructor_code(char);
 void uerror(expptr);
 
 int in_repl;
+int in_doit;
