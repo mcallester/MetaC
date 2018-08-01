@@ -87,6 +87,7 @@
 
 (defun MC:load-definition-internal ()
   (set-process-filter (mc-process) (function MC:filter))
+  (delete-other-windows)
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
   (setq buffer-file-coding-system 'utf-8-unix)
   (move-end-of-line nil)
@@ -116,8 +117,6 @@
 
 (defun MC:process-output ()
   (when (> (length *mc-accumulator*) 0)
-    (print '****)
-    (print *mc-accumulator*)
     (if (MC:contains-terminatorp *mc-accumulator*) ;;can return from gdb-mode
 	(let* ((cell (MC:parse-output)) ;;this updates *mc-accumualtor*
 	       (tag (car cell))
@@ -144,7 +143,7 @@
 	((string= tag "compilation error")
 	 (insert "compilation error")
 	 (with-current-buffer (message-buffer) (erase-buffer) (insert value))
-	 (display-buffer (message-buffer))
+	 (display-buffer (message-buffer) 'display-buffer-pop-up-window)
 	 (MC:process-output))
 	((string= tag "execution error")
 	 (insert "execution error (running gdb)")
@@ -156,8 +155,9 @@
 	 (setq *gdb-mode* t)
 	 (MC:process-output))
 	((string= tag "IDE") ;;returning from gdb session
+	 (let ((w (get-buffer-window (mc-buffer))))
+	   (when w (delete-window w)))
 	 (pop-to-buffer *source-buffer*)
-	 (delete-other-windows)
 	 (setq *gdb-mode* nil)
 	 (MC:process-output))
 	(t (error (format "unrecognized tag %s" tag)))))

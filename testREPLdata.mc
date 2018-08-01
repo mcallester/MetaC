@@ -1,8 +1,8 @@
 `{foo}
-/** 1: foo **/
+/** 2: foo **/
 
 int x[10];
-/** 2: done **/
+/** 3: done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
 /** 3: done **/
@@ -71,7 +71,7 @@ int numeralp(expptr x){
     if(s[i] < '0' || s[i] > '9')return 0;}
   return 1;
 }
-/** 1: done **/
+/** 4: done **/
 
 int value(expptr e){
   ucase{e;
@@ -81,10 +81,10 @@ int value(expptr e){
    {$z}.(numeralp(z)):{return atoi(atom_string(z));}}
   return 0;
 }
-/** 2: done **/
+/** 5: done **/
 
 int_exp(value(`{5+2*10}))
-/** 3: 25 **/
+/** 13: 25 **/
 
 umacro{mydolist($x, $L){$body}}{
      expptr rest = gensym("rest");
@@ -92,7 +92,7 @@ umacro{mydolist($x, $L){$body}}{
                   !atomp($rest);
                   $rest = cdr($rest);)
 	 {expptr $x = car($rest); $body}};}
-/** 21: done **/
+/** 8: done **/
 
 macroexpand(`{mydolist(item,list){f(item);}})
 /** 22: for
@@ -102,5 +102,5 @@ macroexpand(`{mydolist(item,list){f(item);}})
   ){expptr item=car(_genrest33);f(item);}
  **/
 
-int_exp(value(`{foo}))
-/** 6: execution error (running gdb) **/
+int_exp(value(`foo))
+/** 12: compilation error **/
