@@ -28,14 +28,7 @@ void IDE_loop(){
 	preamble = nil;
 	init_forms = nil;
 	in_doit = 0;
-	expptr e = macroexpand(read_from_terminal());
-	if(!e || e == nil)continue;
-	ucase{e;
-	  {$s;}:{MC_doit(e);}
-	  {{$s}}:{MC_doit(e);}
-	  {$type $f($args){$body}}:{MC_doit(e);}
-	  {$e}:{MC_doit(`{return $e;});}
-	}})
+	MC_doit(macroexpand(read_from_terminal()));  })
       }
 }
 

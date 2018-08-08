@@ -107,3 +107,29 @@ int_exp(value(`foo))
 
 int_exp(value(`{foo}))
 /** 25: execution error (running gdb) **/
+
+expptr a[0]=string_atom("tree");
+/** 1: done **/
+
+a[0]
+/** 2: compilation error **/
+
+return a[0];
+/** 3: compilation error **/
+
+//yay, found a way to examine a[0]
+{return a[0];}
+/** 4: tree **/
+
+// this cell gives a process filter error about unrecognized tag
+// and causes a need to reset kernel to get any further evals to work
+{a[0]}
+/** 5:  **/
+
+
+// reset kernel here
+
+// this gives again an unrecognized tag error
+// --probably trying to complain that $a is not used
+umacro{boo($a)}{return `{foo(`{abc})};}
+/** 1:  **/
