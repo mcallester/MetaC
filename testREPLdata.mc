@@ -11,10 +11,10 @@ for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
 /** 4: 0123456789done **/
 
 int_exp(x[5])
-/** 5: 5 **/
+/** 7: 5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-/** 6: 45 **/
+/** 8: compilation error **/
 
 typedef struct myexpstruct{
   char * label;

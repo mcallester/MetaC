@@ -153,11 +153,14 @@ void install(expptr statement){ //only the following patterns are allowed.
     {#define $def}:{install_preamble(statement);}
     {#include <$file>}:{install_preamble(statement);}
     {#include $x}:{install_preamble(statement);}
+    {return $e;}:{push(statement,new_statements);}
     {$type $X[0];}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1});}
     {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1}); push(`{$X[0] = $e;},new_statements);}
     {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{install_var(type,X,dim);}
     {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, body);}
-    {$e}:{push(statement,new_statements)}}
+    {$e;}:{push(statement,new_statements)}
+    {{$e}}:{push(statement,new_statements)}
+    {$e}:{push(`{return $e;},new_statements)}}
 }
 
 void install_preamble(expptr e){
@@ -180,7 +183,7 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   expptr oldsig = getprop(f,`{signature}, NULL);
   expptr oldbody = getprop(f,`{body},NULL);
   expptr newsig = `{$type $f($args);};
-  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change, $oldsig, to, $newsig});
+  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change $oldsig to \n $newsig});
   if(oldsig == NULL){
     setprop(f,`{signature},newsig);
     push(f, procedures);}
