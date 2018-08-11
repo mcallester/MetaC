@@ -1,7 +1,27 @@
-`{foo}
-/** 1: foo **/
+expptr bar(int i);
+/** 1: compilation error **/
 
-int x[10];
+expptr foo(int i){
+  if(i == 0){return `{foo};}
+  return bar(--i);}
+/** 2: compilation error **/
+
+expptr bar(int i){
+  if(i == 0){return `{bar};}
+  return foo(--i);}
+
+/** 4: done **/
+
+expptr bar(){return foo();}
+/** 2: done **/
+
+bar()
+/** 5: two **/
+
+`{foo}
+/** 3: foo **/
+
+fooint x[10];
 /** 2: done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
@@ -108,28 +128,3 @@ int_exp(value(`foo))
 int_exp(value(`{foo}))
 /** 25: execution error (running gdb) **/
 
-expptr a[0]=string_atom("tree");
-/** 1: done **/
-
-a[0]
-/** 2: compilation error **/
-
-return a[0];
-/** 3: compilation error **/
-
-//yay, found a way to examine a[0]
-{return a[0];}
-/** 4: tree **/
-
-// this cell gives a process filter error about unrecognized tag
-// and causes a need to reset kernel to get any further evals to work
-{a[0]}
-/** 5:  **/
-
-
-// reset kernel here
-
-// this gives again an unrecognized tag error
-// --probably trying to complain that $a is not used
-umacro{boo($a)}{return `{foo(`{abc})};}
-/** 1:  **/

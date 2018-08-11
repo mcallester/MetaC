@@ -15,10 +15,8 @@
 expptr load(expptr forms);
 
 void MC_doit(expptr e){
-  pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,0);
+  pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,rep_column);
 }
-
-int rep_column;
 
 void indent(int column){
   for(int i = 0; i< column;i++)fputc(' ',stdout);
@@ -37,9 +35,6 @@ void read_eval_print(){
 	ucase{e;
 	  {quit}:{break;}
 	  {continue}:{if(rep_column != 0)break;}
-	  {describe($sym)}:{
-	    indent(rep_column);
-	    pprint(getprop(sym,`{declaration},NULL),stdout,rep_column);}
 	  {$s;}:{MC_doit(e);}
 	  {{$s}}:{MC_doit(e);}
 	  {$type $f($args){$body}}:{MC_doit(e);}

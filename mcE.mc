@@ -72,6 +72,9 @@ void install_base(){
 The REPL must start with the base symbols inserted.  The following is run at "load time".
 The macro insert_base() appears at the beginning of main in REPL.mc.
 It is expanded during the compilation of REPL (by expandE) after running install_base().
+
+New procedures must be defined one at a time so that calls to other procedures go through
+the dynamic linking table.
 ======================================================================== **/
 
 umacro{insert_base()}{
@@ -158,7 +161,9 @@ void install(expptr statement){ //only the following patterns are allowed.
     {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1}); push(`{$X[0] = $e;},new_statements);}
     {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{install_var(type,X,dim);}
     {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, body);}
+    {$type $f($args);}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, NULL);}
     {$e;}:{push(statement,new_statements)}
+    {{$e}}:{push(statement,new_statements)}
     {$e}:{push(`{return $e;},new_statements)}}
 }
 
@@ -186,7 +191,7 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   if(oldsig == NULL){
     setprop(f,`{signature},newsig);
     push(f, procedures);}
-  if(oldsig == NULL || oldbody == NULL || oldbody != newbody){
+  if(oldbody != newbody){
     push(f, new_procedures);
     setprop(f,`{body},newbody);
     setprop(f,`{new},`{true});}
