@@ -102,7 +102,6 @@
     (forward-char)
     (let ((exp (buffer-substring top (point))))
       (setq exp (format "%s%c\n" exp 0))
-      (print exp)
 
       (if (= (buffer-end 1) (point))
 	  (insert "\n")
