@@ -1,47 +1,42 @@
-expptr bar(int i);
-/** 1: compilation error **/
 
-expptr foo(int i){
-  if(i == 0){return `{foo};}
-  return bar(--i);}
-/** 2: compilation error **/
+/** ========================================================================
+Hello world
+======================================================================== **/
 
-expptr bar(int i){
-  if(i == 0){return `{bar};}
-  return foo(--i);}
+`{hello world}
+/** 1: hello world **/
 
-/** 4: done **/
 
-expptr bar(){return foo();}
-/** 2: done **/
+/** ========================================================================
+compilation errorImperative Programming
+======================================================================== **/
 
-bar()
-/** 5: two **/
-
-`{foo}
-/** 3: foo **/
-
-fooint x[10];
-/** 2: done **/
+int x[10];
+/** 1: done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
-/** 3: done **/
+/** 2: done **/
 
 for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
-/** 4: 0123456789done **/
+/** 3: 0123456789done **/
 
 int_exp(x[5])
-/** 5: 5 **/
+/** 4: 5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-/** 6: 45 **/
+/** 5: 45 **/
+
+
+/** ========================================================================
+C data types
+======================================================================== **/
 
 typedef struct myexpstruct{
   char * label;
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** 7: done **/
+/** 1: done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -49,16 +44,21 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
-/** 8: done **/
+/** 2: done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
   return `{${string_atom(x->label)} ${myexp_exp(x->car)} ${myexp_exp(x->cdr)}};
 }
-/** 9: done **/
+/** 3: done **/
 
 myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 /** 10: foo bar nil nil nil **/
+
+
+/** ========================================================================
+Variable as x[0].
+======================================================================== **/
 
 int y[0] = 2;
 /** 11: done **/
@@ -84,27 +84,9 @@ expptr e[0] = `{a+b};
 `{bar(${e[0]})}
 /** 18: bar(a+b) **/
 
-int numeralp(expptr x){
-  if(!atomp(x))return 0;
-  char * s= atom_string(x);
-  for(int i = 0; s[i] != '\0'; i++){
-    if(s[i] < '0' || s[i] > '9')return 0;}
-  return 1;
-}
-/** 19: done **/
-
-int value(expptr e){
-  ucase{e;
-   {$x+$y}:{return value(x)+value(y);}
-   {$x*$y}:{return value(x)*value(y);}
-   {($x)}:{return value(x);}
-   {$z}.(numeralp(z)):{return atoi(atom_string(z));}}
-  return 0;
-}
-/** 20: done **/
-
-int_exp(value(`{5+2*10}))
-/** 21: 25 **/
+/** ========================================================================
+macros
+======================================================================== **/
 
 umacro{mydolist($x, $L){$body}}{
      expptr rest = gensym("rest");
@@ -122,9 +104,63 @@ macroexpand(`{mydolist(item,list){f(item);}})
   ){expptr item=car(_genrest33);f(item);}
  **/
 
+/** ========================================================================
+mutual recursion and redefinition
+======================================================================== **/
+
+expptr bar(int i);
+/** 1: done **/
+
+expptr foo(int i){
+  if(i == 0){return `{foo};}
+  return bar(--i);}
+/** 2: done **/
+
+expptr bar(int i){
+  if(i == 0){return `{bar};}
+  return foo(--i);}
+/** 3: done **/
+
+foo(1)
+/** 4: bar **/
+
+expptr bar(int i){
+  if(i == 0){return `{bar2};}
+  return foo(--i);}
+/** 5: done **/
+
+foo(1)
+/** 6: bar2 **/
+
+/** ========================================================================
+error modes
+======================================================================== **/
+
+int numeralp(expptr x){
+  if(!atomp(x))return 0;
+  char * s= atom_string(x);
+  for(int i = 0; s[i] != '\0'; i++){
+    if(s[i] < '0' || s[i] > '9')return 0;}
+  return 1;
+}
+/** 1: done **/
+
+int value(expptr e){
+  ucase{e;
+   {$x+$y}:{return value(x)+value(y);}
+   {$x*$y}:{return value(x)*value(y);}
+   {($x)}:{return value(x);}
+   {$z}.(numeralp(z)):{return atoi(atom_string(z));}}
+  return 0;
+}
+/** 2: done **/
+
+int_exp(value(`{5+2*10}))
+/** 3: 25 **/
+
 int_exp(value(`foo))
-/** 24: compilation error **/
+/** 4: compilation error **/
 
 int_exp(value(`{foo}))
-/** 25: execution error (running gdb) **/
+/** 5: execution error (running gdb) **/
 

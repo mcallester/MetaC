@@ -236,11 +236,12 @@ expptr proc_def(expptr f){
 }
 
 void comp_error(){
-    if(!in_repl){
-      fprintf(stdout, "}compilation error}");}
-    else{
-      fprintf(stdout,"\n evaluation aborted\n\n");}
-    throw_error();}
+  fflush(stderr);
+  if(!in_repl){
+    fprintf(stdout, "}compilation error}");}
+  else{
+    fprintf(stdout,"\n evaluation aborted\n\n");}
+  throw_error();}
 
 voidptr compile_load_file(charptr fstring){
   int flg;

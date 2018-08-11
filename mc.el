@@ -37,6 +37,24 @@
 (add-hookm c-mode-hook
   (define-key c-mode-map "\M-\C-n" 'MC:next-def))
 
+(defun MC:indent-def ()
+  (interactive)
+  (move-beginning-of-line nil)
+  (let ((line (1+ (count-lines 1 (point)))))
+    (MC:beginning-of-def)
+    (let ((begining (point)))
+      (MC:next-def)
+      (let ((end (point)))
+	(goto-char begining)
+	(while (< (point) (- end 1))
+	  (c-indent-line)
+	  (next-line)
+	  (move-beginning-of-line nil))
+	(goto-line line)
+	(c-indent-line)))))
+
+(add-hookm c-mode-hook
+  (define-key c-mode-map "\C-\M-q" 'MC:indent-def))
 (defun mc-buffer ()
   (get-buffer-create "*MetaC*"))
 
@@ -101,8 +119,6 @@
     (re-search-backward "[^ \n\t]")
     (forward-char)
     (let ((exp (buffer-substring top (point))))
-      (setq exp (format "%s%c\n" exp 0))
-
       (if (= (buffer-end 1) (point))
 	  (insert "\n")
 	(progn
@@ -126,7 +142,7 @@
       
       (setq *source-buffer* (current-buffer))
       (setq *gdb-mode* nil)
-      (process-send-string (mc-process) exp))))
+      (process-send-string (mc-process) (format "%s\n" exp)))))
 
 (defun MC:filter (proc string)
   (setq *mc-accumulator* (concat *mc-accumulator* (MC:clean-string string)))
@@ -138,6 +154,7 @@
 	(let* ((cell (MC:parse-output)) ;;this updates *mc-accumualtor*
 	       (tag (car cell))
 	       (value (cdr cell)))
+	  (print "*****")
 	  (print tag)
 	  (print value)
 	  (setq *gdb-mode* nil)
