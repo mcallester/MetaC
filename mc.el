@@ -129,7 +129,6 @@
       (process-send-string (mc-process) exp))))
 
 (defun MC:filter (proc string)
-  (print string)
   (setq *mc-accumulator* (concat *mc-accumulator* (MC:clean-string string)))
   (MC:process-output))
 
