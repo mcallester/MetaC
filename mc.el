@@ -93,25 +93,44 @@
   (move-end-of-line nil)
   (MC:beginning-of-def)
   (let ((top (point)))
-    (re-search-forward "\n[^] \n\t})]")
-    (backward-char)
+    (condition-case nil
+	(progn (move-end-of-line nil)
+	       (re-search-forward "\n[^] \n\t})]")
+	       (backward-char))
+      (error (end-of-buffer)))
     (re-search-backward "[^ \n\t]")
-    (beginning-of-line 2)
+    (forward-char)
     (let ((exp (buffer-substring top (point))))
+      (setq exp (format "%s%c\n" exp 0))
+      (print exp)
+
+      (if (= (buffer-end 1) (point))
+	  (insert "\n")
+	(progn
+	  (when (not (= (char-after (point)) 10)) ;;10 is return
+	    (kill=line))
+	  (if (= (buffer-end 1) (point))
+	      (insert "\n")
+	    (forward-char))))
+
       (if (string= (buffer-substring (point) (min (+ (point) 3) (point-max))) "/**")
 	  (let ((start (point)))
 	    (search-forward "*/")
 	    (delete-region start (point)))
 	(progn (newline) (backward-char)))
+
       (insert "/**  **/")
       (backward-char 4)
+
       (insert (format "%d: " *eval-count*))
       (setq *eval-count* (+ *eval-count* 1))
+      
       (setq *source-buffer* (current-buffer))
       (setq *gdb-mode* nil)
       (process-send-string (mc-process) exp))))
 
 (defun MC:filter (proc string)
+  (print string)
   (setq *mc-accumulator* (concat *mc-accumulator* (MC:clean-string string)))
   (MC:process-output))
 

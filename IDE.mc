@@ -19,6 +19,7 @@ void IDE_pprint(expptr e, FILE * f, int level);
 void MC_doit(expptr e){
   pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,rep_column);
   fprintf(stdout,"}result}");
+  fflush(stdout);
 }
 
 void IDE_loop(){

@@ -1,7 +1,27 @@
-`{foo}
-/** 1: foo **/
+expptr bar(int i);
+/** 1: compilation error **/
 
-int x[10];
+expptr foo(int i){
+  if(i == 0){return `{foo};}
+  return bar(--i);}
+/** 2: compilation error **/
+
+expptr bar(int i){
+  if(i == 0){return `{bar};}
+  return foo(--i);}
+
+/** 4: done **/
+
+expptr bar(){return foo();}
+/** 2: done **/
+
+bar()
+/** 5: two **/
+
+`{foo}
+/** 3: foo **/
+
+fooint x[10];
 /** 2: done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
@@ -11,10 +31,10 @@ for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
 /** 4: 0123456789done **/
 
 int_exp(x[5])
-/** 7: 5 **/
+/** 5: 5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-/** 8: compilation error **/
+/** 6: 45 **/
 
 typedef struct myexpstruct{
   char * label;
@@ -107,3 +127,5 @@ int_exp(value(`foo))
 
 int_exp(value(`{foo}))
 /** 25: execution error (running gdb) **/
+
+
