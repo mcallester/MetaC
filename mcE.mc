@@ -142,6 +142,9 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   fclose(fileout);
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
+
+  dolist(f,new_procedures){setprop(f,`{header},(expptr)header);} //remember what to close if redefinition
+
   if(!in_repl){fprintf(stdout, "}ignore}");}
   in_doit = 1;
   expptr (* _mc_doit)(voidptr *);
@@ -191,6 +194,8 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   if(oldsig == NULL){
     setprop(f,`{signature},newsig);
     push(f, procedures);}
+  else setprop(f,`{renew},`{true});
+
   if(oldbody != newbody){
     push(f, new_procedures);
     setprop(f,`{body},newbody);
@@ -223,6 +228,7 @@ expptr proc_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
     {$type $f($args);}:{
       if(getprop(f,`{new},NULL)){
+        if (getprop(f,`{renew},NULL)) dlclose((void *)getprop(f,`{header},NULL));
 	setprop(f,`{new},NULL);
 	return `{$type $f($args){${getprop(f,`{body},NULL)}}};}
       else {return
