@@ -164,3 +164,39 @@ int_exp(value(`foo))
 int_exp(value(`{foo}))
 /** 5: execution error (running gdb) **/
 
+
+/** ========================================================================
+Bob's example
+======================================================================== **/
+
+expptr f(){return `{a};}
+/** 1: done **/
+
+f()
+/** 2:  **/
+
+expptr g(expptr x){return x;}
+/** 1: done **/
+
+g(`{a})
+/** 2: a **/
+
+expptr g(expptr x){return `{$x $x};}
+/** 3: done **/
+
+g(`{a})
+/** 4: a a **/
+
+(3) Mutual recursion generates a segfault:
+
+int f(int x);
+/** 1: done **/
+
+int g(int x){if (x<=0) {return 1;} else return f(x-1);}
+/** 2: done **/
+
+int f(int x){if (x<=0) {return 1;} else return g(x-1);}
+/** 3: done **/
+
+int_exp(f(1))
+/** 4: 1 **/
