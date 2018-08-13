@@ -24,3 +24,6 @@ expandE
 REPL
 testREPL
 IDE
+testREPLdata.mc
+sshcommand
+
