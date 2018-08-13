@@ -1,3 +1,5 @@
+(require 'shell)
+
 (setq *gdb* "/opt/local/bin/gdb-apple")
 (setq *MC-IDE* "~/18/MC/IDE")
 
