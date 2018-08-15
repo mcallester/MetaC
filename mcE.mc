@@ -228,7 +228,10 @@ expptr proc_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
     {$type $f($args);}:{
       if(getprop(f,`{new},NULL)){
-        if (getprop(f,`{renew},NULL)) dlclose((void *)getprop(f,`{header},NULL));
+        if (getprop(f,`{renew},NULL)) {
+          void * header=(void *)getprop(f,`{header},NULL);
+          if (header) dlclose(header); //header is NULL if only previous def was prototype
+        }
 	setprop(f,`{new},NULL);
 	return `{$type $f($args){${getprop(f,`{body},NULL)}}};}
       else {return
