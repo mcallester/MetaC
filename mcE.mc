@@ -24,6 +24,7 @@ better code analysis of the new langauge.
 
 expptr file_preamble;
 expptr procedures;
+expptr base_procedures;
 expptr arrays;
 
 expptr new_procedures;
@@ -43,29 +44,32 @@ int symbol_index(expptr);
 expptr symbol_index_exp(expptr);
 void unrecognized_statement(expptr form);
 expptr proc_def(expptr f);
+expptr link_def(expptr f);
 void install_base();
 
 void mcE_init2(){
   file_preamble = nil;
   arrays = nil;
   procedures = nil;
+  base_procedures = nil;
   symbol_count = 0;
   install_base();  //eval-when compile and load (run in both expandE and REPL).
   compilecount = 0;
 }
 
+// rlg: wanted to use install() for uniformity, base_procedures enables clean lining up of symbol_value
 void install_base(){
   dolist(sig,file_expressions("base_decls.h")){
     ucase{sig;
-      {$type $f($args);}:{
-	symbol_index(f);  //synchoronizes compile and load indeces.
-	push(f,procedures);
-	setprop(f,`{signature},sig);}
+      {$type $f($args);}.(symbolp(type) && symbolp(f)):{
+        setprop(f,`{base},`{true});
+        install(sig);}
       {$type $x[$dim];}:{
 	symbol_index(x);  //synchoronizes compile and load indeces.
 	push(x,arrays);
 	setprop(x,`{signature},sig);}
       {$e}:{push(e,file_preamble);}}}
+  base_procedures=procedures; procedures=nil; 
 }
 
 /** ========================================================================
@@ -79,7 +83,7 @@ the dynamic linking table.
 
 umacro{insert_base()}{
   expptr result = nil;
-  dolist(f,procedures){
+  dolist(f,base_procedures){
     push(`{symbol_value[${symbol_index_exp(f)}] = $f;}, result);}
   dolist(X,arrays){
     push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);}
@@ -89,7 +93,7 @@ umacro{insert_base()}{
 init_fun(mcE_init1)  //mcE_init1 just installs the above macro.
 
 expptr new_procedure_insertion (expptr f){
-  return `{symbol_value[${symbol_index_exp(f)}] = $f;};
+  return `{symbol_value[${symbol_index_exp(f)}] = ${getprop(f,`{gensym_name},NULL)};};
 }
 
 expptr new_array_insertion (expptr x){
@@ -121,6 +125,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
 
+  procedures=append(base_procedures,procedures);
   //variable declarations
   dolist(f,procedures){pprint(getprop(f,`{signature},NULL),fileout,0);}
   dolist(x,arrays){
@@ -128,7 +133,8 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
       {$type $x[$dim];}:{pprint(`{$type * $x;},fileout,0);}}}
 
   //procedure value extractions.  array extractions are done in doit.
-  dolist(f,procedures){pprint(proc_def(f),fileout,0);} 
+  dolist(f,procedures){expptr def=proc_def(f); if (def) pprint(def,fileout,0);} 
+  dolist(f,procedures){expptr def=link_def(f); if (def) pprint(def,fileout,0);} 
 
   pprint(`{
       expptr _mc_doit(voidptr * symbol_value){
@@ -142,8 +148,6 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   fclose(fileout);
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
-
-  dolist(f,new_procedures){setprop(f,`{header},(expptr)header);} //remember what to close if redefinition
 
   if(!in_repl){fprintf(stdout, "}ignore}");}
   in_doit = 1;
@@ -194,10 +198,11 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   if(oldsig == NULL){
     setprop(f,`{signature},newsig);
     push(f, procedures);}
-  else setprop(f,`{renew},`{true});
 
-  if(oldbody != newbody){
+  if(oldbody != newbody && newbody){
+    if (getprop(f,`{base},NULL)) uerror(`{attempt to change base function $f});
     push(f, new_procedures);
+    setprop(f,`{gensym_name},gensym(atom_string(f)));
     setprop(f,`{body},newbody);
     setprop(f,`{new},`{true});}
 }
@@ -224,24 +229,31 @@ expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));
 }
 
+expptr link_def(expptr f){
+  if (!getprop(f,`{defined},NULL)){
+    setprop(f,`{defined},`{true});
+    ucase{getprop(f,`{signature},NULL);
+      {$type $f($args);}:{
+        return
+          `{$type $f($args){
+            $type (* _mc_f)($args);
+            _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
+            ${(type == `{void} ?
+               `{(* _mc_f)(${args_variables(args)});}
+               : `{return (* _mc_f)(${args_variables(args)});})}}};
+      
+      }}}
+  else return NULL;
+}
+
 expptr proc_def(expptr f){
-  ucase{getprop(f,`{signature},NULL);
-    {$type $f($args);}:{
-      if(getprop(f,`{new},NULL)){
-        if (getprop(f,`{renew},NULL)) {
-          void * header=(void *)getprop(f,`{header},NULL);
-          if (header) dlclose(header); //header is NULL if only previous def was prototype
-        }
-	setprop(f,`{new},NULL);
-	return `{$type $f($args){${getprop(f,`{body},NULL)}}};}
-      else {return
-	  `{$type $f($args){
-	    $type (* _mc_f)($args);
-	    _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
-	    ${(type == `{void} ?
-	       `{(* _mc_f)(${args_variables(args)});}
-	       : `{return (* _mc_f)(${args_variables(args)});})}}};}}}
-  return NULL;
+  if (getprop(f,`{new},NULL)){
+    ucase{getprop(f,`{signature},NULL);
+      {$type $f($args);}:{
+        setprop(f,`{new},NULL);
+        return `{$type ${getprop(f,`{gensym_name},NULL)}($args){${getprop(f,`{body},NULL)}}};}} 
+  }
+  else return NULL;
 }
 
 void comp_error(){

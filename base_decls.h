@@ -52,7 +52,7 @@ expptr string_atom(char * s);
 
 int atomp(expptr e);
 
-char * atom_string(expptr a);
+charptr atom_string(expptr a);
 
 expptr cons(expptr x, expptr y);
 
