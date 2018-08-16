@@ -714,7 +714,7 @@ expptr file_expressions(char * fname){
   read_stream = fopen(fname, "r");
   if(read_stream == NULL)berror("attempt to open input file failed");
   expptr exps = file_expressions2();
-  fclose(filein);
+  fclose(read_stream);
   return exps;
 }
 
