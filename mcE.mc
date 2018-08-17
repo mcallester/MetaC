@@ -36,7 +36,7 @@ int symbol_count;
 
 expptr args_variables(expptr args);
 void install(expptr sig);
-voidptr compile_load_file(charptr fstring);
+voidptr compile_load_file(charptr fstring, expptr defined_token);
 void install_preamble(expptr);
 void install_var(expptr,expptr,expptr);
 void install_proc(expptr,expptr,expptr,expptr);
@@ -44,7 +44,7 @@ int symbol_index(expptr);
 expptr symbol_index_exp(expptr);
 void unrecognized_statement(expptr form);
 expptr proc_def(expptr f);
-expptr link_def(expptr f);
+expptr link_def(expptr f, expptr defined_token);
 void install_base();
 
 void mcE_init2(){
@@ -125,16 +125,22 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
 
-  procedures=append(base_procedures,procedures);
+  expptr procedures_for_this_library=append(base_procedures,procedures);
+    
   //variable declarations
-  dolist(f,procedures){pprint(getprop(f,`{signature},NULL),fileout,0);}
+  dolist(f,procedures_for_this_library){pprint(getprop(f,`{signature},NULL),fileout,0);}
   dolist(x,arrays){
     ucase{getprop(x,`{signature},NULL);
       {$type $x[$dim];}:{pprint(`{$type * $x;},fileout,0);}}}
 
   //procedure value extractions.  array extractions are done in doit.
-  dolist(f,procedures){expptr def=proc_def(f); if (def) pprint(def,fileout,0);} 
-  dolist(f,procedures){expptr def=link_def(f); if (def) pprint(def,fileout,0);} 
+  expptr defined_token=gensym("defined");
+  dolist(f,procedures_for_this_library){
+    expptr def=proc_def(f);
+    if (def) pprint(def,fileout,0);} 
+  dolist(f,procedures_for_this_library){
+    expptr def=link_def(f,defined_token);
+    if (def) pprint(def,fileout,0);} 
 
   pprint(`{
       expptr _mc_doit(voidptr * symbol_value){
@@ -147,7 +153,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
     fileout,0);
   fclose(fileout);
   
-  void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
+  void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount),defined_token);
 
   if(!in_repl){fprintf(stdout, "}ignore}");}
   in_doit = 1;
@@ -229,9 +235,10 @@ expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));
 }
 
-expptr link_def(expptr f){
-  if (!getprop(f,`{defined},NULL)){
-    setprop(f,`{defined},`{true});
+expptr link_def(expptr f, expptr defined_token){
+  expptr definedp=getprop(f,`{defined},NULL);
+  if (!definedp || getprop(definedp,`{error},NULL)){
+    setprop(f,`{defined},defined_token);
     ucase{getprop(f,`{signature},NULL);
       {$type $f($args);}:{
         return
@@ -256,7 +263,8 @@ expptr proc_def(expptr f){
   else return NULL;
 }
 
-void comp_error(){
+void comp_error(expptr defined_token){
+  setprop(defined_token,`{error},`{true});
   fflush(stderr);
   if(!in_repl){
     fprintf(stdout, "}compilation error}");}
@@ -264,21 +272,21 @@ void comp_error(){
     fprintf(stdout,"\n evaluation aborted\n\n");}
   throw_error();}
 
-voidptr compile_load_file(charptr fstring){
+voidptr compile_load_file(charptr fstring, expptr defined_token){
   int flg;
   
   char * s1 = sformat("cc -g -fPIC -Wall -c -Werror %s.c -o %s.o",fstring,fstring);
   flg = system(s1);
-  if(flg != 0)comp_error();
+  if(flg != 0)comp_error(defined_token);
 
   char * s2 = sformat("cc -g -fPIC -shared -lm -Werror %s.o -o %s.so",fstring,fstring);
   flg = system(s2);
-  if(flg != 0)comp_error();
+  if(flg != 0)comp_error(defined_token);
 
   char * s3 = sformat("%s.so",fstring);
   voidptr header = dlopen(s3, RTLD_LAZY|RTLD_GLOBAL);
   if(header == NULL){
     fprintf(stdout,"\nunable to open shared library %s with error %s\n", s3, dlerror());
-    comp_error();}
+    comp_error(defined_token);}
   return header;
 }
