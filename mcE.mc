@@ -236,21 +236,17 @@ expptr symbol_index_exp(expptr sym){
 }
 
 expptr link_def(expptr f, expptr defined_token){
-  expptr definedp=getprop(f,`{defined},NULL);
-  if (!definedp || getprop(definedp,`{error},NULL)){
-    setprop(f,`{defined},defined_token);
-    ucase{getprop(f,`{signature},NULL);
-      {$type $f($args);}:{
-        return
-          `{$type $f($args){
-            $type (* _mc_f)($args);
-            _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
-            ${(type == `{void} ?
-               `{(* _mc_f)(${args_variables(args)});}
-               : `{return (* _mc_f)(${args_variables(args)});})}}};
-      
-      }}}
-  else return NULL;
+  ucase{getprop(f,`{signature},NULL);
+    {$type $f($args);}:{
+      return
+	`{$type $f($args){
+	  $type (* _mc_f)($args);
+	  _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
+	  ${(type == `{void} ?
+	     `{(* _mc_f)(${args_variables(args)});}
+	     : `{return (* _mc_f)(${args_variables(args)});})}}};}
+    {$e}:{return NULL;}}
+  return NULL;
 }
 
 expptr proc_def(expptr f){
@@ -258,7 +254,8 @@ expptr proc_def(expptr f){
     ucase{getprop(f,`{signature},NULL);
       {$type $f($args);}:{
         setprop(f,`{new},NULL);
-        return `{$type ${getprop(f,`{gensym_name},NULL)}($args){${getprop(f,`{body},NULL)}}};}} 
+        return `{$type ${getprop(f,`{gensym_name},NULL)}($args){${getprop(f,`{body},NULL)}}};}
+      {$e}:{return NULL;}}
   }
   else return NULL;
 }
