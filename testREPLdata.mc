@@ -8,23 +8,33 @@ Hello world
 
 
 /** ========================================================================
-compilation errorImperative Programming
+Procedure defininition
+======================================================================== **/
+
+expptr f(expptr exp){return exp;}
+/** 1: done **/
+
+f(`{a})
+/** 2: a **/
+
+/** ========================================================================
+compilation Imperative Programming
 ======================================================================== **/
 
 int x[10];
-/** 2: done **/
-
-for(int i = 0; i < 10; i++)x[i] = i;
 /** 3: done **/
 
+for(int i = 0; i < 10; i++)x[i] = i;
+/** 4: done **/
+
 for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
-/** 4: 0123456789done **/
+/** 5: 0123456789done **/
 
 int_exp(x[5])
-/** 5: 5 **/
+/** 6: 5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-/** 6: 45 **/
+/** 7: 45 **/
 
 
 /** ========================================================================
@@ -50,10 +60,10 @@ expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
   return `{${string_atom(x->label)} ${myexp_exp(x->car)} ${myexp_exp(x->cdr)}};
 }
-/** 3: done **/
+/** 3:  **/
 
 myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
-/** 10: foo bar nil nil nil **/
+/** 3: compilation error **/
 
 
 /** ========================================================================
@@ -217,3 +227,15 @@ int test(expptr e){
     {($a ($b $c) $d)}:{a = b;}
   }}
 /** 1:  **/
+
+/** ========================================================================
+Procedure definition failure should not leave the procedure semi-defined.
+the following should generate a compilation error on both invocations rather than
+a segment fault on the second invocation.
+======================================================================== **/
+
+expptr g(expptr exp){returni exp;}
+/** 1: compilation error **/
+
+g(`{a})
+/** 2: execution error (running gdb) **/

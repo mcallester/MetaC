@@ -24,7 +24,6 @@ better code analysis of the new langauge.
 
 expptr file_preamble;
 expptr procedures;
-expptr base_procedures;
 expptr arrays;
 
 expptr new_procedures;
@@ -36,7 +35,7 @@ int symbol_count;
 
 expptr args_variables(expptr args);
 void install(expptr sig);
-voidptr compile_load_file(charptr fstring, expptr defined_token);
+voidptr compile_load_file(charptr fstring);
 void install_preamble(expptr);
 void install_var(expptr,expptr,expptr);
 void install_proc(expptr,expptr,expptr,expptr);
@@ -44,56 +43,68 @@ int symbol_index(expptr);
 expptr symbol_index_exp(expptr);
 void unrecognized_statement(expptr form);
 expptr proc_def(expptr f);
-expptr link_def(expptr f, expptr defined_token);
+expptr link_def(expptr f);
 void install_base();
+expptr procedure_insertion (expptr f, expptr g);
 
-void mcE_init2(){
+/** ========================================================================
+The REPL inserts base procedures into the symbol_value table (the linking table) by calling the macro insert_base.
+This macro is expanded by ExpandE on REPL.  Before doing any expansion, ExpandE sets the symbol indeces of the base symbols by calling install_base().
+install_base must be run again by the REPL so that indeces used by the REPL match those used
+by expandE (the indeces used at REPL load time must be syncronized with those used at REPL compile time).
+mcE_init1 establishes base procedure indeces so that all executables built on mcE have the same base procedure indeces.
+
+Becasue of REPL compile and load syncronization, install_base cannot be cleanly replaced with calls to install.
+======================================================================== **/
+
+void mcE_init1(){
   file_preamble = nil;
   arrays = nil;
   procedures = nil;
-  base_procedures = nil;
   symbol_count = 0;
-  install_base();  //eval-when compile and load (run in both expandE and REPL).
+  install_base();  //all executables built on mcE (ExpandE, REPL and IDE) have the same indeces for base functions.
   compilecount = 0;
 }
 
-// rlg: wanted to use install() for uniformity, base_procedures enables clean lining up of symbol_value
 void install_base(){
   dolist(sig,file_expressions("base_decls.h")){
     ucase{sig;
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
+	push(f,procedures);
+	symbol_index(f);  //establish the index
         setprop(f,`{base},`{true});
         install(sig);}
       {$type $x[$dim];}:{
-	symbol_index(x);  //synchoronizes compile and load indeces.
+	symbol_index(x);  //establish the index
 	push(x,arrays);
 	setprop(x,`{signature},sig);}
       {$e}:{push(e,file_preamble);}}}
-  base_procedures=procedures; procedures=nil; 
 }
-
-/** ========================================================================
-The REPL must start with the base symbols inserted.  The following is run at "load time".
-The macro insert_base() appears at the beginning of main in REPL.mc.
-It is expanded during the compilation of REPL (by expandE) after running install_base().
-
-New procedures must be defined one at a time so that calls to other procedures go through
-the dynamic linking table.
-======================================================================== **/
 
 umacro{insert_base()}{
   expptr result = nil;
-  dolist(f,base_procedures){
-    push(`{symbol_value[${symbol_index_exp(f)}] = $f;}, result);}
+  dolist(f,procedures){
+    push(procedure_insertion(f,f), result);}
   dolist(X,arrays){
     push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);}
   return result;
 }
 
-init_fun(mcE_init1)  //mcE_init1 just installs the above macro.
+init_fun(mcE_init2)  //mcE_init2 defines the macro insert_base (without calling it).
+
+
+/** ========================================================================
+insertion and extraction from the linking table.  Procedure extraction is
+done by defing the procedure in the DLL to go through the linking table.
+======================================================================== **/
+
+expptr procedure_insertion (expptr f, expptr g){
+  return `{
+    symbol_value[${symbol_index_exp(f)}] = $g;};
+}
 
 expptr new_procedure_insertion (expptr f){
-  return `{symbol_value[${symbol_index_exp(f)}] = ${getprop(f,`{gensym_name},NULL)};};
+  return procedure_insertion(f, getprop(f,`{gensym_name},NULL));
 }
 
 expptr new_array_insertion (expptr x){
@@ -125,35 +136,31 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
 
-  expptr procedures_for_this_library=append(base_procedures,procedures);
-    
   //variable declarations
-  dolist(f,procedures_for_this_library){pprint(getprop(f,`{signature},NULL),fileout,0);}
+  dolist(f,procedures){pprint(getprop(f,`{signature},NULL),fileout,0);}
   dolist(x,arrays){
     ucase{getprop(x,`{signature},NULL);
       {$type $x[$dim];}:{pprint(`{$type * $x;},fileout,0);}}}
 
   //procedure value extractions.  array extractions are done in doit.
-  expptr defined_token=gensym("defined");
-  dolist(f,procedures_for_this_library){
-    expptr def=proc_def(f);
-    if (def) pprint(def,fileout,0);} 
-  dolist(f,procedures_for_this_library){
-    expptr def=link_def(f,defined_token);
-    if (def) pprint(def,fileout,0);} 
+
+  dolist(f,procedures){
+    pprint(link_def(f),fileout,0);}
+  dolist(f,new_procedures){
+    pprint(proc_def(f),fileout,0);} 
 
   pprint(`{
       expptr _mc_doit(voidptr * symbol_value){
 	symbol_value_copy = symbol_value;
 	${mapcar(new_procedure_insertion, new_procedures)}
 	${mapcar(new_array_insertion, new_arrays)}
-	${mapcar(array_extraction, arrays)} // procedure extractions are done by procdefs above
+	${mapcar(array_extraction, arrays)} // procedure extractions are done by linkdefs and procdefs above
 	${reverse(new_statements)}
 	return string_atom("done");}},
     fileout,0);
   fclose(fileout);
   
-  void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount),defined_token);
+  void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
 
   if(!in_repl){fprintf(stdout, "}ignore}");}
   in_doit = 1;
@@ -201,16 +208,18 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   expptr oldbody = getprop(f,`{body},NULL);
   expptr newsig = `{$type $f($args);};
   if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change $oldsig to \n $newsig});
-  if(oldsig == NULL){
-    setprop(f,`{signature},newsig);
-    push(f, procedures);}
+  if(oldsig == NULL) setprop(f,`{signature},newsig);
+
 
   if(oldbody != newbody && newbody){
     if (getprop(f,`{base},NULL)) uerror(`{attempt to change base function $f});
     push(f, new_procedures);
+    push(f,procedures);
     setprop(f,`{gensym_name},gensym(atom_string(f)));
     setprop(f,`{body},newbody);
-    setprop(f,`{new},`{true});}
+    setprop(f,`{new},`{true});
+    symbol_value[symbol_index(f)] = NULL; //this will catch semi-defined functions without segmentation fault.
+  }
 }
 
 void unrecognized_statement(expptr form){
@@ -235,13 +244,16 @@ expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));
 }
 
-expptr link_def(expptr f, expptr defined_token){
+expptr link_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
     {$type $f($args);}:{
       return
 	`{$type $f($args){
 	  $type (* _mc_f)($args);
 	  _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
+
+	  if(!_mc_f){berror("call to undefined procedure");}
+	  
 	  ${(type == `{void} ?
 	     `{(* _mc_f)(${args_variables(args)});}
 	     : `{return (* _mc_f)(${args_variables(args)});})}}};}
@@ -260,8 +272,7 @@ expptr proc_def(expptr f){
   else return NULL;
 }
 
-void comp_error(expptr defined_token){
-  setprop(defined_token,`{error},`{true});
+void comp_error(){
   fflush(stderr);
   if(!in_repl){
     fprintf(stdout, "}compilation error}");}
@@ -269,21 +280,21 @@ void comp_error(expptr defined_token){
     fprintf(stdout,"\n evaluation aborted\n\n");}
   throw_error();}
 
-voidptr compile_load_file(charptr fstring, expptr defined_token){
+voidptr compile_load_file(charptr fstring){
   int flg;
   
   char * s1 = sformat("cc -g -fPIC -Wall -c -Werror %s.c -o %s.o",fstring,fstring);
   flg = system(s1);
-  if(flg != 0)comp_error(defined_token);
+  if(flg != 0)comp_error();
 
   char * s2 = sformat("cc -g -fPIC -shared -lm -Werror %s.o -o %s.so",fstring,fstring);
   flg = system(s2);
-  if(flg != 0)comp_error(defined_token);
+  if(flg != 0)comp_error();
 
   char * s3 = sformat("%s.so",fstring);
   voidptr header = dlopen(s3, RTLD_LAZY|RTLD_GLOBAL);
   if(header == NULL){
     fprintf(stdout,"\nunable to open shared library %s with error %s\n", s3, dlerror());
-    comp_error(defined_token);}
+    comp_error();}
   return header;
 }
