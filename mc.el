@@ -12,7 +12,7 @@
   (interactive)
   (move-end-of-line nil)
   (condition-case nil
-      (progn (re-search-backward "\n[^] \n\t})/]")
+      (progn (re-search-backward "\n[^] \n\t})/=]")
 	     (forward-char))
     (error (beginning-of-buffer))))
 
@@ -32,7 +32,7 @@
   (interactive)
   (condition-case nil
       (progn (move-end-of-line nil)
-	     (re-search-forward "\n[^] \n\t})/]")
+	     (re-search-forward "\n[^] \n\t})/=]")
 	     (move-beginning-of-line nil))
     (error (end-of-buffer))))
 

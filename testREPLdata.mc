@@ -1,6 +1,6 @@
 
 /** ========================================================================
-Hello world
+ Hello world
 ======================================================================== **/
 
 `{hello world}
@@ -8,37 +8,37 @@ Hello world
 
 
 /** ========================================================================
-Procedure defininition
+ Procedure defininition
 ======================================================================== **/
 
 expptr f(expptr exp){return exp;}
-/** 1: done **/
+/** 2: done **/
 
 f(`{a})
-/** 2: a **/
+/** 3: a **/
 
 /** ========================================================================
-compilation Imperative Programming
+ compilation Imperative Programming
 ======================================================================== **/
 
 int x[10];
-/** 3: done **/
-
-for(int i = 0; i < 10; i++)x[i] = i;
 /** 4: done **/
 
+for(int i = 0; i < 10; i++)x[i] = i;
+/** 5: done **/
+
 for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
-/** 5: 0123456789done **/
+/** 6: 0123456789done **/
 
 int_exp(x[5])
-/** 6: 5 **/
+/** 7: 5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-/** 7: 45 **/
+/** 8: 45 **/
 
 
 /** ========================================================================
-C data types
+ C data types
 ======================================================================== **/
 
 typedef struct myexpstruct{
@@ -46,7 +46,7 @@ typedef struct myexpstruct{
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** 1: done **/
+/** 9: done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -54,48 +54,48 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
-/** 2: done **/
+/** 10: done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
   return `{${string_atom(x->label)} ${myexp_exp(x->car)} ${myexp_exp(x->cdr)}};
 }
-/** 3:  **/
+/** 11: done **/
 
 myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
-/** 3: compilation error **/
+/** 12: foo bar nil nil nil **/
 
 
 /** ========================================================================
-Variable as x[0].
+ Variable as x[0].
 ======================================================================== **/
 
 int y[0] = 2;
-/** 11: done **/
+/** 13: done **/
 
 y[0] += 1;
-/** 12: done **/
-
-int_exp(y[0])
-/** 13: 3 **/
-
-expptr friend[0] = `{Bob Givan};
 /** 14: done **/
 
+int_exp(y[0])
+/** 15: 3 **/
+
+expptr friend[0] = `{Bob Givan};
+/** 16: done **/
+
 int height[0] = 6;
-/** 15: done **/
-
-`{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
-/** 16: My friend Bob Givan is 6 feet tall. **/
-
-expptr e[0] = `{a+b};
 /** 17: done **/
 
+`{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
+/** 18: My friend Bob Givan is 6 feet tall. **/
+
+expptr e[0] = `{a+b};
+/** 19: done **/
+
 `{bar(${e[0]})}
-/** 18: bar(a+b) **/
+/** 20: bar(a+b) **/
 
 /** ========================================================================
-macros
+ macros
 ======================================================================== **/
 
 umacro{mydolist($x, $L){$body}}{
@@ -104,27 +104,27 @@ umacro{mydolist($x, $L){$body}}{
                   !atomp($rest);
                   $rest = cdr($rest);)
 	 {expptr $x = car($rest); $body}};}
-/** 22: done **/
+/** 21: done **/
 
 macroexpand(`{mydolist(item,list){f(item);}})
-/** 23: for
-  (explist _genrest33=list;
-   !atomp(_genrest33);
-  _genrest33=cdr(_genrest33);
-  ){expptr item=car(_genrest33);f(item);}
+/** 22: for
+  (explist _genrest7=list;
+   !atomp(_genrest7);
+  _genrest7=cdr(_genrest7);
+  ){expptr item=car(_genrest7);f(item);}
  **/
 
 /** ========================================================================
-mutual recursion and redefinition
+ mutual recursion and redefinition
 ======================================================================== **/
 
 expptr bar(int i);
-/** 1: done **/
+/** 1: compilation error **/
 
 expptr foo(int i){
   if(i == 0){return `{foo};}
   return bar(--i);}
-/** 2: done **/
+/** 2: compilation error **/
 
 expptr bar(int i){
   if(i == 0){return `{bar};}
@@ -143,7 +143,7 @@ foo(1)
 /** 6: bar2 **/
 
 /** ========================================================================
-error modes
+ error modes
 ======================================================================== **/
 
 int numeralp(expptr x){
@@ -176,7 +176,7 @@ int_exp(value(`{foo}))
 
 
 /** ========================================================================
-Bob's example
+ Bob's example
 ======================================================================== **/
 
 expptr f(){return `{a};}
@@ -186,7 +186,7 @@ f()
 /** 2:  **/
 
 /** ========================================================================
-Bob2
+ Bob2
 ======================================================================== **/
 
 expptr g(expptr x){return x;}
@@ -203,7 +203,7 @@ g(`{a})
 
 
 /** ========================================================================
-Bob3
+ Bob3
 ======================================================================== **/
 
 int f(int x);
@@ -219,7 +219,7 @@ int_exp(f(1))
 /** 4: 1 **/
 
 /** ========================================================================
-pattern match 
+ pattern match 
 ======================================================================== **/
 
 int test(expptr e){
@@ -229,9 +229,9 @@ int test(expptr e){
 /** 1:  **/
 
 /** ========================================================================
-Procedure definition failure should not leave the procedure semi-defined.
-the following should generate a compilation error on both invocations rather than
-a segment fault on the second invocation.
+ Procedure definition failure should not leave the procedure semi-defined.
+ the following should generate a compilation error on both invocations rather than
+ a segment fault on the second invocation.
 ======================================================================== **/
 
 expptr g(expptr exp){returni exp;}

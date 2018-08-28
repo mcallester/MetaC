@@ -70,7 +70,6 @@ void install_base(){
   dolist(sig,file_expressions("base_decls.h")){
     ucase{sig;
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
-	push(f,procedures);
 	symbol_index(f);  //establish the index
         setprop(f,`{base},`{true});
         install(sig);}
@@ -208,16 +207,15 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   expptr oldbody = getprop(f,`{body},NULL);
   expptr newsig = `{$type $f($args);};
   if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change $oldsig to \n $newsig});
-  if(oldsig == NULL) setprop(f,`{signature},newsig);
-
+  if(oldsig == NULL){
+    setprop(f,`{signature},newsig);
+    push(f,procedures);}
 
   if(oldbody != newbody && newbody){
-    if (getprop(f,`{base},NULL)) uerror(`{attempt to change base function $f});
     push(f, new_procedures);
-    push(f,procedures);
+    if (getprop(f,`{base},NULL)) uerror(`{attempt to change base function $f});
     setprop(f,`{gensym_name},gensym(atom_string(f)));
     setprop(f,`{body},newbody);
-    setprop(f,`{new},`{true});
     symbol_value[symbol_index(f)] = NULL; //this will catch semi-defined functions without segmentation fault.
   }
 }
@@ -262,14 +260,10 @@ expptr link_def(expptr f){
 }
 
 expptr proc_def(expptr f){
-  if (getprop(f,`{new},NULL)){
-    ucase{getprop(f,`{signature},NULL);
-      {$type $f($args);}:{
-        setprop(f,`{new},NULL);
-        return `{$type ${getprop(f,`{gensym_name},NULL)}($args){${getprop(f,`{body},NULL)}}};}
-      {$e}:{return NULL;}}
-  }
-  else return NULL;
+  ucase{getprop(f,`{signature},NULL);
+    {$type $f($args);}:{
+      return `{$type ${getprop(f,`{gensym_name},NULL)}($args){${getprop(f,`{body},NULL)}}};}
+    {$e}:{return NULL;}}
 }
 
 void comp_error(){
