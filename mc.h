@@ -203,15 +203,14 @@ FILE * filein;
 void open_input_file(char * s);
 void open_output_file(char * s);
 
-char readchar;  //this is used in mcD, in file_expressions, for detecting end of file.
+expptr read_from_repl();
+expptr read_from_ide();
+expptr read_from_file();
 
-expptr read_from_terminal();
 expptr file_expressions(char * fname);
 void pprint(expptr e, FILE * f, int i);
 void writeexp(expptr e);
 void printexp(expptr e);
-
-
 
 /** ========================================================================
 macros
@@ -292,5 +291,13 @@ expptr constructor_code(char);
 
 void uerror(expptr);
 
-int in_repl;
+
+/** ========================================================================
+The following "source flags" are currently used in berror and, to a very minor extent, in printing.
+======================================================================== **/
+
 int in_doit;
+int in_repl;
+int in_expand;
+int in_ide;
+

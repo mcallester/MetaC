@@ -28,8 +28,7 @@ void IDE_loop(){
 	fprintf(stdout, "}IDE}");
 	preamble = nil;
 	init_forms = nil;
-	in_doit = 0;
-	MC_doit(macroexpand(read_from_terminal()));  })
+	MC_doit(macroexpand(read_from_ide()));  })
       }
 }
 
@@ -40,7 +39,7 @@ int main(int argc, char **argv){
   mcD_init();
   mcE_init1();
   mcE_init2();
-  in_repl = 0;
+  in_ide = 1;
   
   catch_error(insert_base())
   if(error_flg != 0)return error_flg;
