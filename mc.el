@@ -144,7 +144,7 @@
       
       (setq *source-buffer* (current-buffer))
       (setq *gdb-mode* nil)
-      (process-send-string (mc-process) (format "%s\n" exp)))))
+      (process-send-string (mc-process) (format "%s}" exp)))))
 
 (defun MC:filter (proc string)
   (setq *mc-accumulator* (concat *mc-accumulator* (MC:clean-string string)))

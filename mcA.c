@@ -789,7 +789,7 @@ void simple_advance(){
   //This is used when reading multi-character atom strings and used as the base case in advance_readchar
   //we must still prevent reading past the terminating return when reading from the REPL
 
-  if(!from_file && next2 == '\n'){
+  if(from_repl && next2 == '\n'){
     //at entry to advance_readchar paren_level is for the position between readchar and next
     //we want the paren level between next and next2.
     int next_level = paren_level + level_adjustment(next);
