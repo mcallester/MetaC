@@ -122,6 +122,8 @@ The load function is given a list of fully macro-expanded expressions.
 
 expptr load(expptr forms){ // forms must be fully macro expanded.
 
+  in_doit = 0;
+  
   compilecount ++; //should not be inside sformat --- sformat duplicates.
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
@@ -161,10 +163,11 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
 
-  if(!in_repl){fprintf(stdout, "}ignore}");}
-  in_doit = 1;
-  expptr (* _mc_doit)(voidptr *);
+  if(in_ide){fprintf(stdout, "}ignore}");}
+   expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
+
+  in_doit = 1;
   return (*_mc_doit)(symbol_value);
 }
 

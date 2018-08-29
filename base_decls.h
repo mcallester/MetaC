@@ -109,8 +109,6 @@ expptr gensym(char * s);
 reading and printing
 ========================================================================**/
 
-expptr read_from_terminal();
-
 void pprint(expptr e, FILEptr f, int i);
 
 /** ========================================================================

@@ -4,6 +4,17 @@
 See mc.h for catch, throw, catch-error, throw-error, and unwind_protect.
 ========================================================================**/
 
+/** ========================================================================
+the following flags are primarily used in the reader but also used in a
+minor way in berror below and in the printer.
+======================================================================== **/
+
+void init_source(){
+  in_repl = 0;
+  in_expand = 0;
+  in_ide = 0;
+  in_doit = 0;
+}
 
 /** ========================================================================
 cbreak, berror
@@ -23,7 +34,7 @@ void pop_dbg_stack(){
 
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
-  if(in_repl){cbreak(); throw_error();}
+  if(!in_ide){cbreak(); throw_error();}
   else if(in_doit){
     fprintf(stdout,"}execution error}");
     fflush(stdout);
@@ -679,10 +690,13 @@ expptr gensym(char * s){
 }
 
 /** ========================================================================
-section: read_from_terminal, mcexpand, and file_expressions
+section: read__fromrepl, mcexpand, and file_expressions
 ========================================================================**/
 
-int from_terminal;
+int from_repl;
+int from_file;
+int from_ide;
+
 char readchar;
 char next;
 char next2;
@@ -691,6 +705,9 @@ int paren_level;
 expptr mcread();;
 
 void init_readvars(){
+  from_repl = 0;
+  from_file = 0;
+  from_ide = 0;
   paren_level = 0;
   readchar = '\0';
   next = ' ';
@@ -699,9 +716,16 @@ void init_readvars(){
 
 FILE * read_stream;
 
-expptr read_from_terminal(){
+expptr read_from_repl(){
   init_readvars();
-  from_terminal = 1;
+  from_repl = 1;
+  read_stream = stdin;
+  return mcread();
+}
+
+expptr read_from_ide(){
+  init_readvars();
+  from_ide = 1;
   read_stream = stdin;
   return mcread();
 }
@@ -710,7 +734,7 @@ expptr file_expressions2();
 
 expptr file_expressions(char * fname){
   init_readvars();
-  from_terminal = 0;
+  from_file = 1;
   read_stream = fopen(fname, "r");
   if(read_stream == NULL)berror("attempt to open input file failed");
   expptr exps = file_expressions2();
@@ -755,22 +779,28 @@ char quotechar; //this is internal to preprocessing, mcread_string uses its own 
 
 void advance_readchar();
 
+int level_adjustment(char c){
+  if(openp(c))return 1;
+  if(closep(c))return -1;
+  return 0;
+}
+  
 void simple_advance(){
-  //This is used when reading multi-character atom strings and as the base case in advance_readchar
-  //we must still prevent reading past the terminating return when reading from the terminal
+  //This is used when reading multi-character atom strings and used as the base case in advance_readchar
+  //we must still prevent reading past the terminating return when reading from the REPL
 
-  if(from_terminal && next2 == '\n'){
-    //paren_level is for the position between readchar and next.
+  if(!from_file && next2 == '\n'){
+    //at entry to advance_readchar paren_level is for the position between readchar and next
     //we want the paren level between next and next2.
-    int next_level = openp(next)? paren_level+1 : closep(next)? paren_level-1 : paren_level;
+    int next_level = paren_level + level_adjustment(next);
     if(next_level == 0)next2 = '\0';}
   readchar = next;
   next = next2;
-  next2 = (next2 == EOF || (from_terminal && next2 == '\0'))? next2 : fgetc(read_stream);
+  next2 = (next2 == EOF || (!from_file && next2 == '\0'))? next2 : fgetc(read_stream);
 }
 
 void skip_comment1(){
-  if(from_terminal && paren_level == 0)berror("comment from terminal outside of parens");
+  if(!from_file && paren_level == 0)berror("comment from REPL outside of parens");
   while(!(next == '*' && next2 == '/')){
     simple_advance();
     if(next2 == EOF)berror("end of file in comment");}
@@ -779,7 +809,7 @@ void skip_comment1(){
 }
 
 void skip_comment2(){
-  if(from_terminal && paren_level == 0)berror("comment from terminal outside of parens");
+  if(!from_file && paren_level == 0)berror("comment from REPL outside of parens");
   while(next != '\n')simple_advance();
 }
   
@@ -788,12 +818,12 @@ void advance_readchar(){
   if(next == '/' && next2 == '*'){skip_comment1(); advance_readchar();return;}
   if(next == '/' && next2 == '/'){skip_comment2(); advance_readchar();return;}
   //advance past quoted return --- needed for parsing #define.
-  if(!from_terminal && next == '\\' && next2 == '\n'){
+  if(from_file && next == '\\' && next2 == '\n'){
     simple_advance();
     simple_advance();
     advance_readchar();return;}
   //file segmentation
-  if(!from_terminal && next == '\n' && !whitep(next2) && !closep(next2)){next = '\0';}
+  if(from_file && next == '\n' && !whitep(next2) && !closep(next2)){next = '\0';}
   simple_advance();
   if(whitep(readchar))advance_readchar();
 }
@@ -860,8 +890,8 @@ expptr mcread_open(){
   if(!openp(readchar))return NULL;
   char c = readchar;
   char cl = close_for(c);
-  advance_readchar();
   paren_level++;
+  advance_readchar();
   expptr e = mcread_E(0);
   if(readchar != cl)declare_unmatched(c,e,readchar);
   paren_level--;
@@ -944,7 +974,7 @@ int precedence(char c){
   if(c=='*' || c=='/')return 8;
   if(c == '%')return 9;
   if(c == '^' || c=='@' || c=='.' || c==':' || c == '#')return 10;
-  return 3; //precedence of combining adjacent argument.
+  return 3; //precedence of combining adjacent arguments.
 }
 
 #define LEFT_THRESHOLD 10
@@ -966,7 +996,7 @@ expptr mcread_E(int p_left){
   return arg;
 }
 
-expptr mcread(){//This does not use readchar but assumes that next and next2 are defined.
+expptr mcread(){//This checks an invariant on readchar but does not use readchar. This assumes that next and next2 are defined.
   if(!(readchar == '\0' || openp(readchar)))berror("readchar is not connp or '\0' in mcread");
   advance_readchar();
   expptr arg = mcread_E(0);
@@ -978,6 +1008,7 @@ section: initialization
 ========================================================================**/
 
 void mcA_init(){
+  init_source();
   init_stack_frames();
   init_undo_frames();
   init_strings();
@@ -987,8 +1018,7 @@ void mcA_init(){
   gensym_count = 1;
   dbg_freeptr = 0;
   catch_freeptr = 0;
-
-  in_repl = 1;
-  in_doit = 0;
+  in_doit = 0; //this controlled in the IDE and not touched in the REPL or file_expressions.
+  
   set_macro(backquote, bquote_macro);
 }

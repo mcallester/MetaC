@@ -18,7 +18,7 @@ f(`{a})
 /** 3: a **/
 
 /** ========================================================================
- compilation Imperative Programming
+ Imperative Programming
 ======================================================================== **/
 
 int x[10];
@@ -119,12 +119,12 @@ macroexpand(`{mydolist(item,list){f(item);}})
 ======================================================================== **/
 
 expptr bar(int i);
-/** 1: compilation error **/
+/** 1: done **/
 
 expptr foo(int i){
   if(i == 0){return `{foo};}
   return bar(--i);}
-/** 2: compilation error **/
+/** 2: done **/
 
 expptr bar(int i){
   if(i == 0){return `{bar};}
@@ -183,7 +183,7 @@ expptr f(){return `{a};}
 /** 1: done **/
 
 f()
-/** 2:  **/
+/** 2: a **/
 
 /** ========================================================================
  Bob2

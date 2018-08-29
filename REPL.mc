@@ -31,7 +31,7 @@ void read_eval_print(){
 	fprintf(stdout, "MC>");
 	preamble = nil;
 	init_forms = nil;
-	expptr e = macroexpand(read_from_terminal());
+	expptr e = macroexpand(read_from_repl());
 	if(!e || e == nil)continue;
 	ucase{e;
 	  {quit}:{break;}
@@ -50,6 +50,7 @@ int main(int argc, char **argv){
   mcE_init1();
   mcE_init2();
   rep_column = -3;
+  in_repl = 1;
   
   catch_error(insert_base())
   if(error_flg != 0)return error_flg;

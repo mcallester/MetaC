@@ -20,6 +20,7 @@ int main(int argc, char **argv){
 	      mcD_init();
 	      mcE_init1();
 	      mcE_init2();
+	      in_expand = 1;
 	      mcexpand(argv[1], argv[2]));
   return error_flg;
 }
