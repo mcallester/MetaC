@@ -28,7 +28,8 @@ void IDE_loop(){
 	fprintf(stdout, "}IDE}");
 	preamble = nil;
 	init_forms = nil;
-	MC_doit(macroexpand(read_from_ide()));  })
+	expptr e = read_from_ide();
+	MC_doit(macroexpand(e));  })
       }
 }
 

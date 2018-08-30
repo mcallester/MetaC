@@ -3,8 +3,8 @@
  Hello world
 ======================================================================== **/
 
-`{hello world}
-/** 1: hello world **/
+`{a}
+/** 1: a **/
 
 
 /** ========================================================================
@@ -94,25 +94,22 @@ expptr e[0] = `{a+b};
 `{bar(${e[0]})}
 /** 20: bar(a+b) **/
 
+
 /** ========================================================================
- macros
+ redefinition
 ======================================================================== **/
 
-umacro{mydolist($x, $L){$body}}{
-     expptr rest = gensym("rest");
-     return `{for(explist $rest = $L;
-                  !atomp($rest);
-                  $rest = cdr($rest);)
-	 {expptr $x = car($rest); $body}};}
-/** 21: done **/
+expptr g(expptr x){return x;}
+/** 1: done **/
 
-macroexpand(`{mydolist(item,list){f(item);}})
-/** 22: for
-  (explist _genrest7=list;
-   !atomp(_genrest7);
-  _genrest7=cdr(_genrest7);
-  ){expptr item=car(_genrest7);f(item);}
- **/
+g(`{a})
+/** 2: a **/
+
+expptr g(expptr x){return `{$x $x};}
+/** 3: done **/
+
+g(`{a})
+/** 4: a a **/
 
 /** ========================================================================
  mutual recursion and redefinition
@@ -143,7 +140,27 @@ foo(1)
 /** 6: bar2 **/
 
 /** ========================================================================
- error modes
+ macros
+======================================================================== **/
+
+umacro{mydolist($x, $L){$body}}{
+     expptr rest = gensym("rest");
+     return `{for(explist $rest = $L;
+                  !atomp($rest);
+                  $rest = cdr($rest);)
+	 {expptr $x = car($rest); $body}};}
+/** 21: done **/
+
+macroexpand(`{mydolist(item,list){f(item);}})
+/** 22: for
+  (explist _genrest7=list;
+   !atomp(_genrest7);
+  _genrest7=cdr(_genrest7);
+  ){expptr item=car(_genrest7);f(item);}
+ **/
+
+/** ========================================================================
+ error modes and breakpoints
 ======================================================================== **/
 
 int numeralp(expptr x){
@@ -174,9 +191,14 @@ int_exp(value(`foo))
 int_exp(value(`{foo}))
 /** 5: execution error (running gdb) **/
 
+expptr bar(){
+  breakpt("bar break");
+  return `{a};
+}
+/** 1: done **/
 
 /** ========================================================================
- Bob's example
+ no arguments
 ======================================================================== **/
 
 expptr f(){return `{a};}
@@ -184,22 +206,6 @@ expptr f(){return `{a};}
 
 f()
 /** 2: a **/
-
-/** ========================================================================
- Bob2
-======================================================================== **/
-
-expptr g(expptr x){return x;}
-/** 1: done **/
-
-g(`{a})
-/** 2: a **/
-
-expptr g(expptr x){return `{$x $x};}
-/** 3: done **/
-
-g(`{a})
-/** 4: a a **/
 
 
 /** ========================================================================

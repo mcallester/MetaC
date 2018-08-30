@@ -22,6 +22,18 @@ cbreak, berror
 
 void cbreak(){};
 
+void breakpt(char *s){
+  fprintf(stdout,"\n%s\n",s);
+  if(!in_ide)cbreak();
+  else {
+    fprintf(stdout,"}breakpoint}");
+    fflush(stdout);
+    cbreak();
+    fflush(stdout);
+    fprintf(stdout,"}IDE}");
+  }
+}
+
 void push_dbg_expression(expptr e){
   if(dbg_freeptr == DBG_DIM)berror("debugging stack exhausted");
   dbg_stack[dbg_freeptr++] = e;
@@ -709,7 +721,7 @@ void init_readvars(){
   from_file = 0;
   from_ide = 0;
   paren_level = 0;
-  readchar = '\0';
+  readchar = ' ';
   next = ' ';
   next2 = ' ';
 }
@@ -774,9 +786,6 @@ void process_def(expptr e){
 advance_readchar
 ========================================================================**/
 
-char quotechar; //this is internal to preprocessing, mcread_string uses its own flag.
-
-
 void advance_readchar();
 
 int level_adjustment(char c){
@@ -787,16 +796,17 @@ int level_adjustment(char c){
   
 void simple_advance(){
   //This is used when reading multi-character atom strings and used as the base case in advance_readchar
-  //we must still prevent reading past the terminating return when reading from the REPL
+  //here we prevent reading past the terminating return when reading from the REPL
 
-  if(from_repl && next2 == '\n'){
-    //at entry to advance_readchar paren_level is for the position between readchar and next
+  if(!from_file && next2 == '\n'){
+    //a carriage return at parent level 0 terminates the expression
+    //on entry to advance_readchar paren_level is for the position between readchar and next
     //we want the paren level between next and next2.
     int next_level = paren_level + level_adjustment(next);
     if(next_level == 0)next2 = '\0';}
   readchar = next;
   next = next2;
-  next2 = (next2 == EOF || (!from_file && next2 == '\0'))? next2 : fgetc(read_stream);
+  if(!(next2 == EOF || (!from_file && next2 == '\0')))next2 = fgetc(read_stream);
 }
 
 void skip_comment1(){
@@ -996,10 +1006,10 @@ expptr mcread_E(int p_left){
   return arg;
 }
 
-expptr mcread(){//This checks an invariant on readchar but does not use readchar. This assumes that next and next2 are defined.
-  if(!(readchar == '\0' || openp(readchar)))berror("readchar is not connp or '\0' in mcread");
+expptr mcread(){//this is called from top level read functions only
   advance_readchar();
   expptr arg = mcread_E(0);
+  if(closep(readchar))declare_unmatched('-',arg,readchar);
   return arg ? arg : nil;
 }
 
