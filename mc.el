@@ -72,7 +72,8 @@
   (with-current-buffer (mc-buffer) (erase-buffer))
   (start-process "MetaC" (mc-buffer) *gdb*)
   (with-current-buffer (mc-buffer) (shell-mode))
-  (set-process-filter (mc-process) (function MC:null-filter))
+  (set-process-filter (mc-process) (function MC:filter))
+
   ;;(with-current-buffer (mc-buffer)
     ;;(MC-mode)
     ;;(when enable-multibyte-characters
@@ -107,7 +108,6 @@
   (define-key c-mode-map "\C-c\C-r" 'MC:load-region))
 
 (defun MC:load-definition-internal ()
-  (set-process-filter (mc-process) (function MC:filter))
   (delete-other-windows)
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
   (setq buffer-file-coding-system 'utf-8-unix)
@@ -145,7 +145,7 @@
       
       (setq *source-buffer* (current-buffer))
       (setq *gdb-mode* nil)
-      (process-send-string (mc-process) (format "%s\n" exp)))))
+      (process-send-string (mc-process) (format "%s\0" exp)))))
 
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
@@ -155,13 +155,13 @@
 
 (defun MC:process-output ()
   (when (> (length *mc-accumulator*) 0)
-    (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumualtor*
+    (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumulator*
       (if cell
 	(let ((tag (car cell))
 	      (value (cdr cell)))
-	  (print "*****")
-	  (print tag)
-	  (print value)
+	  ;;(print "*****")
+	  ;;(print tag)
+	  ;;(print value)
 	  (MC:dotag tag value))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)

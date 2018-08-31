@@ -39,21 +39,15 @@ void send_emacs_tag(char * tag){
   fflush(stdout);
 }
 
-void print_in_emacs(char * s){
-  fprintf(stdout,"%s",s);
-  send_emacs_tag(print_tag);
-}
-
 void breakpt(char *s){
   fprintf(stdout,"%s\n",s);
   if(!in_ide)cbreak();
   else {
     fprintf(stdout,"%s",breakpoint_tag);
     fflush(stdout);
-    //cbreak();
+    cbreak();
     fprintf(stdout,"%s",ide_tag);
     fflush(stdout);
-
   }
 }
 
@@ -63,7 +57,10 @@ void berror(char *s){
   else if(in_doit){
     fprintf(stdout,"%s",exec_error_tag);
     fflush(stdout);
-    cbreak(); throw_error();}
+    cbreak();
+    fprintf(stdout,"%s",ide_tag);
+    fflush(stdout);
+    throw_error();}
   else {
     fprintf(stdout,"%s",comp_error_tag);
     throw_error();}
@@ -749,11 +746,11 @@ expptr read_from_repl(){
 }
 
 expptr read_from_ide(){
-  //breakpt("read_from_ide");
   init_readvars();
   from_ide = 1;
   read_stream = stdin;
-  return mcread();
+  expptr e = mcread();
+  return e;
 }
 
 expptr file_expressions2();
@@ -821,6 +818,8 @@ void simple_advance(){
   readchar = next;
   next = next2;
   if(!(next2 == EOF || (!from_file && next2 == '\0')))next2 = fgetc(read_stream);
+  if(in_ide && !whitep(readchar)){breakpt("advance break");}
+
 }
 
 void skip_comment1(){
@@ -1021,6 +1020,7 @@ expptr mcread_E(int p_left){
 }
 
 expptr mcread(){//this is called from top level read functions only
+  if(in_ide)breakpt("mcread");
   advance_readchar();
   expptr arg = mcread_E(0);
   if(closep(readchar))declare_unmatched('-',arg,readchar);

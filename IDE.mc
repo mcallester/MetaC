@@ -45,6 +45,7 @@ int main(int argc, char **argv){
   catch_error(insert_base())
   if(error_flg != 0)return error_flg;
 
+  send_emacs_tag(ignore_tag);
   IDE_loop();
   return 0;
 }

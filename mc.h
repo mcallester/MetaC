@@ -310,3 +310,5 @@ char *  exec_error_tag;
 char *  breakpoint_tag;
 char *  ide_tag;
 char * print_tag;
+
+void send_emacs_tag(char *);

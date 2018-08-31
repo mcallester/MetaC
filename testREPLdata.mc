@@ -46,7 +46,7 @@ typedef struct myexpstruct{
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** 7: done **/
+/** 9: done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -54,7 +54,7 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
-/** 8: done **/
+/** 10: done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
@@ -100,7 +100,7 @@ expptr e[0] = `{a+b};
 ======================================================================== **/
 
 expptr g(expptr x){return x;}
-/** 1: done **/
+/** 21: done **/
 
 g(`{a})
 /** 2: a **/
