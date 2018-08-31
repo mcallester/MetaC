@@ -18,14 +18,14 @@ void IDE_pprint(expptr e, FILE * f, int level);
 
 void MC_doit(expptr e){
   pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,rep_column);
-  fprintf(stdout,"}result}");
+  fprintf(stdout,"%s",result_tag);
   fflush(stdout);
 }
 
 void IDE_loop(){
   while(1){
     catch_error({
-	fprintf(stdout, "}IDE}");
+	fprintf(stdout,"%s",ide_tag);
 	preamble = nil;
 	init_forms = nil;
 	expptr e = read_from_ide();

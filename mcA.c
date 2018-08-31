@@ -16,43 +16,56 @@ void init_source(){
   in_doit = 0;
 }
 
+void init_tags(){
+  ignore_tag = "*#*#dsflsadk#*#*ignore*#*#dsflsadk#*#*";
+  result_tag = "*#*#dsflsadk#*#*result*#*#dsflsadk#*#*";
+  comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";
+  exec_error_tag = "*#*#dsflsadk#*#*exec-error*#*#dsflsadk#*#*";
+  breakpoint_tag = "*#*#dsflsadk#*#*breakpoint*#*#dsflsadk#*#*";
+  ide_tag = "*#*#dsflsadk#*#*IDE*#*#dsflsadk#*#*";
+  print_tag = "*#*#dsflsadk#*#*print*#*#dsflsadk#*#*";
+}
+
+
 /** ========================================================================
 cbreak, berror
 ========================================================================**/
 
 void cbreak(){};
 
+void send_emacs_tag(char * tag){
+  fflush(stderr);
+  fprintf(stdout,"%s",tag);
+  fflush(stdout);
+}
+
+void print_in_emacs(char * s){
+  fprintf(stdout,"%s",s);
+  send_emacs_tag(print_tag);
+}
+
 void breakpt(char *s){
-  fprintf(stdout,"\n%s\n",s);
+  fprintf(stdout,"%s\n",s);
   if(!in_ide)cbreak();
   else {
-    fprintf(stdout,"}breakpoint}");
+    fprintf(stdout,"%s",breakpoint_tag);
     fflush(stdout);
-    cbreak();
+    //cbreak();
+    fprintf(stdout,"%s",ide_tag);
     fflush(stdout);
-    fprintf(stdout,"}IDE}");
+
   }
-}
-
-void push_dbg_expression(expptr e){
-  if(dbg_freeptr == DBG_DIM)berror("debugging stack exhausted");
-  dbg_stack[dbg_freeptr++] = e;
-}
-
-void pop_dbg_stack(){
-  if(dbg_freeptr == 0)berror("attempt to pop empty dbg stack ");
-  dbg_freeptr--;
 }
 
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
   if(!in_ide){cbreak(); throw_error();}
   else if(in_doit){
-    fprintf(stdout,"}execution error}");
+    fprintf(stdout,"%s",exec_error_tag);
     fflush(stdout);
     cbreak(); throw_error();}
   else {
-    fprintf(stdout,"}compilation error}");
+    fprintf(stdout,"%s",comp_error_tag);
     throw_error();}
 }
 
@@ -736,6 +749,7 @@ expptr read_from_repl(){
 }
 
 expptr read_from_ide(){
+  //breakpt("read_from_ide");
   init_readvars();
   from_ide = 1;
   read_stream = stdin;
@@ -1019,6 +1033,7 @@ section: initialization
 
 void mcA_init(){
   init_source();
+  init_tags();
   init_stack_frames();
   init_undo_frames();
   init_strings();

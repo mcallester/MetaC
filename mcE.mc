@@ -163,7 +163,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
 
-  if(in_ide){fprintf(stdout, "}ignore}");}
+  if(in_ide){fprintf(stdout,"%s",ignore_tag);}
    expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
 
@@ -271,8 +271,10 @@ expptr proc_def(expptr f){
 
 void comp_error(){
   fflush(stderr);
-  if(!in_repl){
-    fprintf(stdout, "}compilation error}");}
+  if(in_ide){
+    dolist(f,new_procedures){
+      setprop(f,`{body},NULL);}
+    fprintf(stdout,"%s",comp_error_tag);}
   else{
     fprintf(stdout,"\n evaluation aborted\n\n");}
   throw_error();}

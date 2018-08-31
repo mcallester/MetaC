@@ -2,6 +2,7 @@
 
 (setq *gdb* "/opt/local/bin/gdb-apple")
 (setq *MC-IDE* "~/18/MC/IDE")
+(setq *seperator* "*#*#dsflsadk#*#*")
 
 (setq auto-mode-alist
       (append
@@ -70,7 +71,7 @@
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (mc-buffer) (erase-buffer))
   (start-process "MetaC" (mc-buffer) *gdb*)
-    (with-current-buffer (mc-buffer) (shell-mode))
+  (with-current-buffer (mc-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:null-filter))
   ;;(with-current-buffer (mc-buffer)
     ;;(MC-mode)
@@ -154,19 +155,18 @@
 
 (defun MC:process-output ()
   (when (> (length *mc-accumulator*) 0)
-    (if (MC:contains-terminatorp *mc-accumulator*) ;;can return from gdb-mode
-	(let* ((cell (MC:parse-output)) ;;this updates *mc-accumualtor*
-	       (tag (car cell))
-	       (value (cdr cell)))
+    (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumualtor*
+      (if cell
+	(let ((tag (car cell))
+	      (value (cdr cell)))
 	  (print "*****")
 	  (print tag)
 	  (print value)
-	  (setq *gdb-mode* nil)
 	  (MC:dotag tag value))
-      (when *gdb-mode*
-	(insert *mc-accumulator*)
-	(set-marker (process-mark (mc-process)) (point))
-	(setq *mc-accumulator* nil)))))
+	(when *gdb-mode*
+	  (insert *mc-accumulator*)
+	  (set-marker (process-mark (mc-process)) (point))
+	  (setq *mc-accumulator* nil))))))
 
 (defun MC:insert-in-segment (value)
   (insert (replace-regexp-in-string "\n" "\n  " value)))
@@ -174,19 +174,23 @@
 (defun MC:dotag (tag value)
   (cond ((string= tag "ignore")
 	 (MC:process-output))
+	((string= tag "print")
+	 (print value))
 	((string= tag "result")
-	 (MC:insert-in-segment value)
+	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
 	 (MC:next-def)
 	 (MC:process-output)
-	 (setq *load-count* (- *load-count* 1))
+	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when  (> *load-count* 0)
 	   (MC:load-definition-internal)))
-	((string= tag "compilation error")
+
+	;;the following three tags enter gdb mode
+	((string= tag "comp-error")
 	 (MC:insert-in-segment "compilation error")
 	 (with-current-buffer (message-buffer) (erase-buffer) (MC:insert-in-segment value))
 	 (display-buffer (message-buffer) 'display-buffer-pop-up-window)
 	 (MC:process-output))
-	((string= tag "execution error")
+	((string= tag "exec-error")
 	 (MC:insert-in-segment "execution error (running gdb)")
 	 (setq *source-buffer* (current-buffer))
 	 (pop-to-buffer (mc-buffer))
@@ -203,12 +207,15 @@
 	 (set-marker (process-mark (mc-process)) (point))
 	 (setq *gdb-mode* t)
 	 (MC:process-output))
-	((string= tag "IDE") ;;returning from gdb session
+
+	;;the tag IDE returns from from gdb mode
+	((string= tag "IDE")
 	 (let ((w (get-buffer-window (mc-buffer))))
 	   (when w (delete-window w)))
 	 (pop-to-buffer *source-buffer*)
 	 (setq *gdb-mode* nil)
 	 (MC:process-output))
+
 	(t (error (format "unrecognized tag %s" tag)))))
 
 (defun MC:clean-string (string)
@@ -220,35 +227,31 @@
 	(setq i (+ i 1))))
     (substring string 0 i)))
 
-(defun MC:contains-terminatorp (s)
-  (let ((level 0))
-    (dotimes (i (length s))
-      (if (= (aref s i) ?})
-	  (setq level (- level 1))
-	(if (= (aref s i) ?{)
-	    (setq level (+ level 1)))))
-    (< level -1)))
+(defun MC:sep-pos (s i)
+  (let ((s-length (length s))
+	(sep-length (length *seperator*))
+	(break nil)
+	(val nil))
+    (while (not break)
+      (cond
+       ((> (+ i sep-length) s-length)
+	(setq break t)
+	(setq val nil))
+       ((eq t (compare-strings *seperator* 0 sep-length s i (+ i sep-length)))
+	(setq break t)
+	(setq val i))
+       (t (setq i (+ i 1)))))
+    val))
 
 (defun MC:parse-output ()
-  (let ((level 0)
-	(i 0))
-    (while (not (= level -1))
-      (if (= (aref *mc-accumulator* i) ?})
-	  (setq level (- level 1))
-	(if (= (aref *mc-accumulator* i) ?{)
-	    (setq level (+ level 1))))
-      (setq i (+ i 1)))
-    (let ((i1 i))
-      (while (not (= level -2))
-	(if (= (aref *mc-accumulator* i) ?})
-	    (setq level (- level 1))
-	  (if (= (aref *mc-accumulator* i) ?{)
-	      (setq level (+ level 1))))
-	(setq i (+ i 1)))
-      (let ((value (substring *mc-accumulator* 0 (max 0 (- i1 2))))
-	    (tag (substring *mc-accumulator* i1 (- i 1))))
-	(setq *mc-accumulator* (substring *mc-accumulator* i))
-	(cons tag value)))))
+  (let ((i (MC:sep-pos *mc-accumulator* 0)))
+    (when i
+      (let ((j (MC:sep-pos *mc-accumulator* (+ i (length *seperator*)))))
+	(when j
+	  (let ((value (substring *mc-accumulator* 0 i))
+		(tag (substring *mc-accumulator* (+ i (length *seperator*)) j)))
+	    (setq *mc-accumulator* (substring *mc-accumulator* (+ j (length *seperator*))))
+	    (cons tag value)))))))
 
 (defun message-buffer ()
   (get-buffer-create "*MC-Messages*"))

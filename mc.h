@@ -303,3 +303,10 @@ int in_repl;
 int in_expand;
 int in_ide;
 
+char *  ignore_tag;
+char *  result_tag;
+char *  comp_error_tag;
+char *  exec_error_tag;
+char *  breakpoint_tag;
+char *  ide_tag;
+char * print_tag;

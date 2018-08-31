@@ -45,6 +45,16 @@ init_fun(mcD_init)
 /** ========================================================================
 stack frames for the debugger;
 
+void push_dbg_expression(expptr e){
+  if(dbg_freeptr == DBG_DIM)berror("debugging stack exhausted");
+  dbg_stack[dbg_freeptr++] = e;
+}
+
+void pop_dbg_stack(){
+  if(dbg_freeptr == 0)berror("attempt to pop empty dbg stack ");
+  dbg_freeptr--;
+}
+
 This code would be better written using the gnu extension for expression statements
 supporting functional programming.
 

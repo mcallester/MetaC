@@ -46,7 +46,7 @@ typedef struct myexpstruct{
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** 9: done **/
+/** 7: done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -54,7 +54,7 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
-/** 10: done **/
+/** 8: done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
@@ -186,16 +186,19 @@ int_exp(value(`{5+2*10}))
 /** 3: 25 **/
 
 int_exp(value(`foo))
-/** 4: compilation error **/
+/** 5: compilation error **/
 
 int_exp(value(`{foo}))
-/** 5: execution error (running gdb) **/
+/** 4: execution error (running gdb) **/
 
 expptr bar(){
   breakpt("bar break");
   return `{a};
 }
 /** 1: done **/
+
+bar()
+/** 2: a **/
 
 /** ========================================================================
  no arguments
@@ -207,33 +210,6 @@ expptr f(){return `{a};}
 f()
 /** 2: a **/
 
-
-/** ========================================================================
- Bob3
-======================================================================== **/
-
-int f(int x);
-/** 1: done **/
-
-int g(int x){if (x<=0) {return 1;} else return f(x-1);}
-/** 2: done **/
-
-int f(int x){if (x<=0) {return 1;} else return g(x-1);}
-/** 3: done **/
-
-int_exp(f(1))
-/** 4: 1 **/
-
-/** ========================================================================
- pattern match 
-======================================================================== **/
-
-int test(expptr e){
-  ucase{e;
-    {($a ($b $c) $d)}:{a = b;}
-  }}
-/** 1:  **/
-
 /** ========================================================================
  Procedure definition failure should not leave the procedure semi-defined.
  the following should generate a compilation error on both invocations rather than
@@ -241,7 +217,7 @@ int test(expptr e){
 ======================================================================== **/
 
 expptr g(expptr exp){returni exp;}
-/** 1: compilation error **/
+/** 2: compilation error **/
 
 g(`{a})
 /** 2: execution error (running gdb) **/
