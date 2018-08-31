@@ -809,8 +809,8 @@ void simple_advance(){
   //This is used when reading multi-character atom strings and used as the base case in advance_readchar
   //here we prevent reading past the terminating return when reading from the REPL
 
-  if(!from_file && next2 == '\n'){
-    //a carriage return at parent level 0 terminates the expression
+  if(from_repl && next2 == '\n'){
+    //in the REPL ca carriage return at parent level 0 terminates the expression
     //on entry to advance_readchar paren_level is for the position between readchar and next
     //we want the paren level between next and next2.
     int next_level = paren_level + level_adjustment(next);
@@ -818,21 +818,19 @@ void simple_advance(){
   readchar = next;
   next = next2;
   if(!(next2 == EOF || (!from_file && next2 == '\0')))next2 = fgetc(read_stream);
-  if(in_ide && !whitep(readchar)){breakpt("advance break");}
-
 }
 
 void skip_comment1(){
-  if(!from_file && paren_level == 0)berror("comment from REPL outside of parens");
+  if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
   while(!(next == '*' && next2 == '/')){
     simple_advance();
-    if(next2 == EOF)berror("end of file in comment");}
+    if(next2 == EOF || next2 == '\0')berror("end of input in comment");}
   advance_readchar();
   advance_readchar();
 }
 
 void skip_comment2(){
-  if(!from_file && paren_level == 0)berror("comment from REPL outside of parens");
+  if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
   while(next != '\n')simple_advance();
 }
   
@@ -1020,7 +1018,6 @@ expptr mcread_E(int p_left){
 }
 
 expptr mcread(){//this is called from top level read functions only
-  if(in_ide)breakpt("mcread");
   advance_readchar();
   expptr arg = mcread_E(0);
   if(closep(readchar))declare_unmatched('-',arg,readchar);

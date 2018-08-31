@@ -68,6 +68,7 @@
 
 (defun MC:start-metac ()
   (interactive)
+  (setq *source-buffer* (current-buffer))
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (mc-buffer) (erase-buffer))
   (start-process "MetaC" (mc-buffer) *gdb*)
@@ -145,11 +146,10 @@
       
       (setq *source-buffer* (current-buffer))
       (setq *gdb-mode* nil)
-      (process-send-string (mc-process) (format "%s\0" exp)))))
+      (process-send-string (mc-process) (format "%s\0\n" exp))))) ;; the return seems needed to flush the buffer
 
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
-    (print clean)
     (setq *mc-accumulator* (concat *mc-accumulator* clean))
     (MC:process-output)))
 
@@ -159,9 +159,6 @@
       (if cell
 	(let ((tag (car cell))
 	      (value (cdr cell)))
-	  ;;(print "*****")
-	  ;;(print tag)
-	  ;;(print value)
 	  (MC:dotag tag value))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)
