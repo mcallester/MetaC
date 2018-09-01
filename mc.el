@@ -127,7 +127,7 @@
 	  (insert "\n")
 	(progn
 	  (when (not (= (char-after (point)) 10)) ;;10 is return
-	    (kill=line))
+	    (kill-line))
 	  (if (= (buffer-end 1) (point))
 	      (insert "\n")
 	    (forward-char))))
