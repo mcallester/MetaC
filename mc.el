@@ -126,8 +126,7 @@
       (if (= (buffer-end 1) (point))
 	  (insert "\n")
 	(progn
-	  (when (not (= (char-after (point)) 10)) ;;10 is return
-	    (kill-line))
+	  (move-end-of-line nil)
 	  (if (= (buffer-end 1) (point))
 	      (insert "\n")
 	    (forward-char))))
@@ -150,6 +149,7 @@
 
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
+    (print (list 'filter-receiving clean))
     (setq *mc-accumulator* (concat *mc-accumulator* clean))
     (MC:process-output)))
 
@@ -159,7 +159,8 @@
       (if cell
 	(let ((tag (car cell))
 	      (value (cdr cell)))
-	  (MC:dotag tag value))
+	  (MC:dotag tag value)
+	  (MC:process-output))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)
 	  (set-marker (process-mark (mc-process)) (point))
@@ -169,14 +170,16 @@
   (insert (replace-regexp-in-string "\n" "\n  " value)))
 
 (defun MC:dotag (tag value)
-  (cond ((string= tag "ignore")
-	 (MC:process-output))
+  (print '****)
+  (print value)
+  (print tag)
+  (print '****)
+  (cond ((string= tag "ignore"))
 	((string= tag "print")
-	 (print value))
+	 (print value)
 	((string= tag "result")
 	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
 	 (MC:next-def)
-	 (MC:process-output)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when  (> *load-count* 0)
 	   (MC:load-definition-internal)))
@@ -185,8 +188,7 @@
 	((string= tag "comp-error")
 	 (MC:insert-in-segment "compilation error")
 	 (with-current-buffer (message-buffer) (erase-buffer) (MC:insert-in-segment value))
-	 (display-buffer (message-buffer) 'display-buffer-pop-up-window)
-	 (MC:process-output))
+	 (display-buffer (message-buffer) 'display-buffer-pop-up-window))
 	((string= tag "exec-error")
 	 (MC:insert-in-segment "execution error (running gdb)")
 	 (setq *source-buffer* (current-buffer))
@@ -194,24 +196,21 @@
 	 (erase-buffer)
 	 (MC:insert-in-segment value)
 	 (set-marker (process-mark (mc-process)) (point))
-	 (setq *gdb-mode* t)
-	 (MC:process-output))
+	 (setq *gdb-mode* t))
 	((string= tag "breakpoint")
 	 (setq *source-buffer* (current-buffer))
 	 (pop-to-buffer (mc-buffer))
 	 (erase-buffer)
 	 (MC:insert-in-segment value)
 	 (set-marker (process-mark (mc-process)) (point))
-	 (setq *gdb-mode* t)
-	 (MC:process-output))
+	 (setq *gdb-mode* t))
 
 	;;the tag IDE returns from from gdb mode
 	((string= tag "IDE")
 	 (let ((w (get-buffer-window (mc-buffer))))
 	   (when w (delete-window w)))
 	 (pop-to-buffer *source-buffer*)
-	 (setq *gdb-mode* nil)
-	 (MC:process-output))
+	 (setq *gdb-mode* nil))
 
 	(t (error (format "unrecognized tag %s" tag)))))
 

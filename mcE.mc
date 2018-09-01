@@ -163,7 +163,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
 
-  if(in_ide){fprintf(stdout,"%s",ignore_tag);}
+  if(in_ide){send_emacs_tag(ignore_tag);}
    expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
 

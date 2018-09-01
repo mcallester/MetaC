@@ -43,11 +43,9 @@ void breakpt(char *s){
   fprintf(stdout,"%s\n",s);
   if(!in_ide)cbreak();
   else {
-    fprintf(stdout,"%s",breakpoint_tag);
-    fflush(stdout);
+    send_emacs_tag(breakpoint_tag);
     cbreak();
-    fprintf(stdout,"%s",ide_tag);
-    fflush(stdout);
+    send_emacs_tag(ide_tag);
   }
 }
 
@@ -55,14 +53,12 @@ void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
   if(!in_ide){cbreak(); throw_error();}
   else if(in_doit){
-    fprintf(stdout,"%s",exec_error_tag);
-    fflush(stdout);
+    send_emacs_tag(exec_error_tag);
     cbreak();
-    fprintf(stdout,"%s",ide_tag);
-    fflush(stdout);
+    send_emacs_tag(ide_tag);
     throw_error();}
   else {
-    fprintf(stdout,"%s",comp_error_tag);
+    send_emacs_tag(comp_error_tag);
     throw_error();}
 }
 
@@ -810,28 +806,30 @@ void simple_advance(){
   //here we prevent reading past the terminating return when reading from the REPL
 
   if(from_repl && next2 == '\n'){
-    //in the REPL ca carriage return at parent level 0 terminates the expression
+    //in the REPL a carriage return at parent level 0 terminates the expression
     //on entry to advance_readchar paren_level is for the position between readchar and next
     //we want the paren level between next and next2.
     int next_level = paren_level + level_adjustment(next);
     if(next_level == 0)next2 = '\0';}
   readchar = next;
   next = next2;
-  if(!(next2 == EOF || (!from_file && next2 == '\0')))next2 = fgetc(read_stream);
+  if(!(next2 == EOF || next2 == '\0'))next2 = fgetc(read_stream);
 }
 
 void skip_comment1(){
   if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
   while(!(next == '*' && next2 == '/')){
     simple_advance();
-    if(next2 == EOF || next2 == '\0')berror("end of input in comment");}
+    if(readchar == EOF || readchar == '\0')return;}
   advance_readchar();
   advance_readchar();
 }
 
 void skip_comment2(){
   if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
-  while(next != '\n')simple_advance();
+  while(next != '\n'){
+    simple_advance();
+    if(readchar == EOF || readchar == '\0')return;}
 }
   
 void advance_readchar(){
