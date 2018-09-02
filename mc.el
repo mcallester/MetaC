@@ -15,7 +15,7 @@
   (condition-case nil
       (progn (re-search-backward "\n[^] \n\t})/=]")
 	     (forward-char))
-    (error (beginning-of-buffer))))
+    (error (MC:next-def))))
 
 (add-hookm c-mode-hook
   (define-key c-mode-map "\M-\C-a" 'MC:beginning-of-def))
@@ -58,6 +58,7 @@
 
 (add-hookm c-mode-hook
   (define-key c-mode-map "\C-\M-q" 'MC:indent-def))
+
 (defun mc-buffer ()
   (get-buffer-create "*MetaC*"))
 
@@ -122,6 +123,8 @@
       (error (end-of-buffer)))
     (re-search-backward "[^ \n\t]")
     (forward-char)
+
+    (when (= top (point)) (error "there is no cell"))
     (let ((exp (buffer-substring top (point))))
       (if (= (buffer-end 1) (point))
 	  (insert "\n")
@@ -145,11 +148,13 @@
       
       (setq *source-buffer* (current-buffer))
       (setq *gdb-mode* nil)
-      (process-send-string (mc-process) (format "%s\0\n" exp))))) ;; the return seems needed to flush the buffer
+      (process-send-string (mc-process) (format "%s\0\n" exp))
+      ;; the above return seems needed to flush the buffer
+    )))
 
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
-    (print (list 'filter-receiving clean))
+    ;;(print (list 'filter-receiving clean))
     (setq *mc-accumulator* (concat *mc-accumulator* clean))
     (MC:process-output)))
 
@@ -159,7 +164,11 @@
       (if cell
 	(let ((tag (car cell))
 	      (value (cdr cell)))
+	  ;;(print '**** doing )
+	  ;;(print value)
+	  ;;(print tag)
 	  (MC:dotag tag value)
+	  ;;(print '**** done)
 	  (MC:process-output))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)
@@ -170,13 +179,9 @@
   (insert (replace-regexp-in-string "\n" "\n  " value)))
 
 (defun MC:dotag (tag value)
-  (print '****)
-  (print value)
-  (print tag)
-  (print '****)
   (cond ((string= tag "ignore"))
 	((string= tag "print")
-	 (print value)
+	 (print value))
 	((string= tag "result")
 	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
 	 (MC:next-def)

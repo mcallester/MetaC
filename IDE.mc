@@ -29,6 +29,9 @@ void IDE_loop(){
 	preamble = nil;
 	init_forms = nil;
 	expptr e = read_from_ide();
+	fprintf(stdout, "processing:\n");
+	pprint(e,stdout,0);
+	send_emacs_tag(print_tag);
 	MC_doit(macroexpand(e));  })
       }
 }

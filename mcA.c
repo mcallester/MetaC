@@ -239,7 +239,9 @@ char close_for(char c){
   return 'a';  // avoids compiler warning
 }
 
-int terminatorp(char c){return (closep(c) || c == EOF || c == '\0');}
+int endp(char c){return c == EOF || c == '\0';}
+
+int terminatorp(char c){return closep(c) || endp(c);}
 
 //the characters \, $ and ` are treated explicitly in the grammar.
 
@@ -708,7 +710,7 @@ expptr gensym(char * s){
 }
 
 /** ========================================================================
-section: read__fromrepl, mcexpand, and file_expressions
+read__from_repl and read_from_ide
 ========================================================================**/
 
 int from_repl;
@@ -717,8 +719,7 @@ int from_ide;
 
 char readchar;
 char next;
-char next2;
-int paren_level;
+int paren_level; // this is the paren_lever immediately after readchar.
 
 expptr mcread();;
 
@@ -729,7 +730,12 @@ void init_readvars(){
   paren_level = 0;
   readchar = ' ';
   next = ' ';
-  next2 = ' ';
+}
+
+int level_adjustment(char c){
+  if(openp(c))return 1;
+  if(closep(c))return -1;
+  return 0;
 }
 
 FILE * read_stream;
@@ -749,6 +755,16 @@ expptr read_from_ide(){
   return e;
 }
 
+void simple_advance(){
+  readchar = next;
+  if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
+  paren_level += level_adjustment(readchar);
+}
+
+/** ========================================================================
+file_expressions
+======================================================================== **/
+
 expptr file_expressions2();
 
 expptr file_expressions(char * fname){
@@ -767,6 +783,10 @@ expptr file_expressions2(){
   expptr e = mcread();
   return cons(e, file_expressions2());
 }
+
+/** ========================================================================
+mcexpand
+======================================================================== **/
 
 FILE * fileout;
 void process_def(expptr e);
@@ -793,63 +813,58 @@ void process_def(expptr e){
 advance_readchar
 ========================================================================**/
 
-void advance_readchar();
-
-int level_adjustment(char c){
-  if(openp(c))return 1;
-  if(closep(c))return -1;
-  return 0;
-}
-  
-void simple_advance(){
-  //This is used when reading multi-character atom strings and used as the base case in advance_readchar
-  //here we prevent reading past the terminating return when reading from the REPL
-
-  if(from_repl && next2 == '\n'){
-    //in the REPL a carriage return at parent level 0 terminates the expression
-    //on entry to advance_readchar paren_level is for the position between readchar and next
-    //we want the paren level between next and next2.
-    int next_level = paren_level + level_adjustment(next);
-    if(next_level == 0)next2 = '\0';}
-  readchar = next;
-  next = next2;
-  if(!(next2 == EOF || next2 == '\0'))next2 = fgetc(read_stream);
-}
-
-void skip_comment1(){
-  if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
-  while(!(next == '*' && next2 == '/')){
-    simple_advance();
-    if(readchar == EOF || readchar == '\0')return;}
-  advance_readchar();
-  advance_readchar();
-}
-
-void skip_comment2(){
-  if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
-  while(next != '\n'){
-    simple_advance();
-    if(readchar == EOF || readchar == '\0')return;}
-}
-  
 void advance_readchar(){
-  //skip comments
-  if(next == '/' && next2 == '*'){skip_comment1(); advance_readchar();return;}
-  if(next == '/' && next2 == '/'){skip_comment2(); advance_readchar();return;}
-  //advance past quoted return --- needed for parsing #define.
-  if(from_file && next == '\\' && next2 == '\n'){
-    simple_advance();
-    simple_advance();
-    advance_readchar();return;}
-  //file segmentation
-  if(from_file && next == '\n' && !whitep(next2) && !closep(next2)){next = '\0';}
   simple_advance();
-  if(whitep(readchar))advance_readchar();
+
+  //readchar modifications
+  if(readchar == '/' && next == '*'){
+    //replace comment with white space
+    if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
+    while(!(readchar == '*' && next == '/')){if(endp(readchar))return; simple_advance();}
+    simple_advance();
+    readchar = ' ';}
+
+  else if(readchar == '/' && next == '/'){
+    //replace comment with white space
+    if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
+    while(readchar != '\n' && !endp(readchar))simple_advance();}
+
+  else if(readchar == '\\' && next == '\n'){
+    //advance past quoted return --- needed for parsing #define from a file.
+    simple_advance(); advance_readchar();}
+
+  else if(from_file && readchar == '\n' && !whitep(next) && !closep(next)){
+    //file segmentation
+    readchar = '\0';}
+
+  else{
+    //REPL termination
+    if(from_repl && next == '\n' && paren_level == 0)readchar = '\0';}
+}
+
+void skipwhite(){
+  while(whitep(readchar))advance_readchar();
+}
+
+void advance_past_white(){
+  advance_readchar();
+  skipwhite();
 }
 
 /** ========================================================================
-Lexicalization and parethesis expressions
+Symbols, Connectives and Strings
+
+mcread_symbol and mcread_connective are white-space sensitive and use
+advance_readchar rather than advance_past_white.
+
+mcread_string must avoid readchar modifications of advance_readchar
+and uses simple_advance directly.
+
+All three of these procedures advance past white before returning.
+
+All other reader procedures use only advance_past_white.
 ======================================================================== **/
+
 int ephemeral_freeptr;
 
 void ephemeral_putc(char c){
@@ -860,25 +875,21 @@ void ephemeral_putc(char c){
 expptr mcread_symbol(){
   if(!alphap(readchar))return NULL;
   ephemeral_freeptr = 0;
-  while(1){
-    ephemeral_putc(readchar);
-    if(!alphap(next))break;
-    simple_advance();}
+  while(alphap(readchar)){ephemeral_putc(readchar); advance_readchar();}
   ephemeral_putc('\0');
-  advance_readchar(); //does not use ephemeral buffer
-  return string_atom(ephemeral_buffer);
+  expptr e = string_atom(ephemeral_buffer);
+  skipwhite();
+  return e;
 }
 
 expptr mcread_connective(){
   if(!connp(readchar))return NULL;
   ephemeral_freeptr = 0;
-  while(1){
-    ephemeral_putc(readchar);
-    if(!connp(next))break;
-    simple_advance();}
+  while(connp(readchar)){ephemeral_putc(readchar); advance_readchar();}
   ephemeral_putc('\0');
-  advance_readchar(); //does not use ephemeral buffer
-  return string_atom(ephemeral_buffer);
+  expptr e = string_atom(ephemeral_buffer);
+  skipwhite();
+  return e;
 }
 
 expptr mcread_string(){
@@ -891,15 +902,22 @@ expptr mcread_string(){
   simple_advance();
   int quoted = 0;
   while(1){
-    if(readchar == EOF || readchar == '\0' || readchar == '\n')berror("unterminated string constant");
+    if(readchar == EOF || readchar == '\0' || readchar == '\n'){
+      berror("unterminated string constant");
+    }
     ephemeral_putc(readchar);
     if(readchar == q && quoted == 0)break;
     if(readchar == '\\' && !quoted) quoted = 1; else quoted = 0;
     simple_advance();}
   ephemeral_putc('\0');
-  advance_readchar(); //does not use ephemeral buffer
-  return string_atom(ephemeral_buffer);
+  expptr e = string_atom(ephemeral_buffer);
+  advance_past_white();
+  return e;
 }
+
+/** ========================================================================
+parens
+======================================================================== **/
 
 void declare_unmatched(char, expptr, char);
 
@@ -909,24 +927,21 @@ expptr mcread_open(){
   if(!openp(readchar))return NULL;
   char c = readchar;
   char cl = close_for(c);
-  paren_level++;
-  advance_readchar();
+  advance_past_white();
   expptr e = mcread_E(0);
   if(readchar != cl)declare_unmatched(c,e,readchar);
-  paren_level--;
-  advance_readchar();
+  advance_past_white();
   return intern_paren(c,e ? e : nil);
 }
 
 void declare_unmatched(char openchar, expptr e, char closechar){
-  fprintf(stdout,"unmatched parentheses %c%c\n",openchar,close_for(openchar));
+  fprintf(stdout,"unmatched parentheses %c%c\n",openchar, closechar);
   pprint(e,stdout,rep_column);
-  fprintf(stdout, "%c\n", closechar);
   berror("");
 }
 
 /** ========================================================================
-Deterministic shift-reduce parsing with phantom arguments.
+mcread_arg
 ======================================================================== **/
 
 expptr pcons(expptr x, expptr y){return x? (y? cons(x,y) : x) : y;}
@@ -954,7 +969,7 @@ expptr mcread_S(){
 
 expptr mcread_V(){
   if(readchar == '$'){
-    advance_readchar();
+    advance_past_white();
     expptr s = mcread_symbol();
     if(s) return cons(dollar,s);
     expptr p = mcread_open();
@@ -962,7 +977,7 @@ expptr mcread_V(){
     return dollar; //junk
   }
   if(readchar == '\\'){
-    advance_readchar();
+    advance_past_white();
     return pcons(backslash,mcread_V());}
   return NULL;
 }
@@ -975,12 +990,17 @@ expptr mcread_arg(){
     if(junkp(S)) return S;
     return pcons(S,mcread_parenstar());}
   if(readchar == '`'){
-    advance_readchar();
+    advance_past_white();
     return pcons(backquote, mcread_open());}
   expptr p = mcread_open();
   if(p) return p;
   return NULL;
 }
+
+
+/** ========================================================================
+mcread
+======================================================================== **/
 
 int precedence(char c){
   if(terminatorp(c))return 0;
@@ -1016,7 +1036,7 @@ expptr mcread_E(int p_left){
 }
 
 expptr mcread(){//this is called from top level read functions only
-  advance_readchar();
+  advance_past_white();
   expptr arg = mcread_E(0);
   if(closep(readchar))declare_unmatched('-',arg,readchar);
   return arg ? arg : nil;

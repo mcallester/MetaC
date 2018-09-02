@@ -1,3 +1,9 @@
+//
+/** 2: compilation error **/
+//
+//
+//
+//
 
 /** ========================================================================
  Hello world
@@ -227,5 +233,10 @@ g(`{a})
  strange
 ======================================================================== **/
 
+expptr test(){
+  return NULL;//any comment exactly here causes the problem
+}
+/** 1: done **/
+
 int x[0]; //comment
-/** 1:  **/
+/** 1: done **/
