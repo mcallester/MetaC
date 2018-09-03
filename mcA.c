@@ -336,6 +336,7 @@ void init_exp_constants(){
   backslash = string_atom("\\");
   exclam = string_atom("!");
   question = string_atom("?");
+  any = cons(dollar,string_atom("any"));
 
   nil = string_atom("");
   macro = string_atom("macro");
@@ -1006,14 +1007,14 @@ int precedence(char c){
   if(terminatorp(c))return 0;
   if(c==';')return 1;
   if(c==',')return 2;
-  if(c=='|')return 4;
+  if(c=='|')return 3;
   if(c =='&' || c == '!' || c == '?')return 5;
   if(c=='=' || c=='<' || c=='>' || c =='~') return 6;
   if(c=='+' || c=='-')return 7;
   if(c=='*' || c=='/')return 8;
-  if(c == '%')return 9;
-  if(c == '^' || c=='@' || c=='.' || c==':' || c == '#')return 10;
-  return 3; //precedence of combining adjacent arguments.
+  if(c == '%' || c == '^' || c == '#')return 9;
+  if(c=='@' || c=='.' || c == ':')return 10;
+  return 4; //precedence of combining adjacent arguments.
 }
 
 #define LEFT_THRESHOLD 10

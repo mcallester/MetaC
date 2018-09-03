@@ -26,6 +26,7 @@ void IDE_loop(){
   while(1){
     catch_error({
 	send_emacs_tag(ide_tag);
+	in_doit = 0;
 	preamble = nil;
 	init_forms = nil;
 	expptr e = read_from_ide();

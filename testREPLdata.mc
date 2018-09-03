@@ -1,5 +1,4 @@
 //
-/** 2: compilation error **/
 //
 //
 //
@@ -52,7 +51,7 @@ typedef struct myexpstruct{
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** 9: done **/
+/** 1: done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -60,16 +59,16 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
-/** 10: done **/
+/** 2: done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
   return `{${string_atom(x->label)} ${myexp_exp(x->car)} ${myexp_exp(x->cdr)}};
 }
-/** 11: done **/
+/** 3: done **/
 
 myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
-/** 12: foo bar nil nil nil **/
+/** 4: foo bar nil nil nil **/
 
 
 /** ========================================================================
@@ -77,28 +76,28 @@ myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 ======================================================================== **/
 
 int y[0] = 2;
-/** 13: done **/
+/** 1: done **/
 
 y[0] += 1;
-/** 14: done **/
+/** 2: done **/
 
 int_exp(y[0])
-/** 15: 3 **/
+/** 3: 3 **/
 
 expptr friend[0] = `{Bob Givan};
-/** 16: done **/
+/** 4: done **/
 
 int height[0] = 6;
-/** 17: done **/
+/** 5: done **/
 
 `{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
-/** 18: My friend Bob Givan is 6 feet tall. **/
+/** 6: My friend Bob Givan is 6 feet tall. **/
 
 expptr e[0] = `{a+b};
-/** 19: done **/
+/** 7: done **/
 
 `{bar(${e[0]})}
-/** 20: bar(a+b) **/
+/** 8: bar(a+b) **/
 
 
 /** ========================================================================
@@ -106,7 +105,7 @@ expptr e[0] = `{a+b};
 ======================================================================== **/
 
 expptr g(expptr x){return x;}
-/** 21: done **/
+/** 1: done **/
 
 g(`{a})
 /** 2: a **/
@@ -155,18 +154,54 @@ umacro{mydolist($x, $L){$body}}{
                   !atomp($rest);
                   $rest = cdr($rest);)
 	 {expptr $x = car($rest); $body}};}
-/** 21: done **/
+/** 1: done **/
 
 macroexpand(`{mydolist(item,list){f(item);}})
-/** 22: for
-  (explist _genrest7=list;
-   !atomp(_genrest7);
-  _genrest7=cdr(_genrest7);
-  ){expptr item=car(_genrest7);f(item);}
- **/
+/** 2: for
+    (explist _genrest23=list;
+     !atomp(_genrest23);
+    _genrest23=cdr(_genrest23);
+    ){expptr item=car(_genrest23);f(item);}
+   **/
+
 
 /** ========================================================================
- error modes and breakpoints
+ the "any" variable in patters
+======================================================================== **/
+
+macroexpand(`{ucase{`{a;b};{\$a;\$any}:{return a;}}})
+/** 1: 
+    {expptr _gentop1=cons(cons(string_atom("a"),string_atom(";")),string_atom("b"));
+    expptr _gen5=_gentop1;
+    if(cellp(_gen5))
+      {expptr _gen2=car(_gen5);
+      if(cellp(_gen2))
+        {expptr _gen8=car(_gen2);
+        
+          {expptr a=_gen8;
+          expptr _gen10=cdr(_gen2);
+          if(_gen10==string_atom(";")){return a;goto _gendone1;}
+          }
+        }
+      }
+    match_failure
+      (_gentop1,
+      cons
+        (intern_paren
+          ('{',
+          cons
+            (cons(cons(string_atom("$"),string_atom("a")),string_atom(";")),
+            cons(string_atom("$"),string_atom("any")))),
+        string_atom("")));
+    _gendone1: ;
+    }
+   **/
+
+ucase{`{a;b};{$a;$any}:{return a;}}
+/** 2: a **/
+
+/** ========================================================================
+ various
 ======================================================================== **/
 
 int numeralp(expptr x){
@@ -192,19 +227,19 @@ int_exp(value(`{5+2*10}))
 /** 3: 25 **/
 
 int_exp(value(`foo))
-/** 5: compilation error **/
+/** 4: compilation error **/
 
 int_exp(value(`{foo}))
-/** 4: execution error (running gdb) **/
+/** 5: execution error (running gdb) **/
 
 expptr bar(){
   breakpt("bar break");
   return `{a};
 }
-/** 1: done **/
+/** 6: done **/
 
 bar()
-/** 2: a **/
+/** 7: a **/
 
 /** ========================================================================
  no arguments
@@ -223,10 +258,10 @@ f()
 ======================================================================== **/
 
 expptr g(expptr exp){returni exp;}
-/** 2: compilation error **/
+/** 3: compilation error **/
 
 g(`{a})
-/** 2: execution error (running gdb) **/
+/** 4: execution error (running gdb) **/
 
 
 /** ========================================================================
@@ -234,9 +269,9 @@ g(`{a})
 ======================================================================== **/
 
 expptr test(){
-  return NULL;//any comment exactly here causes the problem
+  return NULL;//a comment here used to cause a problem
 }
-/** 1: done **/
+/** 5: done **/
 
-int x[0]; //comment
-/** 1: done **/
+int x[0]; //a comment here used to cause a problem
+/** 6: done **/

@@ -3,6 +3,7 @@
 expptr casecode1(expptr,expptr,expptr,expptr);
 expptr casecode2(expptr,expptr,expptr);
 expptr casecode3(expptr,expptr,expptr);
+expptr casecode4(expptr,expptr,expptr);
 
 void match_failure(expptr value, expptr patterns){
   fprintf(stdout,"match error: the value \n\n");
@@ -81,26 +82,23 @@ expptr casecode2(expptr rule, expptr topvar, expptr donelabel){
   return casecode3(pattern, topvar, `{if($test){$body goto $donelabel;}});
 }
 
-expptr casecode3(expptr pattern, expptr valvar , expptr body){
+expptr casecode3(expptr pattern, expptr valexp , expptr body){
+  if(pattern == any)return body;
+  expptr valvar = gensym("");
+  return `{expptr $valvar = $valexp; ${casecode4(pattern,valvar,body)}};
+}
 
+expptr casecode4(expptr pattern, expptr valvar , expptr body){
   if(atomp(pattern))return `{if($valvar == `{$pattern}){$body}};
-  
   if(parenp(pattern)){
-    expptr inside_var = gensym("");
     return `{if(parenp($valvar) && constructor($valvar) == ${constructor_code(constructor(pattern))}){
-	expptr $inside_var = paren_inside($valvar);
-	${casecode3(paren_inside(pattern), inside_var, body)}}};}
-  
+	${casecode3(paren_inside(pattern), `{paren_inside($valvar)}, body)}}};}
   if(car(pattern) == dollar){
     if(!(symbolp(cdr(pattern))))berror("illegal syntax for variable in ucase pattern");
     return `{{expptr ${cdr(pattern)} = $valvar; $body}};}
-
-  expptr leftvar = gensym("");
-  expptr rightvar = gensym("");
-  return `{if(cellp($valvar)){
-      expptr ${leftvar} = car(${valvar});
-      expptr ${rightvar} = cdr(${valvar});
-      ${casecode3(car(pattern),leftvar,casecode3(cdr(pattern),rightvar,body))}}};
+  return
+    `{if(cellp($valvar)){
+      ${casecode3(car(pattern),`{car($valvar)},casecode3(cdr(pattern),`{cdr($valvar)},body))}}};
 }
 
 void mcB_init(){
