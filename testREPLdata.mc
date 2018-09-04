@@ -275,3 +275,17 @@ expptr test(){
 
 int x[0]; //a comment here used to cause a problem
 /** 6: done **/
+
+
+/** ========================================================================
+ null expressions in file_expressions
+======================================================================== **/
+
+expptr itemize(expptr l){
+  if(!cellp(l))return l;
+  return cons(`{(${car(l)})}, itemize(cdr(l)));
+}
+/** 1: done **/
+
+itemize(file_expressions("test1.mc"))
+/** 2: (int f(int x){return x+1;})(int g(int x){return f(x+1);})(int h(int x){return x;}) **/

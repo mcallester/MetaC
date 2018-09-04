@@ -164,3 +164,5 @@ voidptr current_frame();
 
 voidptr stack_alloc(int size);
 
+expptr file_expressions(char *name);
+

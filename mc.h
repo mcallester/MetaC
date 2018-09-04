@@ -284,7 +284,7 @@ int rep_column;
 expression_constants
 ======================================================================== **/
 
-expptr period, comma, colon, semi, backquote, dollar, backslash, exclam, question, any;
+expptr period, comma, colon, semi, backquote, dollar, backslash, exclam, question, any, nil;
 expptr nil, macro;
 
 expptr bquote_code(expptr);

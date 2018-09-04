@@ -779,7 +779,7 @@ expptr file_expressions(char * fname){
 }
 
 expptr file_expressions2(){
-  if(readchar == EOF)return nil;
+  if(readchar == EOF || next == EOF)return nil;
   if(closep(readchar))berror("file contains unmatched close\n");
   expptr e = mcread();
   return cons(e, file_expressions2());
