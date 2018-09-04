@@ -169,6 +169,11 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   return (*_mc_doit)(symbol_value);
 }
 
+int whitespace(char *s){
+  for(int i=0; s[i]; i++){if (!whitep(s[i])) return 0;}
+  return 1;
+}
+
 void install(expptr statement){ //only the following patterns are allowed.
   ucase{statement;
     {typedef $def;}:{install_preamble(statement);}

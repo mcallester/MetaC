@@ -16,25 +16,66 @@ expptr load(expptr forms);
 
 void IDE_pprint(expptr e, FILE * f, int level);
 
+int in_require=0;
+
 void MC_doit(expptr e){
   pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,rep_column);
-  send_emacs_tag(result_tag);
+  send_emacs_tag(in_require ? ignore_tag : result_tag);
   fflush(stdout);
 }
 
+char *strip_quotes(char *input){
+  int len=strlen(input);
+
+  if (input[0]=='"' && input[len-1]=='"'){
+    char * buffer = (char *) stack_alloc(len-1);
+    strncpy(buffer,input+1,len-2);
+    buffer[len-2]=0;
+    return buffer; 
+  }
+  else return input;
+}
+
 void IDE_loop(){
+  void eval_exp(expptr exp){
+    if (atomp(exp) && whitespace(atom_string(exp))) return;
+    MC_doit(macroexpand(exp));}
+
   while(1){
     catch_error({
 	send_emacs_tag(ide_tag);
 	in_doit = 0;
 	preamble = nil;
 	init_forms = nil;
-	expptr e = read_from_ide();
+        in_require=0;
+
+        expptr e=read_from_ide();
+
 	fprintf(stdout, "processing:\n");
-	pprint(e,stdout,0);
-	send_emacs_tag(print_tag);
-	MC_doit(macroexpand(e));  })
-      }
+
+        char *require_file;
+        expptr exps_to_eval;
+        ucase{e;
+          {#require($sym)} : {
+            if (!atomp(sym)) uerror(`{Require argument "$sym" must be a symbol});
+            require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
+            pprint(string_atom(require_file),stdout,0);
+            in_require=1;
+            exps_to_eval=file_expressions(require_file);}
+          {$any} : {
+            pprint(e,stdout,0);
+            exps_to_eval=cons(e,nil);}}
+
+
+        send_emacs_tag(print_tag);
+
+        mapc(eval_exp,exps_to_eval);
+
+        if (in_require) {
+          fprintf(stdout,"%s Provided ",require_file); 
+          send_emacs_tag(result_tag);
+          in_require=0;}
+      })}
 }
 
 int main(int argc, char **argv){

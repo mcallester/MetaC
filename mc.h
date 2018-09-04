@@ -143,7 +143,8 @@ int parenp(expptr e);
 
 expptr paren_inside(expptr e);
 
-int alphap(char), connp(char), miscp(char), string_quotep(char);
+int whitep(char), alphap(char), connp(char), miscp(char), string_quotep(char);
+int whitespace(char *);
 
 static inline char constructor(expptr e){
   if(e == NULL)berror("attempt to take the constructor of a null expression");
