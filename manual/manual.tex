@@ -23,17 +23,17 @@
 
 \begin{document}
 \maketitle
-†
+
 \begin{abstract}
-  MetaC is a Lisp-inspired programming environment for C. MetaC provides a read-eval-print loop (REPL) capable of evaluating (compiling and running)
-  C statements and expressions.  The REPL is capable of incremental procedure definition and redefinition (dynamic linking).  MetaC also provides
-  a macro feature similar to that of Lisp and powerful symbolic programming features for writing computed macros.  Most of the symbolic programming features of
-  MetaC are implemented as bootstrapped MetaC macros.  MetaC is intended to be a development environment for frameworks implemented as
-  macro packages. Frameworks written in MetaC (and MetaC itself) use a ``universal syntax'' ---
-  a simplification of the C concrete syntax but based on the Lisp philosophy that a single concrete syntax suffices for a wide variety of languages with
-  a wide variety of semantics.  MetaC macro packages
-  should be viewed as compilers from framework expressions to C code.  MetaC gives the framework developer complete control over the C code
-  generated for framework expressions.  Frameworks written in MetaC inherit the REPL and g†eneral programming environment of MetaC.
+  MetaC provides a read-eval-print loop (a REPL) and notebook interactive development environment (a NIDE) for C programming.
+  MetaC can also be described as a Lisp-inspired programming environment for C.
+  The REPL and the NIDE  are capable of incrementally evaluating (compiling and running)
+  C statements and procedure definitions in a persistent C process.  This is implemented by dynamically compiling dynamic load libraries (DLLs)
+  (files with .so extensions) which are then linked into the running C process.
+
+  MetaC also extends C with a universal syntax reader, computed macros, Lisp-style backquote and a pattern-matching case statement.
+  The implementation is bootstrapped --- it is implemented in itself.  These C extensions are intended to support the development of frameworks
+  with notebook interfaces as extensions of C rather than as scripting-C hybrids such as TensorFlow or PyTorch.
 \end{abstract}
 
 \newpage
@@ -44,6 +44,12 @@
 
 \section{Introduction and Overview}
 
+\subsection{Installation}
+
+\begin{enumerate}
+\item Clone the repository into a repository directory.
+
+\item edit the file  mc.el 
 We start with hello world.
 
 \subsection{Hello World}
@@ -624,16 +630,20 @@ is read as a parenthesis expression containing an atom for the empty string.
 \noindent Grouped by precedence, the binary connective characters are
 
 \medskip
-\centerline{\{\mtt{;}\} \{\mtt{,}\}  \{$\epsilon$\}
-  \{\mtt{|}\} \{{\tt \&}, {\tt ?}, {\tt !}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\} \{{\tt *}, {\tt /}\} \{$\hat{~}$, {\tt \%}, {\tt .}, \mtt{:},  {\tt @}, {\tt \#}\}.}
+\centerline{\{\mtt{;}\} \{\mtt{,}\}  \{\mtt{|}\} \{$\epsilon$\}
+  \{{\tt \&}, {\tt ?}, {\tt !}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\}
+  \{{\tt *}, {\tt /}\} \{{\tt \%}, $\hat{~}$, {\tt .}\} \{\mtt{:},  {\tt @}, {\tt \#}\}.}
 
-\noindent The precedence of a binary connective is determined by its first character.  The characters have low to high (outer to inner) precedence in the order given with symbols
-in the same group having the same precedence.  Here $\epsilon$ represents the null connective at precedence level 3.
-The precedence can be summarized in outer to inner order as semicolon, comma, the null connective,
-Two levels of Boolean connectives, binary predicates,
-two levels of binary functions, and innermost connectives which can be viewed as providing a way of building structured atoms.  Below the level of parentheses, semicolon and comma the universal syntax precedence
-conventions have various divergences with C syntax.  However, when writing a macro package in MetaC one can simply adopt the MetaC precedence conventions for the
-source code and use parentheses where necessary in the generated C code.
+\noindent The precedence of a binary connective is determined by its first character.  The
+characters have low to high (outer to inner) precedence in the order given with symbols in the same
+group having the same precedence.  Here $\epsilon$ represents the null connective at precedence
+level 3.  The precedence can be summarized in outer to inner order as semicolon, comma, bar, the
+null connective, Boolean connectives, binary predicates, three levels of binary functions, and
+innermost connectives which can be viewed as providing a way of building structured atoms.  This
+universal syntax precedence conventions has
+various divergences with C syntax.  However, when writing a macro package in MetaC one can simply
+adopt the MetaC precedence conventions for the source code and use parentheses where necessary in
+the generated C code.
 
 \subsection{Backquote and Pattern Matching Revisited}
 

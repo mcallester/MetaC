@@ -2,6 +2,8 @@
 .\#*
 *.o
 *.so
+*.c
+*.dSYM
 *~
 *.aux
 *.log
@@ -9,12 +11,6 @@
 *.gz
 *.txt
 
-*.c
-!UCSA.c
-!UCSmainA.c
-!UCSmainB.c
-
-*.dSYM
 ExpandA
 expandB
 expandC
@@ -24,6 +20,4 @@ expandE
 REPL
 testREPL
 IDE
-testREPLdata.mc
-ssh_command
 
