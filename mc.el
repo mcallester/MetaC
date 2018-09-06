@@ -202,22 +202,12 @@
 	   (erase-buffer) (MC:insert-in-segment value))
 	 (display-buffer (message-buffer) 'display-buffer-pop-up-window))
 
-	;;the following three tags enter gdb mode
+	;;the following two tags enter gdb mode
 	((string= tag "exec-error")
-	 (MC:insert-in-segment "execution error (running gdb)")
-	 (setq *source-buffer* (current-buffer))
-	 (pop-to-buffer (mc-buffer))
-	 (erase-buffer)
-	 (MC:insert-in-segment value)
-	 (set-marker (process-mark (mc-process)) (point))
-	 (setq *gdb-mode* t))
+	 (MC:insert-in-segment "execution error")
+	 (MC:goto-gdb))
 	((string= tag "breakpoint")
-	 (setq *source-buffer* (current-buffer))
-	 (pop-to-buffer (mc-buffer))
-	 (erase-buffer)
-	 (MC:insert-in-segment value)
-	 (set-marker (process-mark (mc-process)) (point))
-	 (setq *gdb-mode* t))
+	 (MC:goto-gdb))
 
 	;;the tag IDE returns from from gdb mode
 	((string= tag "IDE")
@@ -227,6 +217,14 @@
 	 (setq *gdb-mode* nil))
 
 	(t (error (format "unrecognized tag %s" tag)))))
+
+(defun MC:goto-gdb ()
+  (setq *source-buffer* (current-buffer))
+  (pop-to-buffer (mc-buffer))
+  (erase-buffer)
+  (MC:insert-in-segment value)
+  (set-marker (process-mark (mc-process)) (point))
+  (setq *gdb-mode* t))
 
 (defun MC:clean-string (string)
   ;;removes carriage return chacters
