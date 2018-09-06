@@ -76,28 +76,28 @@ myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 ======================================================================== **/
 
 int y[0] = 2;
-/** 13: done **/
+/** 1: done **/
 
 y[0] += 1;
-/** 14: done **/
+/** 2: done **/
 
 int_exp(y[0])
-/** 15: 3 **/
+/** 3: 3 **/
 
 expptr friend[0] = `{Bob Givan};
-/** 16: done **/
+/** 4: done **/
 
 int height[0] = 6;
-/** 17: done **/
+/** 5: done **/
 
 `{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
-/** 18: My friend Bob Givan is 6 feet tall. **/
+/** 6: My friend Bob Givan is 6 feet tall. **/
 
 expptr e[0] = `{a+b};
-/** 19: done **/
+/** 7: done **/
 
 `{bar(${e[0]})}
-/** 20: bar(a+b) **/
+/** 8: bar(a+b) **/
 
 
 /** ========================================================================
@@ -241,51 +241,3 @@ expptr bar(){
 bar()
 /** 7: a **/
 
-/** ========================================================================
- no arguments
-======================================================================== **/
-
-expptr f(){return `{a};}
-/** 1: done **/
-
-f()
-/** 2: a **/
-
-/** ========================================================================
- Procedure definition failure should not leave the procedure semi-defined.
- the following should generate a compilation error on both invocations rather than
- a segment fault on the second invocation.
-======================================================================== **/
-
-expptr g(expptr exp){returni exp;}
-/** 3: compilation error **/
-
-g(`{a})
-/** 4: execution error (running gdb) **/
-
-
-/** ========================================================================
- strange
-======================================================================== **/
-
-expptr test(){
-  return NULL;//a comment here used to cause a problem
-}
-/** 5: done **/
-
-int x[0]; //a comment here used to cause a problem
-/** 6: done **/
-
-
-/** ========================================================================
- null expressions in file_expressions
-======================================================================== **/
-
-expptr parenthesize(expptr l){
-  if(!cellp(l))return l;
-  return cons(`{(${car(l)})}, parenthesize(cdr(l)));
-}
-/** 1: done **/
-
-parenthesize(file_expressions("test1.mc"))
-/** 3: (int f(int x){return x+1;})(int g(int x){return f(x+1);})(int h(int x){return x;}) **/

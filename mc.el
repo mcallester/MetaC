@@ -1,5 +1,5 @@
 (setq *gdb* "/opt/local/bin/gdb-apple")
-(setq *MC-IDE* "~/18/MC/IDE")
+(setq *MC-IDE* "~/18/MC/NIDE")
 
 (require 'shell)
 
@@ -16,7 +16,11 @@
   (condition-case nil
       (progn (re-search-backward "\n[^] \n\t})/=]")
 	     (forward-char))
-    (error (MC:next-def))))
+    (error
+     (beginning-of-buffer)
+     (let ((c (char-after)))
+       (when (or  (= c 32) (= c ?\t) (= c ?\n))
+	 (MC:next-def))))))
 
 (add-hookm c-mode-hook
   (define-key c-mode-map "\M-\C-a" 'MC:beginning-of-def))
@@ -181,8 +185,7 @@
 
 (defun MC:dotag (tag value)
   (cond ((string= tag "ignore"))
-	((string= tag "print")
-	 (print value))
+
 	((string= tag "result")
 	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
 	 (MC:next-def)
@@ -190,11 +193,16 @@
 	 (when  (> *load-count* 0)
 	   (MC:load-definition-internal)))
 
-	;;the following three tags enter gdb mode
+	;;the following two tags print
+	((string= tag "print")
+	 (print value))
 	((string= tag "comp-error")
 	 (MC:insert-in-segment "compilation error")
-	 (with-current-buffer (message-buffer) (erase-buffer) (MC:insert-in-segment value))
+	 (with-current-buffer (message-buffer)
+	   (erase-buffer) (MC:insert-in-segment value))
 	 (display-buffer (message-buffer) 'display-buffer-pop-up-window))
+
+	;;the following three tags enter gdb mode
 	((string= tag "exec-error")
 	 (MC:insert-in-segment "execution error (running gdb)")
 	 (setq *source-buffer* (current-buffer))

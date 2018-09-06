@@ -782,6 +782,7 @@ expptr file_expressions2(){
   if(readchar == EOF || next == EOF)return nil;
   if(closep(readchar))berror("file contains unmatched close\n");
   expptr e = mcread();
+  if(e == nil)return file_expressions2();
   return cons(e, file_expressions2());
 }
 
@@ -872,7 +873,7 @@ void ephemeral_putc(char c){
   if(ephemeral_freeptr == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
   ephemeral_buffer[ephemeral_freeptr++]=c;
 }
-  
+
 expptr mcread_symbol(){
   if(!alphap(readchar))return NULL;
   ephemeral_freeptr = 0;

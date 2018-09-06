@@ -272,7 +272,7 @@ void comp_error(){
   if(in_ide){
     dolist(f,new_procedures){
       setprop(f,`{body},NULL);}
-    fprintf(stdout,"%s",comp_error_tag);}
+    send_emacs_tag(comp_error_tag);}
   else{
     fprintf(stdout,"\n evaluation aborted\n\n");}
   throw_error();}
