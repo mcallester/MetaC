@@ -40,6 +40,10 @@ expptr args_variables(expptr args){
   return nil;
 }
 
+umacro{mcprint($args)}{
+  return `{{fprintf(stdout,$args); send_emacs_tag(print_tag);}};
+}
+
 init_fun(mcD_init)
 
 /** ========================================================================

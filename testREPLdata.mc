@@ -230,16 +230,16 @@ int_exp(value(`foo))
 /** 4: compilation error **/
 
 int_exp(value(`{foo}))
-/** 5: execution error (running gdb) **/
+/** 4: execution error **/
 
 expptr bar(){
   breakpt("bar break");
   return `{a};
 }
-/** 6: done **/
+/** 5: done **/
 
 bar()
-/** 7: a **/
+/** 6: a **/
 
 /** ========================================================================
  no arguments
