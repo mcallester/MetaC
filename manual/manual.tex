@@ -46,13 +46,36 @@
 
 \subsection{Installation}
 
+The notebook interface is based on emacs.  If you are not an emacs user you can experiment with MetaC usnig the just the REPL
+(a command line interface).  If you have some emacs experience please skip to the NIDE installation instructions below.
+
+To install the REPL:
+\begin{itemize}
+\item Clone the MetaC repository in a local MetaC directory.
+\item From a shell running in your MetaC directory type make MC.
+\item From the same shell type MC to get the command line prompt MC>
+\item Go to section~\ref{sec:hello} below.
+\end{itemize}
+
+If you are willing to try the emacs NIDE this can be installed as follows.
+
 \begin{enumerate}
 \item Clone the repository into a repository directory.
-
-\item edit the file  mc.el 
-We start with hello world.
+\item From a shell running in your MetaC directory type make NIDE.
+\item Add (load ``<MetaC directory>/mc.el'') to your .emacs file.
+\item edit the first line of  mc.el to give the path to your gdb executable (the gnu debugger).
+\item edit the second line of mc.el to give the path to your MetaC directory.
+\item Start or restart emacs. The file mc.el adds hooks such that it is safest to restart emacs rather than load em.el into a running emacs.
+\item In emacs visit the file NIDE-Examples.mc in MetaC directory.
+\item Type C-M-s (control-meta-s) to start the C kernel. Typing C-c C-c will run the cell containing the cursor and print
+  the result in a C comment at the bottom of the cell.  This is substantially equivalent to typing the cell contents into the REPL.
+  More emacs key bindings and other properties of the NIDE are described in section~\ref{sec:emacs}.
+  \item (optional) Look at the file mc.el for lines starting with ``(add-hook ...''  to see some additional MetaC key bindings.
+\item Continue with the next section but evaluate cells in emacs rather than typing expressions into the REPL.
+\end{enumerate}
 
 \subsection{Hello World}
+\label{sec:hello}
 
 Once one has cloned the MetaC repository (git@github.com:mcallester/MetaC.git) one can cd to the repository directory and type 
 
@@ -355,35 +378,32 @@ or generalized application expression or a binary connection expressions.  Unive
 The procedure for macro expansion is attached to either the head symbol of the application
 or the binary operator of the binary connection expression.
 
-\subsection{A Notebook IDE}
+\subsection{The Notebook IDE}
+\label{sec:emacs}
 
-The MetaC interactive development environment (IDE) unifies the concept of a source file with the concept of a notebook.
-During active code development a .mc file behaves as a notebook. Once the code is mature, a .mc file can be macro-expanded to a .c
-file which can then be compiled to an object file and linked into an executable the the traditional way.  Extending the REPL executable by linking additional object files
-is discussed in section~\ref{sec:extensions}.
+Starting the kernel with the key C-M-s creates a running C process.  When a cell is executed
+with the command C-c C-c the text of the cell is (invisibly) passed to $C$ process by the process is
+placed inside a comment below the cell.  If a comment already occurs directly below the cell this
+comment is replaced by a new comment containing the response of the REPL.  As in a Jupyter notebook,
+the values returned from the REPL are numbered so that one can see when the cell was executed
+relative to other cell execution in the notebook.  If C-M-s is run when a kernel is already running
+the kernel process is killed and a new one started (as in a Jupyter notebook).  When the kernel is
+restarted the execution numbering is reset to start with 1.  Changing a procedure signature
+(argument and return types) requires restarting the kernel.
 
-An emacs-based interactive development environment (IDE)
-is included in the MetaC repository in the file mc.el.  This file should be loaded form the users .emacs file so that the the proper hooks run when opening .mc files.
-Files with extention .mc open in c-mode extened with MetaC commands.
 
-The two fundamental IDE commands are C-M-s, which starts or restarts a kernel, and C-cC-c which executes a the ``cell'' at the current cursor position.  A cell is defined
-by the MetaC segementation convention under which a cell starts at a non-empty line whose first character is other than a white space character, a close paren character or
-the slash character.  The cell ends at the beginning of the next non-empty line whose first character is other then white space or close paren character.  Note that lines starting
-with a slash (typically a comment) terminates a cell but does not start a new cell.
-In the current implementation (July 2018) it is important that comments lines either start with a slash or start with some non-empty indentation.
-Clearly there is room for improvement in the parsing of .mc files in the IDE, but the current version is usable as long as one cognizant of the conventions.
+{\bf Compile-Time Errors.}
+If an error occurs while attempting to read or compile the cell expression an error statement is displayed --- typically the output of the C compiler --- and
+an error message is printed in the code buffer as the value of cell.
 
-Starting the kernel with the command C-M-s creates a MetaC REPL process associated with the buffer *MetaC*.  The REPL can be run as usual from that buffer
-but the REPL buffer typically remains hidden when treating a .mc file as a notebook.  When a cell is executed with the command C-cC-c the text of the cell is (invisibly) passed to the REPL
-and the text returned by the REPL is placed inside a comment below the cell.  If a comment already occurs directly below the cell this comment is replaced by a new comment containing the
-response of the REPL.  As in a Jupyter notebook, the values returned from the REPL are numbered so that one can see when the cell was executed relative to other cell execution in the notebook.
-If C-M-s is run when a kernel is already running the kernel process is killed and a new one started (as in a Jupyter notebook).  When the kernel is restarted
-the execution numbering is reset to start with 1.  Changing a procedure signature (argument and return types) requires restarting the kernel.
+{\bf Run Time Errors and Breakpoints.} If an error is trapped by MetaC dynamic checking during execution of the compiled cell code
+gdb is entered in a interactive read-eval-print debugging window.  Giving the continue command to gdb will return to the code buffer.
+The MetaC procedure {\tt breakpt(char *)} can be inserted into to create breakpoints.  If this procedure is called from the
+running (compiled) C code then a breakpoint will occur under the gdb debugger.  Giving the continue command to GDB will continue from the breakpoint.
 
-If an error occurs doing the execution of a cell the comment following the cell states that an error occured and suggests running the command C-M-m to switch to the *MetaC* buffer
-to see the error message and possibly interact with the REPL as a debugger.  Debugging features are described in section~\ref{sec:debugger}.
+{\bf Printing.} The procedure {\tt mcprint} takes a format string and additional arguments and prints to the emacs *messages* buffer.
 
-In addition to starting (or restarting) the kernel and to executing individual cells, we have the following commands.
+In addition to starting (or restarting) the kernel and to executing individual cells, we have the following additional key bindings.
 
 \begin{itemize}
 \item[C-cr] This executes all cells in the current region sequentially with a different execution number for each cell execution.
@@ -396,7 +416,6 @@ In addition to starting (or restarting) the kernel and to executing individual c
 
 \item[C-M-m] This goes to the *MetaC* buffer so that one can see error messages and interact with the REPL as a debugger.  See section~\ref{sec:debugger} for a discussion of debugging features.
 
-\item[C-M-c] This goes back from the *MetaC* buffer (which is in shell-mode) to the last .mc file from which C-M-m was run.
 \end{itemize}
 
 \subsection{Extending the REPL executable}

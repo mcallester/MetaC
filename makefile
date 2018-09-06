@@ -103,8 +103,8 @@ testE.o : testE.c
 REPL.c : REPL.mc expandE
 	./expandE REPL.mc REPL.c
 
-REPL : REPL.c
-	${gcc} -g -o REPL mcA.o mcB.o mcC.o mcD.o mcE.o REPL.c -ldl -lm
+MC : REPL.c
+	${gcc} -g -o MC mcA.o mcB.o mcC.o mcD.o mcE.o REPL.c -ldl -lm
 
 #testREPL
 
@@ -119,7 +119,7 @@ testREPL : testREPL.c
 IDE.c : IDE.mc expandE
 	./expandE IDE.mc IDE.c
 
-IDE : IDE.c
-	${gcc} -g -o IDE mcA.o mcB.o mcC.o mcD.o mcE.o IDE.c -ldl -lm
+NIDE : IDE.c
+	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o mcE.o IDE.c -ldl -lm
 
 
