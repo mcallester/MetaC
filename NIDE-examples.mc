@@ -1,57 +1,24 @@
-//
-//
-//
-//
-//
-
-/** ========================================================================
- Hello world
-======================================================================== **/
-
-`{a}
-/** 1: a **/
-
-
-/** ========================================================================
- Procedure defininition
-======================================================================== **/
+`{Hello World}
 
 expptr f(expptr exp){return exp;}
-/** 2: done **/
 
 f(`{a})
-/** 3: a **/
-
-/** ========================================================================
- Imperative Programming
-======================================================================== **/
 
 int x[10];
-/** 4: done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
-/** 5: done **/
 
 for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
-/** 6: 0123456789done **/
 
 int_exp(x[5])
-/** 7: 5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-/** 8: 45 **/
-
-
-/** ========================================================================
- C data types
-======================================================================== **/
 
 typedef struct myexpstruct{
   char * label;
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** 1: done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -59,94 +26,55 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
-/** 2: done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
   return `{${string_atom(x->label)} ${myexp_exp(x->car)} ${myexp_exp(x->cdr)}};
 }
-/** 3: done **/
 
 myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
-/** 4: foo bar nil nil nil **/
-
-
-/** ========================================================================
- Variable as x[0].
-======================================================================== **/
 
 int y[0] = 2;
-/** 1: done **/
 
 y[0] += 1;
-/** 2: done **/
 
 int_exp(y[0])
-/** 3: 3 **/
 
 expptr friend[0] = `{Bob Givan};
-/** 4: done **/
 
 int height[0] = 6;
-/** 5: done **/
 
 `{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
-/** 6: My friend Bob Givan is 6 feet tall. **/
 
 expptr e[0] = `{a+b};
-/** 7: done **/
 
 `{bar(${e[0]})}
-/** 8: bar(a+b) **/
-
-
-/** ========================================================================
- redefinition
-======================================================================== **/
 
 expptr g(expptr x){return x;}
-/** 1: done **/
 
 g(`{a})
-/** 2: a **/
 
 expptr g(expptr x){return `{$x $x};}
-/** 3: done **/
 
 g(`{a})
-/** 4: a a **/
-
-/** ========================================================================
- mutual recursion and redefinition
-======================================================================== **/
 
 expptr bar(int i);
-/** 1: done **/
 
 expptr foo(int i){
   if(i == 0){return `{foo};}
   return bar(--i);}
-/** 2: done **/
 
 expptr bar(int i){
   if(i == 0){return `{bar};}
   return foo(--i);}
-/** 3: done **/
 
 foo(1)
-/** 4: bar **/
 
 expptr bar(int i){
   if(i == 0){return `{bar2};}
   return foo(--i);}
-/** 5: done **/
 
 foo(1)
-/** 6: bar2 **/
-
-/** ========================================================================
- macros
-======================================================================== **/
 
 umacro{mydolist($x, $L){$body}}{
      expptr rest = gensym("rest");
@@ -154,55 +82,12 @@ umacro{mydolist($x, $L){$body}}{
                   !atomp($rest);
                   $rest = cdr($rest);)
 	 {expptr $x = car($rest); $body}};}
-/** 1: done **/
 
 macroexpand(`{mydolist(item,list){f(item);}})
-/** 2: for
-    (explist _genrest23=list;
-     !atomp(_genrest23);
-    _genrest23=cdr(_genrest23);
-    ){expptr item=car(_genrest23);f(item);}
-   **/
-
-
-/** ========================================================================
- the "any" variable in patters
-======================================================================== **/
 
 macroexpand(`{ucase{`{a;b};{\$a;\$any}:{return a;}}})
-/** 1: 
-    {expptr _gentop1=cons(cons(string_atom("a"),string_atom(";")),string_atom("b"));
-    expptr _gen5=_gentop1;
-    if(cellp(_gen5))
-      {expptr _gen2=car(_gen5);
-      if(cellp(_gen2))
-        {expptr _gen8=car(_gen2);
-        
-          {expptr a=_gen8;
-          expptr _gen10=cdr(_gen2);
-          if(_gen10==string_atom(";")){return a;goto _gendone1;}
-          }
-        }
-      }
-    match_failure
-      (_gentop1,
-      cons
-        (intern_paren
-          ('{',
-          cons
-            (cons(cons(string_atom("$"),string_atom("a")),string_atom(";")),
-            cons(string_atom("$"),string_atom("any")))),
-        string_atom("")));
-    _gendone1: ;
-    }
-   **/
 
 ucase{`{a;b};{$a;$any}:{return a;}}
-/** 2: a **/
-
-/** ========================================================================
- various
-======================================================================== **/
 
 int numeralp(expptr x){
   if(!atomp(x))return 0;
@@ -211,7 +96,6 @@ int numeralp(expptr x){
     if(s[i] < '0' || s[i] > '9')return 0;}
   return 1;
 }
-/** 1: done **/
 
 int value(expptr e){
   ucase{e;
@@ -221,23 +105,17 @@ int value(expptr e){
    {$z}.(numeralp(z)):{return atoi(atom_string(z));}}
   return 0;
 }
-/** 2: done **/
 
 int_exp(value(`{5+2*10}))
-/** 3: 25 **/
 
 int_exp(value(`foo))
-/** 4: compilation error **/
 
 int_exp(value(`{foo}))
-/** 5: execution error (running gdb) **/
 
 expptr bar(){
   breakpt("bar break");
   return `{a};
 }
-/** 6: done **/
 
 bar()
-/** 7: a **/
 

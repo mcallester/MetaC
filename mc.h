@@ -313,3 +313,6 @@ char *  ide_tag;
 char * print_tag;
 
 void send_emacs_tag(char *);
+void send_print_tag();
+int in_ide_proc();
+void return_to_NIDE();

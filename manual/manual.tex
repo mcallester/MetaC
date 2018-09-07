@@ -16,7 +16,7 @@
 \parskip = 2ex
 \newcommand{\context}{\text{\emph{context}}}
 
-\title{MetaC}
+\title{MetaC 1.0}
 \author{David McAllester}
 
 \setcounter{tocdepth}{2}
@@ -28,14 +28,21 @@
   MetaC provides a read-eval-print loop (a REPL) and notebook interactive development environment (a NIDE) for C programming.
   MetaC can also be described as a Lisp-inspired programming environment for C.
   The REPL and the NIDE  are capable of incrementally evaluating (compiling and running)
-  C statements and procedure definitions in a persistent C process.  This is implemented by dynamically compiling dynamic load libraries (DLLs)
-  (files with .so extensions) which are then linked into the running C process.
+  C statements and incremental procedure definitions in a persistent C process.  This is implemented by incrementally compiling dynamic load libraries
+  which are then linked into the persistent process.
 
-  MetaC also extends C with a universal syntax reader, computed macros, Lisp-style backquote and a pattern-matching case statement.
-  The implementation is bootstrapped --- it is implemented in itself.  These C extensions are intended to support the development of frameworks
-  with notebook interfaces as extensions of C rather than as scripting-C hybrids such as TensorFlow or PyTorch.
+  MetaC also extends C with Lisp-like features. More specifically, MetaC provides a C-like universal syntax, computed macros, backquote~\cite{backquote}, and pattern-matching.
+  The implementation is bootstrapped --- it is implemented in itself.  These C extensions are intended to support the development of high level
+  frameworks with notebook interfaces as direct extensions of C.  This is in contrast to scripting-C hybrids such as Matlab, Numpy, TensorFlow or PyTorch.
+
+  The NIDE is implemented in Emacs piped to a MetaC REPL.  Presumably notebook IDEs for C or C++ could also be implemented as extensions
+  of Atom or Visual Studio Code piped to a persistent process.
+
+  Dynamic linking is difficult to implement robustly.  MetaC release 1.0 runs under both Ubuntu 18.04.1 / gcc 7.3.0 and MAC OSX 10.11.4 / gcc Apple LLVM version 7.3.0 (clang-703.0.31).
 \end{abstract}
 
+\vfill
+\noindent {\bf Acknowledgement:}  I would like to thank Bob Givan for his aid in exercising and polishing MetaC and his continuing efforts on MathZero.
 \newpage
 
 \tableofcontents
@@ -46,38 +53,35 @@
 
 \subsection{Installation}
 
-The notebook interface is based on emacs.  If you are not an emacs user you can experiment with MetaC usnig the just the REPL
-(a command line interface).  If you have some emacs experience please skip to the NIDE installation instructions below.
+\noindent To install the REPL:
 
-To install the REPL:
-\begin{itemize}
+\begin{enumerate}
 \item Clone the MetaC repository in a local MetaC directory.
 \item From a shell running in your MetaC directory type make MC.
-\item From the same shell type MC to get the command line prompt MC>
-\item Go to section~\ref{sec:hello} below.
-\end{itemize}
+\item From the same shell type MC to get the command line prompt MC$>$.
+\end{enumerate}
 
-If you are willing to try the emacs NIDE this can be installed as follows.
+\noindent To install the NIDE:
 
 \begin{enumerate}
 \item Clone the repository into a repository directory.
 \item From a shell running in your MetaC directory type make NIDE.
-\item Add (load ``<MetaC directory>/mc.el'') to your .emacs file.
-\item edit the first line of  mc.el to give the path to your gdb executable (the gnu debugger).
-\item edit the second line of mc.el to give the path to your MetaC directory.
-\item Start or restart emacs. The file mc.el adds hooks such that it is safest to restart emacs rather than load em.el into a running emacs.
-\item In emacs visit the file NIDE-Examples.mc in MetaC directory.
-\item Type C-M-s (control-meta-s) to start the C kernel. Typing C-c C-c will run the cell containing the cursor and print
-  the result in a C comment at the bottom of the cell.  This is substantially equivalent to typing the cell contents into the REPL.
-  More emacs key bindings and other properties of the NIDE are described in section~\ref{sec:emacs}.
-  \item (optional) Look at the file mc.el for lines starting with ``(add-hook ...''  to see some additional MetaC key bindings.
-\item Continue with the next section but evaluate cells in emacs rather than typing expressions into the REPL.
+\item Add {\tt (load "$<$MetaC directory$>$/mc.el")} to your .emacs file.
+\item Edit the first line of  mc.el to give the path to your gdb executable (the Gnu debugger).
+\item Edit the second line of mc.el to give the path to your MetaC directory.
+\item Start or restart Emacs. The file mc.el adds hooks such that it is safest to restart Emacs rather than load em.el into a running Emacs.
 \end{enumerate}
+
+\noindent The NIDE can be run on any file with extension .mc in any directory.  To experiment with the NIDE use Emacs to visit the file NIDE-examples.mc from the MetaC repository.  
+Type C-M-s (control-meta-s) to start (or restart) the C kernel. Typing C-c C-c will run the cell containing the cursor and print
+the result in a C comment at the bottom of the cell.  This is substantially equivalent to typing the cell contents into the REPL.
+More Emacs key bindings and other features of the NIDE are described in section~\ref{sec:Emacs}.
+
+\medskip
+\noindent The following examples use the REPL.  However, all of these examples can be run as cells in the NIDE.
 
 \subsection{Hello World}
 \label{sec:hello}
-
-Once one has cloned the MetaC repository (git@github.com:mcallester/MetaC.git) one can cd to the repository directory and type 
 
 \begin{verbatim}
 bash$ make MC
@@ -85,12 +89,6 @@ bash$ make MC
 
 bash$ MC
 
-MC>
-\end{verbatim}
-
-We can then evaluate a hello world expression.
-
-\begin{verbatim}
 MC> `{hello world}
 
 hello world
@@ -190,8 +188,7 @@ MC>
 \end{verbatim}
 
 Procedures can also be redefined at the REPL provided that the
-signature (argument types and return type) remains the same.  In the
-current implementation (June 5, 2018) changing a procedure signature
+signature (argument types and return type) remains the same. Changing a procedure signature
 requires restarting the MetaC REPL.  This restricting ensures
 meaningful C type checking in the presence of dynamic linking.
 
@@ -300,7 +297,7 @@ MC> int value(expptr e)
       {($x)}:{return value(x);}
       {$z}.(numeralp(z)):{return atoi(atom_string(z));}
     }
-  return 0;
+  return 0; //this dead code convinces the compiler there is a return value.
   }
 
 done
@@ -328,11 +325,13 @@ In many situations the choice of the particular tree structure imposed by the Me
 they are matching.  For example, the expression {\tt a+b+c} will match the pattern
 {\tt $\$$x+$\$$y+$\$$z} independent of whether + is left associative or right associative.  But the tree structure does matter in other cases.  The pattern {\tt $\$$x*$\$$y}
 will not match the expression {\tt a+b*c} because the reader brackets {\tt a+b*c} as  $\fopen \mathtt{a~+} \fopen \mathtt{b * c} \fclose\fclose$. The pattern {\tt $\$$x*$\$$y} does match {\tt (a+b)*c}.
+The variable {\tt $\$$any} is special.  It acts as a wild card and is not bound to a value.
 
-When a {\tt ucase} is executed the patterns are tries sequentially and stops after the first match.  If no pattern matches an error is generated.  One can always add a final pattern of $\{\$x\}$ to provide a default
+When a {\tt ucase} is executed the patterns are tries sequentially and stops after the first match.  If no pattern matches an error is generated.
+One can always add a final pattern of {\tt \{$\$$any\}} to provide a default
 catch-all case if that is desired.
 
-As of June 2018 repeated variables, such as in the pattern {\tt \{$\$$x + $\$$x\}}, are not supported (and not checked for).
+In release 1.0 repeated variables, such as in the pattern {\tt \{$\$$x + $\$$x\}}, are not supported (and not checked for).
 If a variable is repeated it will be matched at its last occurrences under depth-first left to right traversal.
 
 \subsection{Gensym and Macro Definitions}
@@ -379,7 +378,7 @@ The procedure for macro expansion is attached to either the head symbol of the a
 or the binary operator of the binary connection expression.
 
 \subsection{The Notebook IDE}
-\label{sec:emacs}
+\label{sec:Emacs}
 
 Starting the kernel with the key C-M-s creates a running C process.  When a cell is executed
 with the command C-c C-c the text of the cell is (invisibly) passed to $C$ process by the process is
@@ -392,40 +391,49 @@ restarted the execution numbering is reset to start with 1.  Changing a procedur
 (argument and return types) requires restarting the kernel.
 
 
-{\bf Compile-Time Errors.}
+\noindent {\bf Compile-Time Errors.}
 If an error occurs while attempting to read or compile the cell expression an error statement is displayed --- typically the output of the C compiler --- and
 an error message is printed in the code buffer as the value of cell.
 
-{\bf Run Time Errors and Breakpoints.} If an error is trapped by MetaC dynamic checking during execution of the compiled cell code
-gdb is entered in a interactive read-eval-print debugging window.  Giving the continue command to gdb will return to the code buffer.
-The MetaC procedure {\tt breakpt(char *)} can be inserted into to create breakpoints.  If this procedure is called from the
-running (compiled) C code then a breakpoint will occur under the gdb debugger.  Giving the continue command to GDB will continue from the breakpoint.
+\noindent {\bf Run Time Errors and Breakpoints.} The procedure {\tt berror(char *)} can be called from C code when a dynamic safety check fails.
+MetaC primitives call {\tt berror} when safety checks fail.
+When a {\tt berror} is called during execution gdb is entered in a interactive debugging REPL.  Giving the continue command to gdb will abort the cell execution and
+return to the code buffer with the persistent C process intact.
 
-{\bf Printing.} The procedure {\tt mcprint} takes a format string and additional arguments and prints to the emacs *messages* buffer.
+The MetaC procedure {\tt breakpt(char *)} can be used for breakpoints from which execution can be continued.  When this procedure is called
+gdb will be entered. Giving the continue command to gdb will continue from the breakpoint.
 
-In addition to starting (or restarting) the kernel and to executing individual cells, we have the following additional key bindings.
+Segmentation faults are trapped by gdb directly.  In this case the
+NIDE will move to the gdb REPL for investigating the error.  But
+the normal gdb continue command will not return to the code buffer.
+In this case typing {\tt print return\_to\_NIDE()} will in most cases
+return to the code buffer with the persistent C process intact.  When
+memory corruption is a possibility it is safest to restart the C
+process.
+
+\noindent {\bf Printing.} The procedure {\tt mcprint} is like {\tt fprintf} but omitting the file argument. The expression
+{\tt mcprint("x = \%s$\backslash$n",s)} will print to the *Messages* buffer in Emacs. The expression {\tt mcpprint($e$)}
+will pretty-print the expression $e$ to the *Messages* buffer.
+
+\noindent {\bf Key Bindings.}  mc.el provides the following key bindings.
 
 \begin{itemize}
-\item[C-cr] This executes all cells in the current region sequentially with a different execution number for each cell execution.
+\item[C-M-s] starts or restarts the persistent C process.
 
-\item[C-M-a] This moves to the begging of the current cell.
+\item[C-c C-c] executes the cell containing the cursor.
+  
+\item[C-c C-r] executes all cells in the current region sequentially with a different execution number for each cell execution.
 
-\item[C-M-p] This moves to the beginning of the preceding cell.
+\item[C-M-a] moves to the begging of the current cell.
 
-\item[C-M-n] This moves to the beginning of the next cell.
+\item[C-M-p] moves to the beginning of the preceding cell.
 
+\item[C-M-n] moves to the beginning of the next cell.
 
 \end{itemize}
 
-\subsection{Extending the REPL executable}
-\label{sec:exntensions}
-
-Comming soon.
-
-\subsection{Debugging Features}
-\label{sec:debugging}
-
-Coming soon.
+Executing the eLisp expression {\tt (MC:strip-cell-values)} in a code buffer will remove the cell values.  This is useful before a git commit as it can reduce or eliminate differences
+in files between commits.
 
 \section{Universal Syntax}
 
@@ -453,8 +461,8 @@ and hence that the reader should invert the printer.
 The above universality properties allow one to assign semantics to universal syntax expressions based on the strings that they represent.  We can assign C
 semantics to an expression by printing the expression and passing the resulting string to a C compiler.  This string-based semantics is not always
 compositional with respect to the universal syntax bracketing.  However, the tree structure imposed by the reader is designed to approximate the
-compositional structure of C syntax.  In most cases pattern matching on universal syntax expressions recovers substructure that is semantically meaningful under C
-semantics. Parentheses and semicolons are particularly helpful in aligning universal syntax trees with C syntax.
+compositional structure of C syntax.  In most cases pattern matching on universal syntax expressions recovers substructure that is semantically compositional under C
+semantics. Parentheses and semicolons can be helpful in aligning universal syntax trees with C semantics.
 
 \subsection{Universal Expressions: cons-car-cdr}
 
@@ -700,11 +708,164 @@ If the value of variable {\tt x} is the expression {\tt a} then the value of exp
 As with backquote, pattern matching is defined in terms of the cons-car-cdr view of expressions independent of the MetaC reader.  We define a substitution to be a mapping from
 symbol atoms to expressions. For a substitution $\sigma$ and a pattern $\{e\}$ we define the expressions $\sigma(e)$
 to be the result of replacing each subexpression (subtree) of $e$ of the form $\fopen \$\;x \fclose$ where $x$ is a symbol atom with $\sigma(x)$.  A pattern expression (tree) $\{e\}$ matches an expression (tree) $w$ with substitution $\sigma$
-if $\sigma(e) = w$. An exception to this is the case where a variable occurs multiple times in the pattern.  As of June 2018 multiple occurrences of a variable in a pattern is not supported.
+if $\sigma(e) = w$. An exception to this is the case where a variable occurs multiple times in the pattern.  In release 1.0 multiple occurrences of a variable in a pattern is not supported.
+
+\section{Expression Interning, Expression Properties and Undo Frames}
+
+In MetaC expressions are interned.  This means that two expressions which print as the same strings will be represented by the same data structure with the same meory address (the same pointer).
+Hence we have
+
+\begin{verbatim}
+MC> int_exp(`{foo(a)} == `{foo(a)})
+1
+\end{verbatim}
+
+Expressions also have property lists.  The expression
+
+\centerline{\tt setprop($e$,$p$,$v$)}
+
+sets the property $p$ of expression $e$ to the value $v$ where $p$ and $v$ are also expressions.
+The expression
+
+\centerline{\tt getprop($e$,$p$,$v$)}
+
+returns property $p$ of expression $e$ or the expression $v$ if no $p$-property has been assigned to $e$.
+C coersions can be used to store property values other than expressions
+but this raises the standard safety issues of C type coercions.  It is not difficult to define macros supporting properties of different types, but this has not been done in release 1.0.
+
+Interned expressions with properties provide the functionality of dictionary data structures such as C++ hashmaps or Python dictionaries.
+They also facilitate bottom-up logic programming implementations of dynamic programming inference algorithms.
+
+\noindent {\bf Undo Frames.} Creating expressions and setting properties allocates memory.  However this allocation is ``undone'' on exit from an ``undo frame''.
+The statement {\tt push\_undo\_frame();} enters an undo frame and the expression {\tt return\_from\_undo($e$)} exits the undo frame returning the value
+of the expression $e$.  All expression allocation and property setting that occurs in an undo frame is undone on exit from the frame.  The expression value $e$
+returned from the frame is copied into an ephemeral return memory before the undoing occurs, is then copied into the parent undo frame after the undoing
+and that copy in the parent frame is returned as the value of the return expression.  This undo architecture facilitates the implementation of case-analysis
+in automated reasoning systems such as SMT solvers.  It also provides a very efficient form of memory management analogous to, but quite different from,
+stack allocation.
+
+\section{The MetaC Primitives}
+
+Here is a list of the MetaC primitives and pre-installed type definitions.  The macros backquote, ucase, and umacro expand to code built on these primitves.
+
+\begin{verbatim}
+typedef char * charptr;
+
+typedef void * voidptr;
+
+typedef FILE * FILEptr;
+
+//Expressions:
+
+typedef struct expstruct{...}*expptr;
+
+expptr string_atom(char * s);
+
+int atomp(expptr e);
+
+charptr atom_string(expptr a);
+
+expptr cons(expptr x, expptr y);
+
+int cellp(expptr e);
+
+expptr car(expptr x);
+
+expptr cdr(expptr x);
+
+expptr intern_paren(char openchar, expptr arg); \\ openchar must be one of '(', '{' or '['.
+
+int parenp(expptr e);
+
+expptr paren_inside(expptr e);
+
+expptr getprop(expptr e, expptr key, expptr defaultval);
+
+void setprop(expptr e, expptr key, expptr val);
+
+/** ========================================================================
+errors and breaks
+========================================================================**/
+
+void berror(charptr s);
+
+void breakpt(charptr s);
+
+/** ========================================================================
+conversions
+========================================================================**/
+
+expptr int_exp(int i);
+
+int exp_int(expptr s);
+
+/** ========================================================================
+gensym
+========================================================================**/
+
+expptr gensym(char * s);
+
+
+/** ========================================================================
+reading and printing
+========================================================================**/
+
+void pprint(expptr e, FILEptr f, int i);
+
+void 
+
+/** ========================================================================
+macros
+========================================================================**/
+
+expptr macroexpand(expptr e);
+
+expptr macroexpand1(expptr e);
+
+/** ========================================================================
+cons and nil 
+========================================================================**/
+
+expptr append(expptr l1, expptr l2);
+
+expptr reverse(expptr l);
+
+typedef  expptr exp_to_exp(expptr);
+typedef  void exp_to_void(expptr);
+
+expptr mapcar(exp_to_exp f, expptr l);
+
+void mapc(exp_to_void f, expptr l);
+
+int length(expptr l);
+
+/** ========================================================================
+undo frames
+========================================================================**/
+
+void push_undo_frame();
+
+void pop_undo_frame();
+
+void undo_set(voidptr loc, voidptr val);
+
+voidptr undo_alloc(int size);
+
+
+/** ========================================================================
+The following procedure takes a file name and returns a list of the expressions
+(in universal syntax) contained in the file.
+======================================================================== **/
+
+expptr file_expressions(char *name);
 
 
 
 
 
+
+\bibliographystyle{abbrv}
+
+\bibliography{manual}
 
 \end{document}

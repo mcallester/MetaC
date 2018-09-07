@@ -89,6 +89,7 @@
   (process-send-string (mc-process) "break cbreak\n")
   (process-send-string (mc-process) "run\n")
   (setq *eval-count* 1)
+  (setq *starting* t)
   (setq *mc-accumulator* nil)
   (setq *gdb-mode* nil)
   (print "kernel restarted"))
@@ -214,7 +215,8 @@
 	 (let ((w (get-buffer-window (mc-buffer))))
 	   (when w (delete-window w)))
 	 (pop-to-buffer *source-buffer*)
-	 (setq *gdb-mode* nil))
+	 (setq *gdb-mode* nil)
+	 (setq *starting* nil))
 
 	(t (error (format "unrecognized tag %s" tag)))))
 
@@ -251,7 +253,10 @@
        (t (setq i (+ i 1)))))
     val))
 
-(defun MC:parse-output ()
+(defun MC:parse-output()
+  (or (MC:parse-output1) (MC:parse-output2)))
+  
+(defun MC:parse-output1 ()
   (let ((i (MC:sep-pos *mc-accumulator* 0)))
     (when i
       (let ((j (MC:sep-pos *mc-accumulator* (+ i (length *seperator*)))))
@@ -260,6 +265,14 @@
 		(tag (substring *mc-accumulator* (+ i (length *seperator*)) j)))
 	    (setq *mc-accumulator* (substring *mc-accumulator* (+ j (length *seperator*))))
 	    (cons tag value)))))))
+
+(defun MC:parse-output2 ()
+  (when (and (not *starting*)
+	     (not *gdb-mode*)
+	     (eq t (compare-strings "(gdb)" nil nil *mc-accumulator* -6 -1)))
+    (let ((value *mc-accumulator*))
+      (setq *mc-accumulator* nil)
+      (cons "exec-error" value))))
 
 (defun message-buffer ()
   (get-buffer-create "*MC-Messages*"))
@@ -294,28 +307,6 @@
 
 (add-hookm shell-mode-hook
   (define-key shell-mode-map "\M-\C-m" 'beep))
-
-;;;the following three definitions are not currently used
-;;;something like the first two will be needed when berror recursively
-;;;invokes the REPL rather than gdb
-
-(defun MC:return-key ()
-  (interactive)
-  (process-send-string (mc-process) "REPL\n")
-  (comint-send-input))
-
-(define-minor-mode MC-mode
-  "the mode for Meta-C buffers built on shell-mode"
-  :init-value nil
-  :lighter "MC"
-  :keymap  '(([?\r] . MC:return-key)))
-  
-(defun MC:command (string)
-  (when (buffer-live-p (mc-buffer))
-    (with-current-buffer (mc-buffer)
-      (end-of-buffer)
-      (MC:insert-in-segment string)
-      (comint-send-input))))
 
 (defun MC:strip-cell-values ()
   (interactive)

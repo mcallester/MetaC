@@ -39,6 +39,14 @@ void send_emacs_tag(char * tag){
   fflush(stdout);
 }
 
+void send_print_tag(){send_emacs_tag(print_tag);}
+
+int in_ide_proc(){return in_ide;}
+
+void return_to_NIDE(){
+  throw_error();
+}
+
 void breakpt(char *s){
   fprintf(stdout,"%s\n",s);
   if(!in_ide)cbreak();
@@ -841,7 +849,7 @@ void advance_readchar(){
 
   else{
     //REPL termination
-    if(from_repl && next == '\n' && paren_level == 0)readchar = '\0';}
+    if(from_repl && next == '\n' && paren_level == 0)next = '\0';}
 }
 
 void skipwhite(){

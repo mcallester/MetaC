@@ -230,7 +230,7 @@ int_exp(value(`foo))
 /** 4: compilation error **/
 
 int_exp(value(`{foo}))
-/** 4: execution error **/
+/** 3: execution error **/
 
 expptr bar(){
   breakpt("bar break");
@@ -289,3 +289,27 @@ expptr parenthesize(expptr l){
 
 parenthesize(file_expressions("test1.mc"))
 /** 3: (int f(int x){return x+1;})(int g(int x){return f(x+1);})(int h(int x){return x;}) **/
+
+
+/** ========================================================================
+ printing
+======================================================================== **/
+
+mcpprint(`{foo});
+/** 1: done **/
+
+
+/** ========================================================================
+ segment fault test
+======================================================================== **/
+expptr e[0];
+/** 1: done **/
+
+e[0] = NULL;
+/** 2: done **/
+
+e[0]->arg1
+/** 3: execution error **/
+
+`{a}
+/** 4: a **/

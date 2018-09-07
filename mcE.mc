@@ -91,7 +91,6 @@ umacro{insert_base()}{
 
 init_fun(mcE_init2)  //mcE_init2 defines the macro insert_base (without calling it).
 
-
 /** ========================================================================
 insertion and extraction from the linking table.  Procedure extraction is
 done by defing the procedure in the DLL to go through the linking table.
@@ -300,3 +299,4 @@ voidptr compile_load_file(charptr fstring){
     comp_error();}
   return header;
 }
+

@@ -36,11 +36,11 @@ char *strip_quotes(char *input){
   else return input;
 }
 
-void IDE_loop(){
-  void eval_exp(expptr exp){
-    if (atomp(exp) && whitespace(atom_string(exp))) return;
-    MC_doit(macroexpand(exp));}
+void eval_exp(expptr exp){
+  if (atomp(exp) && whitespace(atom_string(exp))) return;
+  MC_doit(macroexpand(exp));}
 
+void IDE_loop(){
   while(1){
     catch_error({
 	send_emacs_tag(ide_tag);

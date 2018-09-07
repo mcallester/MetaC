@@ -46,6 +46,7 @@ void berror(charptr s);
 
 /** ========================================================================
 interning (procedures called by the expansion of backquote)
+and destructuring pro
 ========================================================================**/
 
 charptr intern_string(charptr s);
@@ -165,4 +166,11 @@ voidptr current_frame();
 voidptr stack_alloc(int size);
 
 expptr file_expressions(char *name);
+
+void send_emacs_tag(char * tag);
+
+void send_print_tag();
+
+int in_ide_proc();
+
 

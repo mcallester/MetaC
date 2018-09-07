@@ -41,8 +41,21 @@ expptr args_variables(expptr args){
 }
 
 umacro{mcprint($args)}{
-  return `{{fprintf(stdout,$args); send_emacs_tag(print_tag);}};
+  return
+    `{{if(in_ide_proc()){
+	fprintf(stdout,$args); send_print_tag();}
+      else fprintf(stdout,$args);}};
 }
+
+umacro{mcpprint($exp)}{
+  return
+    `{{if(in_ide_proc()){
+	pprint($exp,stdout,0); send_print_tag();}
+      else pprint($exp,stdout,0);}};
+}
+
+
+
 
 init_fun(mcD_init)
 
