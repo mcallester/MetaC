@@ -51,6 +51,8 @@ void IDE_loop(){
         expptr e=read_from_ide();
 
 	fprintf(stdout, "processing:\n");
+	pprint(e,stdout,0);
+        send_emacs_tag(print_tag);
 
         char *require_file;
         expptr exps_to_eval;
@@ -58,15 +60,10 @@ void IDE_loop(){
           {#require($sym)} : {
             if (!atomp(sym)) uerror(`{Require argument "$sym" must be a symbol});
             require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
-            pprint(string_atom(require_file),stdout,0);
             in_require=1;
             exps_to_eval=file_expressions(require_file);}
           {$any} : {
-            pprint(e,stdout,0);
             exps_to_eval=cons(e,nil);}}
-
-
-        send_emacs_tag(print_tag);
 
         mapc(eval_exp,exps_to_eval);
 
