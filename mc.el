@@ -19,7 +19,7 @@
     (error
      (beginning-of-buffer)
      (let ((c (char-after)))
-       (when (or  (= c 32) (= c ?\t) (= c ?\n))
+       (when (or  (= c 32) (= c 47) (= c ?\t) (= c ?\n))
 	 (MC:next-def))))))
 
 (add-hookm c-mode-hook
