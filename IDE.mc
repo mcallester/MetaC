@@ -37,7 +37,6 @@ char *strip_quotes(char *input){
 }
 
 void eval_exp(expptr exp){
-  if (atomp(exp) && whitespace(atom_string(exp))) return;
   MC_doit(macroexpand(exp));}
 
 void IDE_loop(){

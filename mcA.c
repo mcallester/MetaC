@@ -78,6 +78,13 @@ void uerror(expptr e){
 /** ========================================================================
 push_stack_frame, pop_stack_frame, and stack_alloc
 ========================================================================**/
+#define STACK_DIM  (1 << 17)
+int stack_restore[STACK_DIM];
+int stack_frame_count;
+
+#define STACK_HEAP_DIM (1<<19)
+char stack_heap[STACK_HEAP_DIM];
+int stack_heap_freeptr;
 
 void * stack_alloc(int size){
   if(stack_heap_freeptr + size > STACK_HEAP_DIM)berror("stack heap exhausted");
@@ -91,21 +98,11 @@ void push_stack_frame(){
   stack_restore[stack_frame_count++] = stack_heap_freeptr;
 }
 
-void push_stack_frame2(void * frame){
-  stack[stack_frame_count] = frame;
-  push_stack_frame();
-}
-
 void pop_stack_frame(){
   if(stack_frame_count == 0)berror("attempt to pop base stack frame");
   stack_heap_freeptr = stack_restore[--stack_frame_count];
 }
 
-void * current_frame(){
-  if(stack_frame_count == 0) return NULL;
-  return stack[stack_frame_count-1];
-}
-				 
 void init_stack_frames(){
   stack_heap_freeptr = 0;
   stack_frame_count = 0;
@@ -387,6 +384,9 @@ int length(expptr l){
 /** ========================================================================
 properties  see mc.h for the definition of the type plist
 ========================================================================**/
+static inline plist data(expptr e){
+  if(e == NULL)berror("attempt to take data of null expression");
+  return e -> data;}
 
 plist getprop_cell(expptr e, expptr key){
   for(plist p = data(e); p!= NULL; p=p->rest){
@@ -418,6 +418,10 @@ void setprop(expptr e, expptr key, expptr val){
     return;}
   addprop(e,key,val);
 }
+
+//the following procedures are designed to be robust with respect to the
+//representation of integers.  It avoids casting between integers and pointers.
+//instead casting is done only between different pointer types.
 
 void setprop_int(expptr e, expptr key, int x){
   char buffer[8]; //buffer is a pointer.
@@ -552,6 +556,25 @@ void pprint(expptr w, FILE * f, int indent_level){
 void printexp(expptr e){
   pprint(e,stdout,rep_column);}
 
+void mcpprint(expptr e){
+  if(in_ide_proc()){pprint(e,stdout,0); send_print_tag();}
+  else pprint(e,stdout,0);
+}
+
+/** ========================================================================
+ephemeral buffer
+======================================================================== **/
+
+#define EPHEMERAL_DIM (1<<10)
+char ephemeral_buffer[EPHEMERAL_DIM];
+int ephemeral_freeptr;
+
+void ephemeral_putc(char c){
+  if(ephemeral_freeptr == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+  ephemeral_buffer[ephemeral_freeptr++]=c;
+}
+
+
 /** ========================================================================
 section: backquote
 
@@ -566,6 +589,7 @@ In such situations gensym is used to avoid capture.
 But I have never encountered a macro that places a body inside a backquote.
 ========================================================================**/
 
+
 expptr app_code(char * proc, expptr arg_code){
   return cons(string_atom(proc), intern_paren('(',arg_code));}
 
@@ -577,15 +601,15 @@ expptr atom_quote_code(expptr a){
   if(a == backslash){
     return app_code("string_atom",string_atom("\"\\\\\""));}
   char  * s = atom_string(a);
-  int eph_freeptr = 0;
-  ephemeral_buffer[eph_freeptr++] = '"';
-  if(string_quotep(s[0])) ephemeral_buffer[eph_freeptr++] = '\\';
-  for(int i = 0; s[i] != '\0'; i++)ephemeral_buffer[eph_freeptr++]=s[i];
+  ephemeral_freeptr = 0;
+  ephemeral_putc('"');
+  if(string_quotep(s[0])) ephemeral_putc('\\');
+  for(int i = 0; s[i] != '\0'; i++)ephemeral_putc(s[i]);
   if(string_quotep(s[0])){
-    ephemeral_buffer[eph_freeptr-1] = '\\';
-    ephemeral_buffer[eph_freeptr++] = s[0];}
-  ephemeral_buffer[eph_freeptr++] = '"';
-  ephemeral_buffer[eph_freeptr++] = '\0';
+    ephemeral_buffer[ephemeral_freeptr-1] = '\\';
+    ephemeral_putc(s[0]);}
+  ephemeral_putc('"');
+  ephemeral_putc('\0');
   return app_code("string_atom",string_atom(ephemeral_buffer));
 }
 
@@ -875,13 +899,6 @@ All three of these procedures advance past white before returning.
 All other reader procedures use only advance_past_white.
 ======================================================================== **/
 
-int ephemeral_freeptr;
-
-void ephemeral_putc(char c){
-  if(ephemeral_freeptr == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
-  ephemeral_buffer[ephemeral_freeptr++]=c;
-}
-
 expptr mcread_symbol(){
   if(!alphap(readchar))return NULL;
   ephemeral_freeptr = 0;
@@ -1066,7 +1083,6 @@ void mcA_init(){
   init_exp_constants();
   
   gensym_count = 1;
-  dbg_freeptr = 0;
   catch_freeptr = 0;
   in_doit = 0; //this controlled in the IDE and not touched in the REPL or file_expressions.
   

@@ -11,7 +11,7 @@ expptr umacro_macro(expptr e){
 	   expptr name = top_atom(pattern); //name can be a connective.
 	   if(name == NULL)berror("illegal pattern in umacro");
 	   char * s = atom_string(name);
-	   expptr fname = alphap(s[0]) ? gensym(s) : gensym("connective");
+	   expptr fname = symbolp(name) ? gensym(s) : gensym("connective");
 	   add_init_form(`{set_macro(`{$name},$fname);});
 	   return `{expptr $fname(expptr e){ucase{e;{$pattern}:{$body}} return NULL;}};}}
   return NULL;

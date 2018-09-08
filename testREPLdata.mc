@@ -303,13 +303,11 @@ mcpprint(`{foo});
  segment fault test
 ======================================================================== **/
 expptr e[0];
-/** 1: done **/
-
-e[0] = NULL;
 /** 2: done **/
 
-e[0]->arg1
-/** 3: execution error **/
+e[0] = NULL;
+/** 3: done **/
 
-`{a}
-/** 4: a **/
+e[0]->arg1
+/** 4: execution error **/
+

@@ -75,33 +75,13 @@ void breakpt(char * s);
 
 void berror(char *s);
 
-void activate_break();
-
-void deactivate_break();
-
-void act_break();
-
-#define EPHEMERAL_DIM (1<<10)
-char ephemeral_buffer[EPHEMERAL_DIM];
-
 /** ========================================================================
 push_stack_frame, pop_stack_frame, and stack_alloc
 ========================================================================**/
-#define STACK_DIM  (1 << 17)
-int stack_restore[STACK_DIM];
-void * stack[STACK_DIM];
-int stack_frame_count;
-
-#define STACK_HEAP_DIM (1<<19)
-char stack_heap[STACK_HEAP_DIM];
-int stack_heap_freeptr;
-
 
 void * stack_alloc(int size);
 void push_stack_frame();
-void push_stack_frame2(void * frame);
 void pop_stack_frame();
-void * current_frame();
 
 /** ========================================================================
 expressions
@@ -127,7 +107,6 @@ int symbolp(expptr e);
 
 char * atom_string(expptr a);
 
-
 expptr cons(expptr x, expptr y);
 
 int cellp(expptr e);
@@ -136,41 +115,18 @@ expptr car(expptr x);
 
 expptr cdr(expptr x);
 
-
 expptr intern_paren(char openchar, expptr arg);
 
 int parenp(expptr e);
 
 expptr paren_inside(expptr e);
 
-int whitep(char), alphap(char), connp(char), miscp(char), string_quotep(char);
-int whitespace(char *);
-
 static inline char constructor(expptr e){
   if(e == NULL)berror("attempt to take the constructor of a null expression");
   return e-> constructor;}
 
-static inline plist data(expptr e){
-  if(e == NULL)berror("attempt to take data of null expression");
-  return e -> data;}
-
-char * intern_string(char * s);
 expptr int_exp(int i);
 int exp_int(expptr s);
-charptr exp_string(expptr e);
-
-#define DBG_DIM 10000
-#define DBG_DIM_ARGS 5
-
-expptr dbg_stack[DBG_DIM];
-expptr dbg_stack_args[DBG_DIM][DBG_DIM_ARGS];
-int dbg_freeptr;
-
-void push_dbg_expression(expptr e);
-
-void pop_dbg_stack();
-
-void match_failure(expptr,expptr);
 
 /** ========================================================================
 gensym
@@ -212,7 +168,6 @@ expptr read_from_file();
 
 expptr file_expressions(char * fname);
 void pprint(expptr e, FILE * f, int i);
-void writeexp(expptr e);
 void printexp(expptr e);
 
 /** ========================================================================
@@ -231,28 +186,21 @@ void add_init_form(expptr e);
 
 expptr args_variables(expptr args);
 
-void match_failure();
+void match_failure(expptr,expptr);
 
 expptr top_atom(expptr e);
 
-expptr replace_returns(expptr,expptr,expptr);
-  
 /** ========================================================================
 utilities
 ========================================================================**/
 
 int containsp(expptr e1, expptr e2);
 
-expptr cons(expptr x, expptr y);
-expptr car(expptr x);
-expptr cdr(expptr x);
 void mapc(void f(expptr), expptr l);
 expptr mapcar(expptr f(expptr), expptr l);
 int length(expptr);
 expptr append(expptr,expptr);
 expptr reverse(expptr);
-
-
 
 FILE * writestrm;
 
@@ -316,3 +264,5 @@ void send_emacs_tag(char *);
 void send_print_tag();
 int in_ide_proc();
 void return_to_NIDE();
+
+void mcpprint(expptr);

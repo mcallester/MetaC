@@ -47,16 +47,6 @@ umacro{mcprint($args)}{
       else fprintf(stdout,$args);}};
 }
 
-umacro{mcpprint($exp)}{
-  return
-    `{{if(in_ide_proc()){
-	pprint($exp,stdout,0); send_print_tag();}
-      else pprint($exp,stdout,0);}};
-}
-
-
-
-
 init_fun(mcD_init)
 
 /** ========================================================================

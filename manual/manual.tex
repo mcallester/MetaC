@@ -14,6 +14,8 @@
 \newcommand{\ignore}[1]{}
 
 \parskip = 2ex
+\parindent = 0ex
+
 \newcommand{\context}{\text{\emph{context}}}
 
 \title{MetaC 1.0}
@@ -31,14 +33,16 @@
   C statements and incremental procedure definitions in a persistent C process.  This is implemented by incrementally compiling dynamic load libraries
   which are then linked into the persistent process.
 
-  MetaC also extends C with Lisp-like features. More specifically, MetaC provides a C-like universal syntax, computed macros, backquote~\cite{backquote}, and pattern-matching.
+  MetaC also extends C with Lisp-like features. More specifically, MetaC provides a C-like universal syntax,
+  computed macros, backquote~\cite{backquote}, and pattern-matching.
   The implementation is bootstrapped --- it is implemented in itself.  These C extensions are intended to support the development of high level
   frameworks with notebook interfaces as direct extensions of C.  This is in contrast to scripting-C hybrids such as Matlab, Numpy, TensorFlow or PyTorch.
 
   The NIDE is implemented in Emacs piped to a MetaC REPL.  Presumably notebook IDEs for C or C++ could also be implemented as extensions
   of Atom or Visual Studio Code piped to a persistent process.
 
-  Dynamic linking is difficult to implement robustly.  MetaC release 1.0 runs under both Ubuntu 18.04.1 / gcc 7.3.0 and MAC OSX 10.11.4 / gcc Apple LLVM version 7.3.0 (clang-703.0.31).
+  Dynamic linking is difficult to implement robustly.
+  MetaC release 1.0 runs under both Ubuntu 18.04.1 / gcc 7.3.0 and MAC OSX 10.11.4 / gcc Apple LLVM version 7.3.0 (clang-703.0.31).
 \end{abstract}
 
 \vfill
@@ -746,17 +750,22 @@ stack allocation.
 
 \section{The MetaC Primitives}
 
-Here is a list of the MetaC primitives and pre-installed type definitions.  The macros backquote, ucase, and umacro expand to code built on these primitves.
+We now give a list of the MetaC primitives and pre-installed type definitions.  The macros backquote, ucase, and umacro expand to code built on these primitves.
+We start with type definitions needed for the single atom type restriction needed for the limiting type parsing abilities of MetaC.
 
 \begin{verbatim}
+
 typedef char * charptr;
 
 typedef void * voidptr;
 
 typedef FILE * FILEptr;
 
-//Expressions:
+\end{verbatim}
 
+Next we have the lowest level interface functions for expressions.  The macros {\tt backquote} and {\tt ucase} expand into C code using these procedures.
+
+\begin{verbatim}
 typedef struct expstruct{...}*expptr;
 
 expptr string_atom(char * s);
@@ -779,53 +788,63 @@ int parenp(expptr e);
 
 expptr paren_inside(expptr e);
 
-expptr getprop(expptr e, expptr key, expptr defaultval);
+char constructor(expptr e); //used for paren expressions.
+\end{verbatim}
 
-void setprop(expptr e, expptr key, expptr val);
+We also have integer-expression conversions.  The REPL and NIDE require that inputs and cells are expression-valued.
 
-/** ========================================================================
-errors and breaks
-========================================================================**/
-
-void berror(charptr s);
-
-void breakpt(charptr s);
-
-/** ========================================================================
-conversions
-========================================================================**/
-
+\begin{verbatim}
 expptr int_exp(int i);
 
 int exp_int(expptr s);
+\end{verbatim}
 
-/** ========================================================================
-gensym
-========================================================================**/
+Next we have expression properties.  The macro {\tt umacro } expands to code that
+sets the macro property of some atom to a procedure pointer.  Gensym is also important
+in macro definitions.
+
+\begin{verbatim}
+void setprop(expptr e, expptr key, expptr val);
+
+expptr getprop(expptr e, expptr key, expptr defaultval);
 
 expptr gensym(char * s);
+\end{verbatim}
 
+We also have error exceptions and break points.
 
-/** ========================================================================
-reading and printing
-========================================================================**/
+\begin{verbatim}
+void berror(charptr s);
 
-void pprint(expptr e, FILEptr f, int i);
+void breakpt(charptr s);
+\end{verbatim}
 
-void 
+We now consider reading and printing.  The procedure {\tt file\_expressions} takes a file name and returns a list of the expressions
+(in universal syntax) contained in the file.  The last two print to the *Messages* buffer in emacs in the NIDE.
+The last expressions is a macro.
 
-/** ========================================================================
-macros
-========================================================================**/
+\begin{verbatim}
+expptr file_expressions(char *name);
 
+void pprint(expptr e, FILEptr f, int indent); //indent is typically 0
+
+void mcpprint(epptr e);
+
+void mcprint(...)
+\end{verbatim}
+
+We have the following two macro-expansion procedures.  The first does full macro expansion --- the result is guaranteed not to contain macros.
+The second does one step of macro expansion --- the result may contain more macros.
+
+\begin{verbatim}
 expptr macroexpand(expptr e);
 
-expptr macroexpand1(expptr e);
+expptr macroexpand1(expptr e); //this result may contain unexpanded macros
+\end{verbatim}
 
-/** ========================================================================
-cons and nil 
-========================================================================**/
+We also have the following list-processing procedures and macros.
 
+\begin{verbatim}
 expptr append(expptr l1, expptr l2);
 
 expptr reverse(expptr l);
@@ -838,31 +857,19 @@ expptr mapcar(exp_to_exp f, expptr l);
 void mapc(exp_to_void f, expptr l);
 
 int length(expptr l);
+\end{verbatim}
 
-/** ========================================================================
-undo frames
-========================================================================**/
+Finally we have the procedures related to undo frames.
 
+\begin{verbatim}
 void push_undo_frame();
 
-void pop_undo_frame();
+void return_from_undo(expptr e);
 
 void undo_set(voidptr loc, voidptr val);
 
 voidptr undo_alloc(int size);
-
-
-/** ========================================================================
-The following procedure takes a file name and returns a list of the expressions
-(in universal syntax) contained in the file.
-======================================================================== **/
-
-expptr file_expressions(char *name);
-
-
-
-
-
+\end{verbatim}
 
 \bibliographystyle{abbrv}
 

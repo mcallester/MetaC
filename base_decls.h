@@ -49,8 +49,6 @@ interning (procedures called by the expansion of backquote)
 and destructuring pro
 ========================================================================**/
 
-charptr intern_string(charptr s);
-
 expptr string_atom(char * s);
 
 int atomp(expptr e);
@@ -92,10 +90,6 @@ void addprop(expptr e, expptr key, expptr val);
 /** ========================================================================
 conversions
 ========================================================================**/
-
-charptr exp_string(expptr s);
-
-// expptr string_exp(charptr s);
 
 expptr int_exp(int i);
 
@@ -158,10 +152,7 @@ stack frames
 voidptrptr stack;
 
 void push_stack_frame();
-void push_stack_frame2(voidptr frame);
 void pop_stack_frame();
-
-voidptr current_frame();
 
 voidptr stack_alloc(int size);
 
@@ -173,4 +164,4 @@ void send_print_tag();
 
 int in_ide_proc();
 
-
+void mcpprint(expptr e);
