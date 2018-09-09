@@ -312,12 +312,43 @@
   (interactive)
   (save-excursion
     (condition-case nil
-        (while t
-          (beginning-of-buffer)
-          (re-search-forward "/\\\*\\\* [0-9]*:")
-          (beginning-of-line)
-          (push-mark)
-          (re-search-forward "\\\*\\\*/")
-          (forward-char)
-          (kill-region (mark) (point)))
+        (let ((start (if (use-region-p) (region-beginning) (point-min)))
+              (end (if (use-region-p) (region-end) (point-max))))
+          (while t
+            (goto-char start) 
+            (re-search-forward "/\\\*\\\* [0-9]*:" end)
+            (beginning-of-line)
+            (push-mark)
+            (re-search-forward "\\\*\\\*/" end)
+            (forward-char)
+            (kill-region (mark) (point))))
       (error nil))))
+
+;; no longer needed now that comment regions at start don't cause errors.
+(defun MC:first-def ()
+  (save-excursion
+    (beginning-of-buffer)
+    (condition-case nil 
+        (progn (re-search-forward "\n[^]})/\t\n ]")
+               (backward-char))
+      (error nil)) 
+    (point)))
+
+(defun MC:load-interval (start end)
+  (set-mark start)
+  (goto-char end)
+  (MC:load-region))
+
+(defun MC:load-buffer-to-point ()
+  (interactive)
+  (MC:load-interval (point-min) (point)))
+
+(add-hookm c-mode-hook
+  (define-key c-mode-map "\C-cB" 'MC:load-buffer-to-point))
+
+(defun MC:load-buffer ()
+  (interactive)
+  (MC:load-interval (point-min) (point-max)))
+
+(add-hookm c-mode-hook
+  (define-key c-mode-map "\C-cb" 'MC:load-buffer))
