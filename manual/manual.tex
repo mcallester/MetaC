@@ -103,7 +103,7 @@ MC>
 In the above example the backquote expression given to the REPL macro-expands to a C expression which evaluates to the expression ``hello world''.
 Backquote is described in more detail below.
 
-\subsection{C Statements, C expressions, and Universal Syntax}
+\subsection{C Statements and C Expressions}
 
 We can also declare global variables and execute statements from the REPL.
 
@@ -229,9 +229,9 @@ are not allowed in $C$. As noted above, this restriction greatly simplifies dyna
 To simplify the implementation of MetaC all type expressions appearing in procedure signatures and global array declarations must be single symbols.
 Arbitrary types can be given single symbol names using {\tt typedef}.
 
-\subsection{Backquote and Universal Syntax Expressions}
+\subsection{Backquote and Universal Syntax}
 
-We now consider backquote and universal syntax expressions in more detail.  Backquote can be used in a manner analogous to string formatting.
+We now consider backquote and universal syntax in more detail.  Backquote can be used in a manner analogous to string formatting.
 
 \begin{verbatim}
 MC> expptr friend[0] = `{Bob Givan};
@@ -331,7 +331,7 @@ they are matching.  For example, the expression {\tt a+b+c} will match the patte
 will not match the expression {\tt a+b*c} because the reader brackets {\tt a+b*c} as  $\fopen \mathtt{a~+} \fopen \mathtt{b * c} \fclose\fclose$. The pattern {\tt $\$$x*$\$$y} does match {\tt (a+b)*c}.
 The variable {\tt $\$$any} is special.  It acts as a wild card and is not bound to a value.
 
-When a {\tt ucase} is executed the patterns are tries sequentially and stops after the first match.  If no pattern matches an error is generated.
+When a {\tt ucase} is executed the patterns are tried sequentially and stops after the first match.  If no pattern matches an error is generated.
 One can always add a final pattern of {\tt \{$\$$any\}} to provide a default
 catch-all case if that is desired.
 
@@ -340,8 +340,7 @@ If a variable is repeated it will be matched at its last occurrences under depth
 
 \subsection{Gensym and Macro Definitions}
 
-MetaC supports computed macros which can exploit pattern matching, backquote pattern instantiation, and other (bootstrapped) high level language features.
-As a very simple example we can define a {\tt dolist} macro at the REPL.
+MetaC supports computed macros.  Pattern matching and backquote greatly facilitate the writing of computed macros.  Backquote and ucase are both implemented as computed macros in the bootstrapped implementation. As a very simple example we can define a {\tt dolist} macro at the REPL.
 
 \begin{verbatim}
 
@@ -370,16 +369,24 @@ The general form of a macro definition is
 \begin{verbatim}
 umacro{<pattern>}{<body>}
 \end{verbatim}
-where instances of {\tt <pattern>} in MetaC code are to be replaced by the value returned by {\tt <body>} under the variable bindings determined by the match.
-The procedure {\tt macroexpand} takes a universal syntax expression
-and returns the result of repeatedly expanding outermost macros until no further macro expansion is possible.  Macro expansion can generate effects as well as return an expansion.  The REPL performs
-macro expansion on the given expression and also performs the effects of that expansion.  {\tt umacro} is itself a MetaC macro and we can feed the above macro definition to the REPL.
+where instances of {\tt <pattern>} in MetaC code are to be replaced by
+the value returned by {\tt <body>} under the variable bindings
+determined by the match.  The pattern is restricted so as to have
+an identifiable head symbol to which the macro is attached.
+The procedure {\tt macroexpand} takes a
+universal syntax expression and returns the result of repeatedly
+expanding outermost macros until no further macro expansion is
+possible.
 
-The macro expansion of the above macro definition defines a procedure to compute the macro expansion and installs that procedure on a macro property of the symbol {\tt mydolist}.
-In a typical use a macro patterns is a symbol followed by a sequence of parenthesis expressions., in which case the expansion procedure is attached to the given symbol,
-or generalized application expression or a binary connection expressions.  Universal syntax expression types are discussed in the next section.
-The procedure for macro expansion is attached to either the head symbol of the application
-or the binary operator of the binary connection expression.
+The macro expansion of the above definition of {\tt mydolist}
+defines a procedure
+to compute the macro expansion and installs that procedure on a macro
+property of the symbol {\tt mydolist}.  A typical macro pattern
+is a symbol followed by one or more parenthesis
+expressions in which case the macro is attached to the initial symbol.
+The pattern can also be
+a binary connective expressions such as {\tt {$x .> $y}} in which case
+the macro is attached to the connective --- {\tt .>} in this case.
 
 \subsection{The Notebook IDE}
 \label{sec:Emacs}
@@ -439,8 +446,9 @@ will pretty-print the expression $e$ to the *Messages* buffer.
 Executing the eLisp expression {\tt (MC:strip-cell-values)} in a code buffer will remove the cell values.  This is useful before a git commit as it can reduce or eliminate differences
 in files between commits.
 
-{\bf Include Statements.}  A cell in a code file containing {\bf #include(<filename>)} (with no semicolon) will load the cells of the named
+{\bf Include Statements.}  A cell in a code file containing {\bf \#include(<filename>)} (with no semicolon) will load the cells of the named
 file into the persistent C process.  The extension ".mc" will be automatically added and should not be explicitly given.
+
 
 \section{Universal Syntax}
 
@@ -717,39 +725,54 @@ symbol atoms to expressions. For a substitution $\sigma$ and a pattern $\{e\}$ w
 to be the result of replacing each subexpression (subtree) of $e$ of the form $\fopen \$\;x \fclose$ where $x$ is a symbol atom with $\sigma(x)$.  A pattern expression (tree) $\{e\}$ matches an expression (tree) $w$ with substitution $\sigma$
 if $\sigma(e) = w$. An exception to this is the case where a variable occurs multiple times in the pattern.  In release 1.0 multiple occurrences of a variable in a pattern is not supported.
 
-\section{Expression Interning, Expression Properties and Undo Frames}
+\section{Miscellaneous Features}
 
-In MetaC expressions are interned.  This means that two expressions which print as the same strings will be represented by the same data structure with the same meory address (the same pointer).
+\subsection{Interning and Expression Properties}
+
+In MetaC expressions are interned and have property lists.
+Interning means that two expressions which print as the same strings will be represented by the same data structure with the same memory address (the same pointer).
 Hence we have
-
 \begin{verbatim}
 MC> int_exp(`{foo(a)} == `{foo(a)})
 1
 \end{verbatim}
-
-Expressions also have property lists.  The expression
-
-\centerline{\tt setprop($e$,$p$,$v$)}
-
-sets the property $p$ of expression $e$ to the value $v$ where $p$ and $v$ are also expressions.
-The expression
-
-\centerline{\tt getprop($e$,$p$,$v$)}
-
-returns property $p$ of expression $e$ or the expression $v$ if no $p$-property has been assigned to $e$.
-C coersions can be used to store property values other than expressions
-but this raises the standard safety issues of C type coercions.  It is not difficult to define macros supporting properties of different types, but this has not been done in release 1.0.
-
 Interned expressions with properties provide the functionality of dictionary data structures such as C++ hashmaps or Python dictionaries.
-They also facilitate bottom-up logic programming implementations of dynamic programming inference algorithms.
+Interning also facilitates the implementation of forward chaining inference algorithms --- we do not want to waste noticing the same
+consequence over and over again.  Interned expressions with property lists can be viewed as a form of no-SQL database.
+Interning also allows directed acyclic graphs (dags) to be represented compactly as expressions.  This is very convenient
+for the representation of machine-generated justifications (proofs).
 
-\noindent {\bf Undo Frames.} Creating expressions and setting properties allocates memory.  However this allocation is ``undone'' on exit from an ``undo frame''.
-The statement {\tt push\_undo\_frame();} enters an undo frame and the expression {\tt return\_from\_undo($e$)} exits the undo frame returning the value
-of the expression $e$.  All expression allocation and property setting that occurs in an undo frame is undone on exit from the frame.  The expression value $e$
-returned from the frame is copied into an ephemeral return memory before the undoing occurs, is then copied into the parent undo frame after the undoing
-and that copy in the parent frame is returned as the value of the return expression.  This undo architecture facilitates the implementation of case-analysis
-in automated reasoning systems such as SMT solvers.  It also provides a very efficient form of memory management analogous to, but quite different from,
-stack allocation.
+The procedure {\tt setprop(expptr exp, expptr prop, void * value)}
+sets the given property of the given expression to the given value.  The procedure {\tt getprop(expptr exp, expptr prop, void * default)}
+returns property given property of the given value or the default value if no property value has been assigned.
+MetaC also provides {\tt setprop\_int(expptr e, expptr p, int n)} and {\tt getprop(expptr e, expptr p, int default)}.
+It is not difficult to define polymorphic macros for setting and extracting properties where the type of the property is passed as an argument.
+It is also not difficult to assign types to particular properties so that the type argument is not needed in polymorphic property setting and retrieving.
+However, these features are not present in release 1.0.
+
+\subsection{Memory Management Frames (MM-frames)}
+A memory management frame (MM-frame) is analogous to a stack frame but is independent of the C stack.
+The procedure {\tt push\_MM\_frame()} pushes an MM-frame.  The procedure {\tt stack\_alloc(int nbytes)}
+returns a pointer to a block of the given size allocated from the current MM-frame.  The procedure {\tt pop-MM-frame()}
+pops the current memory-management frame freeing all allocation done in that frame (by resetting the appropriate free pointer).
+MetaC pre-allocates the heap used by {\tt stack\_alloc}.
+
+\subsection{Undo Frames}
+Undo frames are similar to MM-frames but with the added feature of undoing effects tied to the frame.
+The procedure {\tt push\_undo\_frame();} enters a new undo frame.
+Memory is allocated from the current undo frame
+with the procedure {\tt undo\_alloc(int nbytes)}.  Effect are tied to the current undo frame with the C preprocessor macro
+{\tt undo\_set(void * loc, void * val)\}.  On exit from an undo frame all memory locations assigned by {\tt undo\_set} are restored to the values
+they had before entry to the frame.
+In MetaC all expression allocation and property assignments are tied to the current undo frame.
+On exit from the undo frame the database represented by expression properties is restored to
+the state that existing on frame entry.
+
+The procedure {\tt value\_from\_undo(expptr exp)} exits the current
+undo frame frame returning the given expression as a value.  This is
+implemented by first pushing a new MM-frame, copying the give expression value into the new MM-frame; poping the current undo frame;
+copying the returned expression back into undo memory, and then popping the MM-frame holding the expression.  These transfers are all
+done in time proportional to the dag size of the expression returned.
 
 \section{The MetaC Primitives}
 
