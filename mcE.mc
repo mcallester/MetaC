@@ -121,10 +121,12 @@ The load function is given a list of fully macro-expanded expressions.
 
 expptr load(expptr forms){ // forms must be fully macro expanded.
 
+  push_stack_frame();
   compilecount ++; //should not be inside sformat --- sformat duplicates.
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
-
+  pop_stack_frame();
+  
   new_procedures = nil;
   new_arrays = nil;
   new_statements = nil;
@@ -163,7 +165,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   if(in_ide){send_emacs_tag(ignore_tag);}
    expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
-
+  
   in_doit = 1;
   return (*_mc_doit)(symbol_value);
 }

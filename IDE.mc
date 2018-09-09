@@ -41,6 +41,7 @@ void eval_exp(expptr exp){
 
 void IDE_loop(){
   while(1){
+    push_stack_frame();
     catch_error({
 	send_emacs_tag(ide_tag);
 	in_doit = 0;
@@ -61,7 +62,8 @@ void IDE_loop(){
             if (!atomp(sym)) uerror(`{Require argument "$sym" must be a symbol});
             require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
             in_require=1;
-            exps_to_eval=file_expressions(require_file);}
+            exps_to_eval=file_expressions(require_file);
+	  }
           {$any} : {
             exps_to_eval=cons(e,nil);}}
 
@@ -71,7 +73,9 @@ void IDE_loop(){
           fprintf(stdout,"%s Provided ",require_file); 
           send_emacs_tag(result_tag);
           in_require=0;}
-      })}
+      })
+      pop_stack_frame();
+  }
 }
 
 int main(int argc, char **argv){

@@ -30,6 +30,14 @@ umacro{sformat($args)}{
 	buffer;})};
 }
 
+umacro{eformat($args)}{
+  return `{({
+	int needed_size = snprintf(NULL,0,$args);
+	if(needed_size >= EPHEMERAL_DIM)berror("ephemeral buffer overflow");
+	sprintf(ephemeral_buffer,$args);
+	ephemeral_buffer;})};
+}
+
 expptr args_variables(expptr args){
   if(args == nil)return nil;
   ucase{args;

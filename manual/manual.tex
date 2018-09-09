@@ -439,6 +439,9 @@ will pretty-print the expression $e$ to the *Messages* buffer.
 Executing the eLisp expression {\tt (MC:strip-cell-values)} in a code buffer will remove the cell values.  This is useful before a git commit as it can reduce or eliminate differences
 in files between commits.
 
+{\bf Include Statements.}  A cell in a code file containing {\bf #include(<filename>)} (with no semicolon) will load the cells of the named
+file into the persistent C process.  The extension ".mc" will be automatically added and should not be explicitly given.
+
 \section{Universal Syntax}
 
 It is not obvious how to implement light weight expression quotation and expression pattern matching for C expressions.  The syntax of C is complex.

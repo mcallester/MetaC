@@ -565,16 +565,6 @@ void mcpprint(expptr e){
 ephemeral buffer
 ======================================================================== **/
 
-#define EPHEMERAL_DIM (1<<10)
-char ephemeral_buffer[EPHEMERAL_DIM];
-int ephemeral_freeptr;
-
-void ephemeral_putc(char c){
-  if(ephemeral_freeptr == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
-  ephemeral_buffer[ephemeral_freeptr++]=c;
-}
-
-
 /** ========================================================================
 section: backquote
 
@@ -595,6 +585,15 @@ expptr app_code(char * proc, expptr arg_code){
 
 expptr app_code2(char * proc, expptr arg1_code, expptr arg2_code){
   return cons(string_atom(proc), intern_paren('(',cons(arg1_code, cons(comma, arg2_code))));
+}
+
+#define EPHEMERAL_DIM (1<<8)
+char ephemeral_buffer[EPHEMERAL_DIM];
+int ephemeral_freeptr;
+
+void ephemeral_putc(char c){
+  if(ephemeral_freeptr == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+  ephemeral_buffer[ephemeral_freeptr++]=c;
 }
 
 expptr atom_quote_code(expptr a){
