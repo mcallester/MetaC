@@ -316,7 +316,7 @@ e[0]->arg1
 incldue
 ======================================================================== **/
 #require("include_test")
-/** 1:  -g -fPIC -Wall -c -Werror /tmp/TEMP1.c -o /tmp/TEMP1.o Provided **/
+/** 1: include_test.mc Provided **/
 
 included(`{a})
 /** 2: a **/
