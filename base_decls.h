@@ -167,9 +167,7 @@ int in_ide_proc();
 void mcpprint(expptr e);
 
 
-expptr stack_copy_exp(expptr exp);
-expptr intern_from_stack(expptr stack_exp);
-
+expptr exp_from_undo_frame(expptr exp);
 
 expptr stack_copy_memo_hits();
 

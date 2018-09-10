@@ -1095,7 +1095,12 @@ expptr temp_intern_paren(char openchar, expptr arg){
   if(!arg)berror("null argument given to intern_paren");
   return temp_intern_exp(openchar, arg, NULL);}
 
-expptr temp_string_atom(char * s){return temp_intern_exp('A', (expptr) s, NULL);}
+char * copy_string_to_stack(char *s){
+  char * s2 = stack_alloc(strlen(s) + 1);
+  strcpy(s2,s);
+  return s2;
+}
+expptr temp_string_atom(char * s){return temp_intern_exp('A', (expptr) copy_string_to_stack(s), NULL);}
 
 expptr stack_copy_sym;
 
@@ -1151,6 +1156,16 @@ expptr intern_from_stack(expptr stack_exp){
 
 expptr intern_memo_hits (){
   return int_exp(intern_memo_hit_counter);
+}
+
+
+expptr exp_from_undo_frame(expptr exp){
+  push_stack_frame();
+  expptr stack_exp = stack_copy_exp(exp);
+  pop_undo_frame();
+  expptr result = intern_from_stack(stack_exp);
+  pop_stack_frame();
+  return result;
 }
 
 
