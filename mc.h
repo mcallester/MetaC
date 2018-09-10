@@ -130,9 +130,7 @@ expptr int_exp(int i);
 int exp_int(expptr s);
 
 
-// for exp_from_undo_frame usage, stack allocating
-expptr stack_copy_exp(expptr exp);  // return value is not an interned exp
-expptr intern_from_stack(expptr stack_exp); //argument must be stack_copy_exp product
+expptr exp_from_undo_frame(expptr exp);
 expptr stack_copy_memo_hits();
 expptr intern_memo_hits ();
 
