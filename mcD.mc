@@ -55,33 +55,4 @@ umacro{mcprint($args)}{
       else fprintf(stdout,$args);}};
 }
 
-int repl_symbol(expptr exp){
-  ucase{exp;
-    {$sym[0]}.(symbolp(sym)):{return 1;}
-    {$any}:{return 0;}
-  }
-  return 0; //dead
-}
-
-// $sym should already be declared expptr and will be set by the code generated
-umacro{exp_from_undo_frame($sym,{$code})}{
-  if (!symbolp(sym) && !repl_symbol(sym)){
-    uerror(`{First argument to exp_from_undo_frame must be a symbol: $sym});}
-  expptr gensym_temp=gensym("temp");
-
-  return `{
-    push_undo_frame();
-    {$code}
-    push_stack_frame();
-    //transfer exp value of $sym to stack
-    expptr $gensym_temp = stack_copy_exp($sym);
-    pop_undo_frame();
-    //intern exp value from stack and set $sym
-    $sym = intern_from_stack($gensym_temp);
-    pop_stack_frame();
-  };
-}
-
-
-
 init_fun(mcD_init)
