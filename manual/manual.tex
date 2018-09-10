@@ -373,7 +373,7 @@ where instances of {\tt <pattern>} in MetaC code are to be replaced by
 the value returned by {\tt <body>} under the variable bindings
 determined by the match.  The pattern is restricted so as to have
 an identifiable head symbol to which the macro is attached.
-The procedure {\tt macroexpand} takes a
+The procedure {\tt macroexpand(exptr e)} takes a
 universal syntax expression and returns the result of repeatedly
 expanding outermost macros until no further macro expansion is
 possible.
@@ -730,7 +730,8 @@ if $\sigma(e) = w$. An exception to this is the case where a variable occurs mul
 \subsection{Interning and Expression Properties}
 
 In MetaC expressions are interned and have property lists.
-Interning means that two expressions which print as the same strings will be represented by the same data structure with the same memory address (the same pointer).
+Interning means that two expressions which have the same tree structure and sequence of leaves --- that are ``equal'' in Lisp terminology --
+represented by the same data structure with the same memory address --- are ``eq''.
 Hence we have
 \begin{verbatim}
 MC> int_exp(`{foo(a)} == `{foo(a)})
@@ -744,35 +745,80 @@ for the representation of machine-generated justifications (proofs).
 
 The procedure {\tt setprop(expptr exp, expptr prop, void * value)}
 sets the given property of the given expression to the given value.  The procedure {\tt getprop(expptr exp, expptr prop, void * default)}
-returns property given property of the given value or the default value if no property value has been assigned.
-MetaC also provides {\tt setprop\_int(expptr e, expptr p, int n)} and {\tt getprop(expptr e, expptr p, int default)}.
+the given property of the given value or the default value if no property value has been assigned.
+MetaC also provides the procedures {\tt setprop\_int(expptr e, expptr p, int n)} and {\tt getprop(expptr e, expptr p, int default)}.
 It is not difficult to define polymorphic macros for setting and extracting properties where the type of the property is passed as an argument.
 It is also not difficult to assign types to particular properties so that the type argument is not needed in polymorphic property setting and retrieving.
 However, these features are not present in release 1.0.
 
-\subsection{Memory Management Frames (MM-frames)}
-A memory management frame (MM-frame) is analogous to a stack frame but is independent of the C stack.
-The procedure {\tt push\_MM\_frame()} pushes an MM-frame.  The procedure {\tt stack\_alloc(int nbytes)}
-returns a pointer to a block of the given size allocated from the current MM-frame.  The procedure {\tt pop-MM-frame()}
-pops the current memory-management frame freeing all allocation done in that frame (by resetting the appropriate free pointer).
+\subsection{Memory Frames}
+A MetaC memory frame is analogous to a stack frame but is independent of the C stack.
+The procedure {\tt push\_memory\_frame()} pushes a memory frame.  The procedure {\tt stack\_alloc(int nbytes)}
+returns a pointer to a block of the given size allocated from the current MM-frame.  The procedure {\tt pop-memory-frame()}
+pops the current memory-management frame freeing all allocation done in that frame by resetting the appropriate free pointer.
 MetaC pre-allocates the heap used by {\tt stack\_alloc}.
 
 \subsection{Undo Frames}
-Undo frames are similar to MM-frames but with the added feature of undoing effects tied to the frame.
+Undo frames are similar to memory-frames but with the added feature of undoing effects tied to the frame.
 The procedure {\tt push\_undo\_frame();} enters a new undo frame.
 Memory is allocated from the current undo frame
 with the procedure {\tt undo\_alloc(int nbytes)}.  Effect are tied to the current undo frame with the C preprocessor macro
-{\tt undo\_set(void * loc, void * val)\}.  On exit from an undo frame all memory locations assigned by {\tt undo\_set} are restored to the values
-they had before entry to the frame.
+{\tt undo\_set(void * loc, void * val)}.  On exit from an undo frame all memory locations assigned by {\tt undo\_set} are restored to the values
+they had on entry to the frame.
 In MetaC all expression allocation and property assignments are tied to the current undo frame.
 On exit from the undo frame the database represented by expression properties is restored to
 the state that existing on frame entry.
 
 The procedure {\tt value\_from\_undo(expptr exp)} exits the current
-undo frame frame returning the given expression as a value.  This is
-implemented by first pushing a new MM-frame, copying the give expression value into the new MM-frame; poping the current undo frame;
-copying the returned expression back into undo memory, and then popping the MM-frame holding the expression.  These transfers are all
+undo frame returning the given expression as a value.  This is
+implemented by first pushing a new memory-frame, copying the give expression value into the new memory-frame; poping the current undo frame;
+copying the returned expression back into undo memory, and then popping the memory-frame holding the expression.  These transfers are all
 done in time proportional to the dag size of the expression returned.
+
+\subsection{Bootstrapping and File Expansion}
+
+MetaC is bootstrapped.  The makefile for MetaC includes the following.
+\begin{verbatim}
+mcB.c : expandA mcB.mc
+	 ./expandA mcB.mc mcB.c
+\end{verbatim}
+The executable {\tt expandA} is implemented entirely in $C$ but implements the backquote macro.  The file {\tt mcB.mc} implements {\tt ucase} using backquote.
+The makefile also includes.
+\begin{verbatim}
+mcC.c : expandB mcC.mc
+	 ./expandB mcC.mc mcC.c
+\end{verbatim}
+Here the file {\tt mcB.mc} implements additional macros using both backquote and ucase.  In the MetaC makefile this is continued up to mcE.mc and expandE.
+MetaC provides the procedure
+{\tt mcexpand(char * f1, char * f2)} which is used in the expandA and expandB commands above.  This procedure macro-expands the
+file {\tt f1} and writes the result to file {\tt f2}.  This macro-expansion is done using whatever procedures and operators currently
+have macro procedure pointers on their property lists, i.e., the expansion is done using whatever macros are defined in the current state.
+
+The procedure {\tt mcexpand(char * f1, char * f2)} is implemented using the MetaC procedure {\tt file\_expressions(char * f)}.
+This procedure takes a file name and returns a list of the expressions contained in that file.
+
+\subsection{Macro Expansion Effects}
+
+Macros expansion can also have effects.  The macro {\tt umacro} expands to a procedure definition of the macro expansion code but also
+generates a statement which installs that procedure pointer in the macro property of the head symbol.  During macro expansion the
+MetaC primitive {\tt add\_init\_form(expptr statement)} is called with a statement that installs the procedure pointer on the appropriate property list.
+
+In file expansion the initialization forms generated during macro expansion are incorporated into an initialization procedure.
+The macro {\tt init\_fun(<fname>)} macro expands to a definition of the given procedure name with no arguments but with the sequence
+of initialization forms in its body.  In the REPL and IDE the intialization forms are run after the macro expansion of the input or cell is run.
+
+\subsection{Preliminary Definitions for Macros}
+
+A macro can also generate a preliminary definition.  It is possible to implement syntactic closures (lambda expressions) with a macro.
+A closure consists of a procedure pointer bundled up with values for the free variables in the body of the lambda expression.  The lambda
+macro must first create the procedure that executes the body of the lambda expression and then incorporate that procedure pointer into
+the expression for constructing the closure data structure.  The construction of the procedure definition is a ``preamble'' to expression
+returned as the expansion of the macro.  MetaC provides the primitive {\tt add\_preamble(expptr definition)} for creating a definition of a procedure
+used in the expression returned by the macro.  In file expansion these preamble definitions are inserted into the output file before the
+expression generated by the macro.  In the REPL and NIDE these preamble definitions are installed along with the expression created by the macro.
+
+The MetaC procedure {\tt full\_macro\_expansion(expptr e)} returns a list consisting of the preamble expressions, the result of the macro expansion, and
+the initialization forms.
 
 \section{The MetaC Primitives}
 
@@ -834,6 +880,10 @@ void setprop(expptr e, expptr key, expptr val);
 
 expptr getprop(expptr e, expptr key, expptr defaultval);
 
+void setprop_int(expptr e, expptr key, int val);
+
+int getprop_int(expptr e, expptr key, int defaultval);
+
 expptr gensym(char * s);
 \end{verbatim}
 
@@ -843,6 +893,8 @@ We also have error exceptions and break points.
 void berror(charptr s);
 
 void breakpt(charptr s);
+
+void return_to_NIDE();
 \end{verbatim}
 
 We now consider reading and printing.  The procedure {\tt file\_expressions} takes a file name and returns a list of the expressions
@@ -885,7 +937,10 @@ void mapc(exp_to_void f, expptr l);
 int length(expptr l);
 \end{verbatim}
 
-Finally we have the procedures related to undo frames.
+We have the procedures related to memory frames.
+
+  
+We have the procedures related to undo frames.
 
 \begin{verbatim}
 void push_undo_frame();
@@ -895,6 +950,26 @@ void return_from_undo(expptr e);
 void undo_set(voidptr loc, voidptr val);
 
 voidptr undo_alloc(int size);
+\end{verbatim}
+
+We also have the procedures related to file expansion.
+
+\begin{verbatim}
+file_expressions(char * fname);
+
+mcexpand(char * fname1, char * fname2);
+
+init_fun(fname)
+\end{verbatim}
+
+Finally we have lower level macro expansion procedures.
+
+\begin{verbatim}
+add_init_form(expptr stement);
+
+add_preamble(expptr definition);
+
+full_expansion(expptr e);
 \end{verbatim}
 
 \bibliographystyle{abbrv}

@@ -151,8 +151,8 @@ stack frames
 
 voidptrptr stack;
 
-void push_stack_frame();
-void pop_stack_frame();
+void push_MM_frame();
+void pop_MM_frame();
 
 voidptr stack_alloc(int size);
 

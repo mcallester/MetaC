@@ -41,7 +41,7 @@ void eval_exp(expptr exp){
 
 void IDE_loop(){
   while(1){
-    push_stack_frame();
+    push_MM_frame();
     catch_error({
 	send_emacs_tag(ide_tag);
 	in_doit = 0;
@@ -74,7 +74,7 @@ void IDE_loop(){
           send_emacs_tag(result_tag);
           in_require=0;}
       })
-      pop_stack_frame();
+      pop_MM_frame();
   }
 }
 

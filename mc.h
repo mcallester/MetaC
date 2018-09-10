@@ -81,8 +81,8 @@ push_stack_frame, pop_stack_frame, and stack_alloc
 ========================================================================**/
 
 void * stack_alloc(int size);
-void push_stack_frame();
-void pop_stack_frame();
+void push_MM_frame();
+void pop_MM_frame();
 
 /** ========================================================================
 expressions

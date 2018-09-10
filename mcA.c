@@ -93,12 +93,12 @@ void * stack_alloc(int size){
   return result;
 }
 
-void push_stack_frame(){
+void push_MM_frame(){
   if(stack_frame_count >= STACK_DIM)berror("MC stack exhausted");
   stack_restore[stack_frame_count++] = stack_heap_freeptr;
 }
 
-void pop_stack_frame(){
+void pop_MM_frame(){
   if(stack_frame_count == 0)berror("attempt to pop base stack frame");
   stack_heap_freeptr = stack_restore[--stack_frame_count];
 }
