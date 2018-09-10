@@ -619,11 +619,11 @@ The nonterminal $E_\infty$ includes an epsilon production allowing null argument
   E_p & ::= & \fopen \fopen E_\ell\;\conn_p\fclose \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p \\
   E_3 & ::= & \fopen E_\ell \;E_r\fclose \;\;\;\ell > 3,\;r \geq 3\\
   E_\infty & ::= & \quot \;|\; \fopen S \; \;P^* \fclose \;|\; \fopen `\;P\fclose \;|\; P \;|\; \epsilon \;|\; \mathrm{JUNK}\\
-  S & ::= & \;\sym \;|\; V \\
-  V & ::= & \fopen \$\;\sym\fclose \;|\; \fopen \$\;P\fclose \;|\; \fopen \backslash \; V \fclose\\
+  S & ::= & \;\sym \;|\; \var \\
+  \var & ::= & \fopen \$\;\sym\fclose \;|\; \fopen \$\;P\fclose \;|\; \fopen \backslash \; \var \fclose\\
   P^* & ::= &  \epsilon  \;|\; \fopen P\;P^* \fclose \\
   \mathrm{JUNK} & ::= & ` \;|\; \mathrm{SJUNK} \\
-  \mathrm{SJUNK} & :: = & \$ \;|\;  \backslash \;|\; \fopen \backslash\;\mathrm{JUNK} \fclose\\
+  \mathrm{SJUNK} & :: = & \$ \;|\;  \backslash \;|\; \fopen \backslash\;\mathrm{SJUNK} \fclose\\
 \end{eqnarray*}
 
 \caption{{\bf The grammar defining the MetaC reader.} The input string is assumed to be of the form $(s)$ so that endpoints are explicitly labeled.
@@ -638,7 +638,7 @@ $E_\infty$ expressions must be maximal and that the use of the $\epsilon$ produc
 \label{fig:grammar}
 \end{figure}
 
-The nonterminal $S$ ranges over symbols or variables where $V$ ranges over variables.  Variables are handles specially in pattern matching ({\tt ucase}) and pattern instantiation (backquote).
+The nonterminal $S$ ranges over symbols or variables where $\var$ ranges over variables.  Variables are handles specially in pattern matching ({\tt ucase}) and pattern instantiation (backquote).
 Expression of the form $\fopen S\;P^*\fclose$ include {\tt foo}, {\tt foo(x)}, {\tt foo(int x)\{return x;\}},
 {\tt \$x}, {\tt \$f(x)}, and {\tt \$\{f(x)\}}.
 
@@ -649,8 +649,9 @@ The reader is of course deterministic --- {\tt \{foo (a) (b)\}} is read as right
 to specify a deterministic parsing process for the above ambiguous grammar.
 The implementation runs a deterministic left-to-right shift-reduce process.
 However, the parser is easier to specify as operating in global stages.  In the first stage one identifies all maximal $E_\infty$ substrings.
+An $E_\infty$ expression is either 
 The maximal $E_\infty$ requirement specifies that {\tt \{foo (a) (b)\}} is parsed as a single (right-branching)
-$E_\infty$ expression. However the string {\tt \{$\$$\;foo\;(a)\;(b)\}} is read as the longer $E_\infty$ expression $\{\fopen \fopen \mathtt{!~foo}\fclose\ \fopen \mathtt{(a)~(b)} \fclose \fclose$.
+$E_\infty$ expression. However the string {\tt \{$\$$\;foo\;(a)\;(b)\}} is read as the longer $E_\infty$ expression $\{\fopen \fopen \mathtt{\$~foo}\fclose\ \fopen \mathtt{(a)~(b)} \fclose \fclose$.
 The grammar does have the property that any given string has a unique segmentation into maximal $E_\infty$ expressions each of which has a unique structure.
 
 After identifying maximal $E_\infty$ expressions we are left with a sequence of arguments (the $E_\infty$ expressions) and connectives.
@@ -752,28 +753,61 @@ It is also not difficult to assign types to particular properties so that the ty
 However, these features are not present in release 1.0.
 
 \subsection{Memory Frames}
-A MetaC memory frame is analogous to a stack frame but is independent of the C stack.
-The procedure {\tt push\_memory\_frame()} pushes a memory frame.  The procedure {\tt stack\_alloc(int nbytes)}
-returns a pointer to a block of the given size allocated from the current MM-frame.  The procedure {\tt pop-memory-frame()}
-pops the current memory-management frame freeing all allocation done in that frame by resetting the appropriate free pointer.
-MetaC pre-allocates the heap used by {\tt stack\_alloc}.
+
+A memory frame is analogous to a stack frame but is independent of the C stack.
+The procedure {\tt push\_memory\_frame()} pushes an memory frame.  The procedure {\tt stack\_alloc(int nbytes)}
+returns a pointer to a block of the given size allocated from the current memory frame.  The procedure {\tt pop\_memory\_frame()}
+pops the current memory-management frame by resetting a free pointer (a ``stack pointer'') so as to free all allocation done in that frame.
+MetaC pre-allocates the heap (stack space) used for memory frames.
 
 \subsection{Undo Frames}
-Undo frames are similar to memory-frames but with the added feature of undoing effects tied to the frame.
-The procedure {\tt push\_undo\_frame();} enters a new undo frame.
+Undo frames are similar to memory frames but with the added feature of undoing effects tied to the frame.
+The procedure {\tt push\_undo\_frame()} enters a new undo frame.
 Memory is allocated from the current undo frame
 with the procedure {\tt undo\_alloc(int nbytes)}.  Effect are tied to the current undo frame with the C preprocessor macro
 {\tt undo\_set(void * loc, void * val)}.  On exit from an undo frame all memory locations assigned by {\tt undo\_set} are restored to the values
-they had on entry to the frame.
+they had before entry to the frame.
+
 In MetaC all expression allocation and property assignments are tied to the current undo frame.
 On exit from the undo frame the database represented by expression properties is restored to
 the state that existing on frame entry.
 
-The procedure {\tt value\_from\_undo(expptr exp)} exits the current
-undo frame returning the given expression as a value.  This is
-implemented by first pushing a new memory-frame, copying the give expression value into the new memory-frame; poping the current undo frame;
-copying the returned expression back into undo memory, and then popping the memory-frame holding the expression.  These transfers are all
-done in time proportional to the dag size of the expression returned.
+The procedure {\tt exp\_from\_undo(expptr exp)} pops the current
+undo frame copyng the given expression into the parent frame and returning the parent-frame copy as a value.
+This is used for returning the ``value'' or ``result'' of a large computation while freeing the allocation and undoing the effects of the computation.
+This can be implemented as follows.
+
+\begin{verbatim}
+exptr exp_from_undo_frame(expptr e){
+  push_stack_frame();
+  expptr temp = copy_exp_to_stack(e);
+  pop_undo_frame();
+  expptr result = copy_exp_from_stack(e);
+  pop_stack_frame();
+  return result;
+}
+\end{verbatim}
+
+The procedure {\tt collect\_undo\_frame(expptr e)} is similar to {\tt exp\_from\_undo\_frame} but replaces the current undo frame with a fresh one
+into which the given expression is placed.  In this case there is no effect on the parent frame.
+
+\begin{verbatim}
+exptr collect_undo_frame(expptr e){
+  push_stack_frame();
+  expptr temp = copy_exp_to_stack();
+  pop_undo_frame();
+  push_undo_frame();
+  result = copy_exp_from_stack(temp);
+  pop_stack_frame();
+  return result; 
+}
+\end{verbatim}
+
+The procedure {\tt collect\_undo\_frame(expptr e)} can be used for garbage collection using
+expressions of the form {\tt (install\_live\_stuff(renew\_undo\_frame(compute\_live\_stuff())))}.
+
+The procedures {\tt exp\_from\_undo\_frame} and {\tt collect\_undo\_frame} both run in time proportional to the dag size of the
+given expression. The dag size can be exponentially smaller than the tree size.
 
 \subsection{Bootstrapping and File Expansion}
 
@@ -833,14 +867,15 @@ typedef void * voidptr;
 
 typedef FILE * FILEptr;
 
+typedef struct expstruct{...} * expptr;
 \end{verbatim}
 
-Next we have the lowest level interface functions for expressions.  The macros {\tt backquote} and {\tt ucase} expand into C code using these procedures.
+\subsection{Expressions}
+
+The macros {\tt backquote} and {\tt ucase} expand into C code using these procedures.
 
 \begin{verbatim}
-typedef struct expstruct{...}*expptr;
-
-expptr string_atom(char * s);
+expptr string_atom(charptr s);
 
 int atomp(expptr e);
 
@@ -871,23 +906,20 @@ expptr int_exp(int i);
 int exp_int(expptr s);
 \end{verbatim}
 
-Next we have expression properties.  The macro {\tt umacro } expands to code that
-sets the macro property of some atom to a procedure pointer.  Gensym is also important
-in macro definitions.
+\subsection{Properties}
+
+The macro {\tt umacro } expands to code that
+sets the macro property of some atom to a procedure pointer.
 
 \begin{verbatim}
 void setprop(expptr e, expptr key, expptr val);
 
 expptr getprop(expptr e, expptr key, expptr defaultval);
 
-void setprop_int(expptr e, expptr key, int val);
-
-int getprop_int(expptr e, expptr key, int defaultval);
-
-expptr gensym(char * s);
+expptr gensym(charptr s);
 \end{verbatim}
 
-We also have error exceptions and break points.
+\subsection{Errors and Breakpoints}
 
 \begin{verbatim}
 void berror(charptr s);
@@ -897,12 +929,13 @@ void breakpt(charptr s);
 void return_to_NIDE();
 \end{verbatim}
 
-We now consider reading and printing.  The procedure {\tt file\_expressions} takes a file name and returns a list of the expressions
+\subsection{Reading and Printing}
+The procedure {\tt file\_expressions} takes a file name and returns a list of the expressions
 (in universal syntax) contained in the file.  The last two print to the *Messages* buffer in emacs in the NIDE.
 The last expressions is a macro.
 
 \begin{verbatim}
-expptr file_expressions(char *name);
+expptr file_expressions(charptr name);
 
 void pprint(expptr e, FILEptr f, int indent); //indent is typically 0
 
@@ -911,16 +944,23 @@ void mcpprint(epptr e);
 void mcprint(...)
 \end{verbatim}
 
-We have the following two macro-expansion procedures.  The first does full macro expansion --- the result is guaranteed not to contain macros.
+\subsection{Macro Expansion}
+The first does full macro expansion --- the result is guaranteed not to contain macros.
 The second does one step of macro expansion --- the result may contain more macros.
 
 \begin{verbatim}
 expptr macroexpand(expptr e);
 
 expptr macroexpand1(expptr e); //this result may contain unexpanded macros
+
+void add_init_form(expptr statement);
+
+void add_preamble(expptr aux_definition);
+
+expptr full_expansion(expptr e);
 \end{verbatim}
 
-We also have the following list-processing procedures and macros.
+\subsection{List Processing}
 
 \begin{verbatim}
 expptr append(expptr l1, expptr l2);
@@ -937,19 +977,28 @@ void mapc(exp_to_void f, expptr l);
 int length(expptr l);
 \end{verbatim}
 
-We have the procedures related to memory frames.
+\subsection{Memory Frames}
 
-  
-We have the procedures related to undo frames.
+\begin{verbatim}
+push_memory_frame();
+
+voidptr stack_alloc(int nbytes);
+
+pop_memory_frame();
+\end{verbatim}
+
+\subsection{Undo Frames}
 
 \begin{verbatim}
 void push_undo_frame();
 
-void return_from_undo(expptr e);
+voidptr undo_alloc(int nbytes);
 
 void undo_set(voidptr loc, voidptr val);
 
-voidptr undo_alloc(int size);
+void exp_from_undo_frame(expptr e);
+
+void collect_undo_frame(expptr e);
 \end{verbatim}
 
 We also have the procedures related to file expansion.

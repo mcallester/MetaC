@@ -165,3 +165,12 @@ void send_print_tag();
 int in_ide_proc();
 
 void mcpprint(expptr e);
+
+
+expptr stack_copy_exp(expptr exp);
+expptr intern_from_stack(expptr stack_exp);
+
+
+expptr stack_copy_memo_hits();
+
+expptr intern_memo_hits ();
