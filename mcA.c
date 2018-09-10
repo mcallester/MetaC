@@ -1069,6 +1069,92 @@ expptr mcread(){//this is called from top level read functions only
 }
 
 /** ========================================================================
+section: exp_from_undo_frame support
+========================================================================**/
+
+// we will use stack-allocated expstructs without hashing, repurposing
+// the plist slot to store a memoizing pointer during re-interning -Bob
+
+expptr temp_intern_exp(char constr, expptr a1, expptr a2){
+  if(constr == '\0')berror("bad constructuctor in temp_intern_exp");
+
+  expptr newexp = (expptr) stack_alloc(sizeof(expstruct));
+  newexp->data = NULL;
+  newexp->constructor = constr;
+  newexp->arg1 = a1;
+  newexp->arg2 = a2;
+
+  return newexp;
+}
+
+expptr temp_cons(expptr x, expptr y){
+  if(!x || !y)berror("null argument given to temp cons");
+  return temp_intern_exp(' ',x,y);}
+
+expptr temp_intern_paren(char openchar, expptr arg){
+  if(!arg)berror("null argument given to intern_paren");
+  return temp_intern_exp(openchar, arg, NULL);}
+
+expptr temp_string_atom(char * s){return temp_intern_exp('A', (expptr) s, NULL);}
+
+expptr stack_copy_sym;
+
+int stack_copy_memo_hit_counter=0;
+
+// return value is not an interned exp
+expptr stack_copy_exp(expptr exp){
+  expptr prev_value=getprop(exp,stack_copy_sym,NULL);
+  if (prev_value) {
+    stack_copy_memo_hit_counter++;
+    return prev_value;}
+
+  expptr result;
+  if (cellp(exp))
+    result=temp_cons(stack_copy_exp(car(exp)),
+                     stack_copy_exp(cdr(exp)));
+  else if (parenp(exp))
+    result=temp_intern_paren(constructor(exp),stack_copy_exp(paren_inside(exp)));
+  else if (atomp(exp))
+    result=temp_string_atom(atom_string(exp));
+  else berror("Unknown expression in stack_copy_exp()");
+  
+  setprop(exp,stack_copy_sym,result);
+  return result;
+} 
+
+expptr stack_copy_memo_hits(){
+  return int_exp(stack_copy_memo_hit_counter);
+}
+
+
+int intern_memo_hit_counter=0;
+
+//argument must be stack_copy_exp product
+expptr intern_from_stack(expptr stack_exp){
+  if (stack_exp->data) {
+    intern_memo_hit_counter++;
+    return (expptr) stack_exp->data;}
+
+  expptr result;
+  if (cellp(stack_exp))
+    result=cons(intern_from_stack(car(stack_exp)),
+                intern_from_stack(cdr(stack_exp)));
+  else if (parenp(stack_exp))
+    result=intern_paren(constructor(stack_exp),intern_from_stack(paren_inside(stack_exp)));
+  else if (atomp(stack_exp))
+    result=string_atom(atom_string(stack_exp));
+  else berror("Unknown expression in intern_from_stack()");
+  
+  stack_exp->data = (plist) result;
+  return result; 
+}
+
+expptr intern_memo_hits (){
+  return int_exp(intern_memo_hit_counter);
+}
+
+
+/** ========================================================================
 section: initialization
 ========================================================================**/
 
@@ -1085,5 +1171,6 @@ void mcA_init(){
   catch_freeptr = 0;
   in_doit = 0; //this controlled in the IDE and not touched in the REPL or file_expressions.
   
+  stack_copy_sym=string_atom("stack_copy_token");
   set_macro(backquote, bquote_macro);
 }
