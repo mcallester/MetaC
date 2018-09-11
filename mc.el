@@ -287,26 +287,9 @@
 	  (MC:next-def))
 	count))))
 
-(defun MC:goto-metac ()
-  (interactive)
-  (setq *source-buffer* (current-buffer))
-  (pop-to-buffer (mc-buffer)))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\M-\C-m" 'MC:goto-metac))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\M-\C-c" 'beep))
-
 (defun MC:goto-code ()
   (interactive)
   (pop-to-buffer *source-buffer*))
-
-(add-hookm shell-mode-hook
-  (define-key shell-mode-map "\M-\C-c" 'MC:goto-code))
-
-(add-hookm shell-mode-hook
-  (define-key shell-mode-map "\M-\C-m" 'beep))
 
 (defun MC:strip-cell-values ()
   (interactive)
@@ -324,15 +307,8 @@
             (kill-region (mark) (point))))
       (error nil))))
 
-;; no longer needed now that comment regions at start don't cause errors.
-(defun MC:first-def ()
-  (save-excursion
-    (beginning-of-buffer)
-    (condition-case nil 
-        (progn (re-search-forward "\n[^]})/\t\n ]")
-               (backward-char))
-      (error nil)) 
-    (point)))
+(add-hookm c-mode-hook
+  (define-key c-mode-map "\M-\C-c" 'MC:strip-cell-values))
 
 (defun MC:load-interval (start end)
   (set-mark start)

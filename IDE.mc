@@ -37,16 +37,16 @@ char *strip_quotes(char *input){
 }
 
 void eval_exp(expptr exp){
+  preamble= nil;
+  init_forms = nil;
   MC_doit(macroexpand(exp));}
 
 void IDE_loop(){
   while(1){
-    push_MM_frame();
+    push_memory_frame();
     catch_error({
 	send_emacs_tag(ide_tag);
 	in_doit = 0;
-	preamble = nil;
-	init_forms = nil;
         in_require=0;
 
         expptr e=read_from_ide();
@@ -74,7 +74,7 @@ void IDE_loop(){
           send_emacs_tag(result_tag);
           in_require=0;}
       })
-      pop_MM_frame();
+      pop_memory_frame();
   }
 }
 

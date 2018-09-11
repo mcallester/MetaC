@@ -84,7 +84,7 @@ properties of expressions
 ========================================================================**/
 
 expptr getprop(expptr e, expptr key, expptr defaultval);
-void setprop(expptr e, expptr key, expptr val);
+void setprop(expptr e, expptr key, void * val);
 void addprop(expptr e, expptr key, expptr val);
 
 /** ========================================================================
@@ -151,8 +151,8 @@ stack frames
 
 voidptrptr stack;
 
-void push_MM_frame();
-void pop_MM_frame();
+void push_memory_frame();
+void pop_memory_frame();
 
 voidptr stack_alloc(int size);
 

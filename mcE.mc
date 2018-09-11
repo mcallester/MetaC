@@ -121,7 +121,7 @@ The load function is given a list of fully macro-expanded expressions.
 
 expptr load(expptr forms){ // forms must be fully macro expanded.
 
-  push_MM_frame();
+  push_memory_frame();
   
   compilecount ++; //should not be inside sformat --- sformat duplicates.
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
@@ -166,7 +166,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
    expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
 
-  pop_MM_frame();
+  pop_memory_frame();
   in_doit = 1;
   return (*_mc_doit)(symbol_value);
 }

@@ -77,12 +77,12 @@ void breakpt(char * s);
 void berror(char *s);
 
 /** ========================================================================
-push_stack_frame, pop_stack_frame, and stack_alloc
+push_memory_frame, pop_memory_frame, and stack_alloc
 ========================================================================**/
 
 void * stack_alloc(int size);
-void push_MM_frame();
-void pop_MM_frame();
+void push_memory_frame();
+void pop_memory_frame();
 
 /** ========================================================================
 expressions
@@ -131,6 +131,7 @@ int exp_int(expptr s);
 
 
 expptr exp_from_undo_frame(expptr exp);
+expptr clean_undo_frame(expptr exp);
 expptr stack_copy_memo_hits();
 expptr intern_memo_hits ();
 
@@ -146,7 +147,7 @@ properties
 ========================================================================**/
 
 expptr getprop(expptr e, expptr key, expptr defaultval);
-void setprop(expptr e, expptr key, expptr val);
+void setprop(expptr e, expptr key, void * val);
 void addprop(expptr e, expptr key, expptr val);
 
 int getprop_int(expptr e, expptr key, int defaultval);
@@ -183,7 +184,6 @@ macros
 void set_macro(expptr sym, expptr f(expptr));
 expptr macroexpand(expptr e);
 expptr macroexpand1(expptr e);
-expptr full_expansion(expptr);
 
 expptr preamble;
 void add_preamble(expptr e);

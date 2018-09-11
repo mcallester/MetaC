@@ -60,14 +60,10 @@ void breakpt(char *s){
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
   if(!in_ide){cbreak(); throw_error();}
-  else if(in_doit){
-    send_emacs_tag(exec_error_tag);
-    cbreak();
-    send_emacs_tag(ide_tag);
-    throw_error();}
-  else {
-    send_emacs_tag(comp_error_tag);
-    throw_error();}
+  send_emacs_tag(exec_error_tag);
+  cbreak();
+  send_emacs_tag(ide_tag);
+  throw_error();
 }
 
 void uerror(expptr e){
@@ -76,7 +72,7 @@ void uerror(expptr e){
 }
 
 /** ========================================================================
-push_stack_frame, pop_stack_frame, and stack_alloc
+push_memory_frame, pop_memory_frame, and stack_alloc
 ========================================================================**/
 #define STACK_DIM  (1 << 17)
 int stack_restore[STACK_DIM];
@@ -93,12 +89,12 @@ void * stack_alloc(int size){
   return result;
 }
 
-void push_MM_frame(){
+void push_memory_frame(){
   if(stack_frame_count >= STACK_DIM)berror("MC stack exhausted");
   stack_restore[stack_frame_count++] = stack_heap_freeptr;
 }
 
-void pop_MM_frame(){
+void pop_memory_frame(){
   if(stack_frame_count == 0)berror("attempt to pop base stack frame");
   stack_heap_freeptr = stack_restore[--stack_frame_count];
 }
@@ -410,7 +406,7 @@ void addprop(expptr e, expptr key, expptr val){
   undo_set(e-> data,new);
 }
 
-void setprop(expptr e, expptr key, expptr val){
+void setprop(expptr e, expptr key, void * val){
   if(e == NULL)berror("attempt to set a property of the null expression");
   plist cell = getprop_cell(e, key);
   if(cell != NULL){
@@ -706,12 +702,6 @@ void add_preamble(expptr e){
   expptr e2 = macroexpand(e); //this macro expansion can add to the preamble first.
   preamble = append(preamble, cons(e2,NULL));}
 
-expptr full_expansion(expptr e){
-  preamble = NULL;
-  init_forms = NULL;
-  expptr e2 = macroexpand(e);
-  return append(preamble,cons(e2,init_forms));
-}
 
 /** ========================================================================
 section: gensym
@@ -1158,13 +1148,22 @@ expptr intern_memo_hits (){
   return int_exp(intern_memo_hit_counter);
 }
 
-
 expptr exp_from_undo_frame(expptr exp){
-  push_stack_frame();
+  push_memory_frame();
   expptr stack_exp = stack_copy_exp(exp);
   pop_undo_frame();
   expptr result = intern_from_stack(stack_exp);
-  pop_stack_frame();
+  pop_memory_frame();
+  return result;
+}
+
+expptr clean_undo_frame(expptr exp){
+  push_memory_frame();
+  expptr stack_exp = stack_copy_exp(exp);
+  pop_undo_frame();
+  push_undo_frame();
+  expptr result = intern_from_stack(stack_exp);
+  pop_memory_frame();
   return result;
 }
 
