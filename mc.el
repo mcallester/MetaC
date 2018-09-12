@@ -82,7 +82,7 @@
   (set-process-filter (mc-process) (function MC:filter))
   (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
   (process-send-string (mc-process) "break cbreak\n")
-  (process-send-string (mc-process) "run\n")
+  (process-send-string (mc-process) (format "run %s\n" *MetaC*))
   (setq *eval-count* 1)
   (setq *starting* t)
   (setq *mc-accumulator* nil)
@@ -155,7 +155,7 @@
 
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
-    ;;(print (list 'filter-receiving clean))
+    ;; (print (list 'filter-receiving clean))
     (setq *mc-accumulator* (concat *mc-accumulator* clean))
     (MC:process-output)))
 
