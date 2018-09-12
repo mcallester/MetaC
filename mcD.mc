@@ -47,4 +47,34 @@ umacro{mcprint($args)}{
       else fprintf(stdout,$args);}};
 }
 
+
+umacro{in_memory_frame($body)}{
+  return
+    `{unwind_protect({
+	push_memory_frame();
+	$body; //can throw an error
+	pop_memory_frame();},
+      {pop_memory_frame();})};
+}
+
+umacro{exp_from_undo_frame($exp)}{
+  expptr expvar = gensym("expvar");
+  expptr stackexp = gensym("stack_exp");
+  expptr newexp = gensym("new_exp");
+  return
+    `{return
+      ({expptr $newexp;
+	unwind_protect({
+	    push_undo_frame();
+	    expptr $expvar = $exp; //can throw an error
+	    push_memory_frame();
+	    expptr $stackexp = stack_copy_exp($expvar); //assumed safe
+	    pop_undo_frame();
+	    $newexp = intern_from_stack($stackexp); //assumed safe
+	    pop_memory_frame();},
+	  {pop_undo_frame();});
+	$newexp;});};
+}
+
 init_fun(mcD_init)
+

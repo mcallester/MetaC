@@ -1,50 +1,34 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <math.h>
-#include <setjmp.h>
-#include <time.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/file.h>
-#include <fcntl.h>
-#include <string.h>
+#include "premacros.h"
 
 typedef char * charptr;
 typedef void * voidptr;
 
+typedef struct pliststruct{
+  void * key;
+  struct expstruct * data;
+  struct pliststruct * rest;
+}pliststruct,*plist;
+
+typedef struct expstruct{
+  plist data;
+  char constructor;
+  struct expstruct * arg1;
+  struct expstruct * arg2;
+}expstruct,*expptr;
+
+
 /** ========================================================================
-catch, throw, catch-error, throw-error, and unwind_protect.
-catch_error is used in the read eval print loop and so the definitions are placed in mc.h
+push_memory_frame, pop_memory_frame, and stack_alloc
 ========================================================================**/
 
-#define CATCH_DIM 10000
-int catch_freeptr;
-
-jmp_buf catch_stack[CATCH_DIM];
-int error_flg;
-
-#define throw_check() {if(catch_freeptr == 0){fprintf(stderr,"\n throw without a catch\n"); exit(1);}}
-#define catch_check() {if(catch_freeptr == CATCH_DIM){berror("catch stack exhausted");}}
-
-#define throw_error() {throw_check(); error_flg=1; longjmp(catch_stack[catch_freeptr-1], 1);}
-#define catch_error(body) {catch_check(); error_flg=0; if(setjmp(catch_stack[catch_freeptr++]) == 0){ \
-  body; catch_freeptr--;\
-  } else{\
-  catch_freeptr--;if(!error_flg)fprintf(stderr, "uncaught throw\n");}}
-
-#define throw() {throw_check(); error_flg=0; longjmp(catch_stack[catch_freeptr-1], 1);}
-#define continue_throw() {throw_check(); longjmp(catch_stack[catch_freeptr-1], 1);}
-#define catch(body) {catch_check(); if(setjmp(catch_stack[catch_freeptr++]) == 0){body; catch_freeptr--;} else{catch_freeptr--; if(error_flg)continue_throw();}}
-
-
-#define unwind_protect(body, cleanup) {catch_check(); if(setjmp(catch_stack[catch_freeptr++]) == 0){body; catch_freeptr--; cleanup;} else { catch_freeptr--; cleanup; continue_throw();}}
-
+void * stack_alloc(int size);
+void push_memory_frame();
+void pop_memory_frame();
 
 /** ========================================================================
 undo
 ======================================================================== **/
+
 typedef struct undopair{
   void * * location;
   void * oldval;
@@ -64,6 +48,13 @@ void push_undo_frame();
 
 void pop_undo_frame();
 
+expptr exp_from_undo_frame(expptr exp);
+expptr clean_undo_frame(expptr exp);
+expptr stack_copy_memo_hits();
+expptr intern_memo_hits ();
+
+
+
 /** ========================================================================
 cbreak, berror and macro_error
 
@@ -77,28 +68,8 @@ void breakpt(char * s);
 void berror(char *s);
 
 /** ========================================================================
-push_memory_frame, pop_memory_frame, and stack_alloc
-========================================================================**/
-
-void * stack_alloc(int size);
-void push_memory_frame();
-void pop_memory_frame();
-
-/** ========================================================================
 expressions
 ========================================================================**/
-typedef struct pliststruct{
-  void * key;
-  struct expstruct * data;
-  struct pliststruct * rest;
-}pliststruct,*plist;
-
-typedef struct expstruct{
-  plist data;
-  char constructor;
-  struct expstruct * arg1;
-  struct expstruct * arg2;
-}expstruct,*expptr;
 
 expptr string_atom(char * s);
 
@@ -128,12 +99,6 @@ static inline char constructor(expptr e){
 
 expptr int_exp(int i);
 int exp_int(expptr s);
-
-
-expptr exp_from_undo_frame(expptr exp);
-expptr clean_undo_frame(expptr exp);
-expptr stack_copy_memo_hits();
-expptr intern_memo_hits ();
 
 
 /** ========================================================================
@@ -276,3 +241,7 @@ void return_to_NIDE();
 void mcpprint(expptr);
 
 char * MetaC_directory;
+
+expptr intern_from_stack(expptr stack_exp);
+
+expptr stack_copy_exp(expptr exp);
