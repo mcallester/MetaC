@@ -45,6 +45,8 @@ void read_eval_print(){
 }
 
 int main(int argc, char **argv){
+  if(argc != 2){fprintf(stdout,"wrong number of arguments to MC"); return 1;}
+  MetaC_directory = argv[1];
   mcA_init();
   mcB_init();
   mcC_init();

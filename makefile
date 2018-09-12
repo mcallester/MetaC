@@ -93,7 +93,7 @@ expandE : mcE.o expandE.c base_decls.h
 #testE
 
 testE.c : expandE testE.mc
-	./expandE testE.mc testE.c
+	./expandE ./ testE.mc testE.c
 
 testE.o : testE.c
 	${gcc} -g testE.c -c
@@ -101,7 +101,7 @@ testE.o : testE.c
 #REPL
 
 REPL.c : REPL.mc expandE
-	./expandE REPL.mc REPL.c
+	./expandE ./ REPL.mc REPL.c
 
 MC : REPL.c
 	${gcc} -g -o MC mcA.o mcB.o mcC.o mcD.o mcE.o REPL.c -ldl -lm
@@ -109,7 +109,7 @@ MC : REPL.c
 #testREPL
 
 testREPL.c : testREPL.mc expandE
-	./expandE testREPL.mc testREPL.c
+	./expandE ./ testREPL.mc testREPL.c
 
 testREPL : testREPL.c
 	${gcc} -g -o testREPL mcA.o mcB.o mcC.o mcD.o mcE.o testREPL.c -ldl -lm
