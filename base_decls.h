@@ -1,17 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <math.h>
-#include <setjmp.h>
-#include <time.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/file.h>
-#include <fcntl.h>
-#include <string.h>
-#include <dlfcn.h>
-
 typedef char * charptr;
 
 typedef void * voidptr;
@@ -143,6 +129,8 @@ void push_undo_frame();
 
 void pop_undo_frame();
 
+expptr clean_undo_frame(expptr e);
+
 voidptr undo_alloc(int size);
 
 /** ========================================================================
@@ -166,9 +154,10 @@ int in_ide_proc();
 
 void mcpprint(expptr e);
 
-
-expptr exp_from_undo_frame(expptr exp);
-
 expptr stack_copy_memo_hits();
 
 expptr intern_memo_hits ();
+
+expptr intern_from_stack(expptr stack_exp);
+
+expptr stack_copy_exp(expptr exp);

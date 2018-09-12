@@ -1151,16 +1151,8 @@ expptr intern_memo_hits (){
   return int_exp(intern_memo_hit_counter);
 }
 
-expptr exp_from_undo_frame(expptr exp){
-  push_memory_frame();
-  expptr stack_exp = stack_copy_exp(exp);
-  pop_undo_frame();
-  expptr result = intern_from_stack(stack_exp);
-  pop_memory_frame();
-  return result;
-}
-
 expptr clean_undo_frame(expptr exp){
+  //this is safe --- no user code.
   push_memory_frame();
   expptr stack_exp = stack_copy_exp(exp);
   pop_undo_frame();
