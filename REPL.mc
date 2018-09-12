@@ -26,6 +26,7 @@ void indent(int column){
 void read_eval_print(){
   rep_column += 3;
   while(1){
+    push_memory_frame();
     catch_error({
 	indent(rep_column);
 	fprintf(stdout, "MC>");
@@ -38,6 +39,7 @@ void read_eval_print(){
 	  {continue}:{if(rep_column != 0)break;}
 	  {$e}:{MC_doit(e);}
 	}})
+      pop_memory_frame();
       }
   rep_column -=3;
 }

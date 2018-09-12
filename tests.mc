@@ -201,7 +201,7 @@ int x[0]; //a comment here used to cause a problem
 
 
 /** ========================================================================
- null expressions in file_expressions
+ file_expressions
 ======================================================================== **/
 
 expptr parenthesize(expptr l){
@@ -209,8 +209,7 @@ expptr parenthesize(expptr l){
   return cons(`{(${car(l)})}, parenthesize(cdr(l)));
 }
 
-parenthesize(file_expressions("test1.mc"))
-
+parenthesize(file_expressions("file-expressions-test-file.mc"))
 
 /** ========================================================================
  printing
@@ -220,7 +219,7 @@ mcpprint(`{foo});
 
 
 /** ========================================================================
- segment fault test
+ segment fault
 ======================================================================== **/
 expptr e[0];
 
@@ -230,8 +229,15 @@ e[0]->arg1
 
 
 /** ========================================================================
-incldue
+ include
 ======================================================================== **/
 #require("include_test")
 
 included(`{a})
+
+
+/** ========================================================================
+expansion error
+======================================================================== **/
+
+dolist{}{}

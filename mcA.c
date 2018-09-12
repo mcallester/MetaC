@@ -19,6 +19,7 @@ void init_source(){
 void init_tags(){
   ignore_tag = "*#*#dsflsadk#*#*ignore*#*#dsflsadk#*#*";
   result_tag = "*#*#dsflsadk#*#*result*#*#dsflsadk#*#*";
+  expansion_error_tag = "*#*#dsflsadk#*#*expansion-error*#*#dsflsadk#*#*";
   comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";
   exec_error_tag = "*#*#dsflsadk#*#*exec-error*#*#dsflsadk#*#*";
   breakpoint_tag = "*#*#dsflsadk#*#*breakpoint*#*#dsflsadk#*#*";
@@ -43,7 +44,7 @@ void send_print_tag(){send_emacs_tag(print_tag);}
 
 int in_ide_proc(){return in_ide;}
 
-void return_to_NIDE(){
+void NIDE(){
   throw_error();
 }
 
@@ -60,7 +61,7 @@ void breakpt(char *s){
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
   if(!in_ide){cbreak(); throw_error();}
-  send_emacs_tag(exec_error_tag);
+  if(in_doit) send_emacs_tag(exec_error_tag); else send_emacs_tag(expansion_error_tag);
   cbreak();
   send_emacs_tag(ide_tag);
   throw_error();
@@ -793,7 +794,9 @@ expptr file_expressions(char * fname){
   init_readvars();
   from_file = 1;
   read_stream = fopen(fname, "r");
-  if(read_stream == NULL)berror("attempt to open input file failed");
+  if(read_stream == NULL){
+    fprintf(stdout,"attempt to open %s failed",fname);
+    berror("");}
   expptr exps = file_expressions2();
   fclose(read_stream);
   return exps;

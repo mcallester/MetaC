@@ -67,7 +67,7 @@ void mcE_init1(){
 }
 
 void install_base(){
-  dolist(sig,file_expressions("base_decls.h")){
+  dolist(sig,file_expressions(sformat("%s/base_decls.h", MetaC_directory))){
     ucase{sig;
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
 	symbol_index(f);  //establish the index

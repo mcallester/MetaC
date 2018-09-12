@@ -261,6 +261,7 @@ int in_ide;
 
 char *  ignore_tag;
 char *  result_tag;
+char *  expansion_error_tag;
 char *  comp_error_tag;
 char *  exec_error_tag;
 char *  breakpoint_tag;
@@ -273,3 +274,5 @@ int in_ide_proc();
 void return_to_NIDE();
 
 void mcpprint(expptr);
+
+char * MetaC_directory;

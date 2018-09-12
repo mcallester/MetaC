@@ -1,5 +1,5 @@
 (setq *gdb* "/opt/local/bin/gdb-apple")
-(setq *MC-IDE* "~/18/MC/NIDE")
+(setq *MetaC* "~/18/MC")
 
 (require 'shell)
 
@@ -80,12 +80,7 @@
   (start-process "MetaC" (mc-buffer) *gdb*)
   (with-current-buffer (mc-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:filter))
-
-  ;;(with-current-buffer (mc-buffer)
-    ;;(MC-mode)
-    ;;(when enable-multibyte-characters
-    ;;(toggle-enable-multibyte-characters)))
-  (process-send-string (mc-process) (format "file %s\n" *MC-IDE*))
+  (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
   (process-send-string (mc-process) "break cbreak\n")
   (process-send-string (mc-process) "run\n")
   (setq *eval-count* 1)
@@ -203,12 +198,15 @@
 	   (erase-buffer) (MC:insert-in-segment value))
 	 (display-buffer (message-buffer) 'display-buffer-pop-up-window))
 
-	;;the following two tags enter gdb mode
+	;;the following three tags enter gdb mode
 	((string= tag "exec-error")
 	 (MC:insert-in-segment "execution error")
-	 (MC:goto-gdb))
+	 (MC:goto-gdb value))
+	((string= tag "expansion-error")
+	 (MC:insert-in-segment "expansion error")
+	 (MC:goto-gdb value))
 	((string= tag "breakpoint")
-	 (MC:goto-gdb))
+	 (MC:goto-gdb value))
 
 	;;the tag IDE returns from from gdb mode
 	((string= tag "IDE")
@@ -220,7 +218,7 @@
 
 	(t (error (format "unrecognized tag %s" tag)))))
 
-(defun MC:goto-gdb ()
+(defun MC:goto-gdb (value)
   (setq *source-buffer* (current-buffer))
   (pop-to-buffer (mc-buffer))
   (erase-buffer)

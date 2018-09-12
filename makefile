@@ -117,7 +117,7 @@ testREPL : testREPL.c
 #IDE
 
 IDE.c : IDE.mc expandE
-	./expandE IDE.mc IDE.c
+	./expandE ./ IDE.mc IDE.c
 
 NIDE : IDE.c
 	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o mcE.o IDE.c -ldl -lm
