@@ -102,7 +102,7 @@ void eval_exp(expptr exp){
 }
 
 void install_base(){
-  dolist(sig,file_expressions(sformat("%s/base_decls.h", MetaC_directory))){
+  dolist(sig,file_expressions(sformat("%sbase_decls.h", MetaC_directory))){
     ucase{sig;
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
 	symbol_index(f);  //establish the index
@@ -152,7 +152,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
 
-  fprintf(fileout,"#include \"%s/premacros.h\"\n", MetaC_directory);
+  fprintf(fileout,"#include \"%spremacros.h\"\n", MetaC_directory);
   new_procedures = nil;
   new_arrays = nil;
   new_statements = nil;

@@ -1,5 +1,5 @@
 (setq *gdb* "/opt/local/bin/gdb-apple")
-(setq *MetaC* "~/18/MC")
+(setq *MetaC* "~/18/MC/")
 
 (require 'shell)
 
