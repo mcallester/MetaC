@@ -45,10 +45,9 @@ void unrecognized_statement(expptr form);
 expptr proc_def(expptr f);
 expptr link_def(expptr f);
 void install_base();
-expptr procedure_insertion (expptr f, expptr g);
 char * strip_quotes(char *);
 expptr load(expptr);
-
+void print_preamble(expptr);
 
 /** ========================================================================
 The REPL inserts base procedures into the symbol_value table (the linking table) by calling the macro insert_base.
@@ -72,34 +71,13 @@ void mcE_init1(){
 umacro{insert_base()}{
   expptr result = nil;
   dolist(f,procedures){
-    push(procedure_insertion(f,f), result);}
+    push(`{symbol_value[${symbol_index_exp(f)}] = $f;}, result);}
   dolist(X,arrays){
     push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);}
   return result;
 }
 
 init_fun(mcE_init2)  //installs the macro insert_base (without calling it).
-
-expptr simple_eval(expptr e){
-  return load(append(preamble,append(init_forms,cons(e,nil))));
-}
-
-void simple_eval_noval(expptr e){
-  load(append(preamble,append(init_forms,cons(e,nil))));
-}
-
-
-void eval_exp(expptr exp){
-  preamble= nil;
-  init_forms = nil;
-  expptr e = macroexpand(exp);
-  ucase{e;
-    {#require($sym)}.(atomp(sym)) : {
-      char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
-      mapc(simple_eval_noval,file_expressions(require_file));
-      fprintf(stdout,"%s Provided\n",require_file); }
-    {$any} : {pprint(simple_eval(e),stdout,0);}}
-}
 
 void install_base(){
   dolist(sig,file_expressions(sformat("%sbase_decls.h", MetaC_directory))){
@@ -116,22 +94,15 @@ void install_base(){
     }}
 }
 
-
-
 /** ========================================================================
 insertion and extraction from the linking table.  Procedure extraction is
-done by defing the procedure in the DLL to go through the linking table.
+done by defining the procedure in the DLL to go through the linking table.
 ======================================================================== **/
 
-expptr procedure_insertion (expptr f, expptr g){
-  return `{
-    symbol_value[${symbol_index_exp(f)}] = $g;};
-}
-
 expptr new_procedure_insertion (expptr f){
-  return procedure_insertion(f, getprop(f,`{gensym_name},NULL));
+    return `{
+      symbol_value[${symbol_index_exp(f)}] = ${getprop(f,`{gensym_name},NULL)};};
 }
-
 expptr new_array_insertion (expptr x){
   ucase{getprop(x,`{signature},nil);
     {$type $x[$dim];}:{return `{symbol_value[${symbol_index_exp(x)}] = malloc($dim*sizeof($type));};}}
@@ -143,22 +114,42 @@ expptr array_extraction (expptr x){
 }
 
 /** ========================================================================
-The load function is given a list of fully macro-expanded expressions.
+ eval_exp
 ======================================================================== **/
+
+expptr simple_eval(expptr e){
+  return load(append(preamble,append(init_forms,cons(e,nil))));
+}
+
+void simple_eval_noval(expptr e){
+  load(append(preamble,append(init_forms,cons(e,nil))));
+}
+
+void eval_exp(expptr exp){
+  preamble= nil;
+  init_forms = nil;
+  expptr e = macroexpand(exp);
+  ucase{e;
+    {#require($sym)}.(atomp(sym)) : {
+      char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
+      mapc(simple_eval_noval,file_expressions(require_file));
+      fprintf(stdout,"%s Provided\n",require_file); }
+    {$any} : {pprint(simple_eval(e),stdout,0);}}
+}
 
 expptr load(expptr forms){ // forms must be fully macro expanded.
   
   compilecount ++; //should not be inside sformat --- sformat duplicates.
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
-
   fprintf(fileout,"#include \"%spremacros.h\"\n", MetaC_directory);
+
   new_procedures = nil;
   new_arrays = nil;
   new_statements = nil;
   
   mapc(install,forms);
-  dolist(form,reverse(file_preamble)){pprint(form,fileout,rep_column);}
+  mapc(print_preamble,reverse(file_preamble));
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
 
@@ -216,6 +207,12 @@ void install_preamble(expptr e){
   if(!getprop(e,`{installed},NULL)){
     push(e,file_preamble);
     setprop(e,`{installed},`{true});}
+}
+
+void print_preamble(expptr e){
+  ucase{e;
+    {#include $f}.(atomp(f)):{fprintf(fileout,"#include %s\n", atom_string(f));}
+    {$any}:{pprint(e,fileout,rep_column);}}
 }
 
 void install_var(expptr type, expptr X, expptr dim){
