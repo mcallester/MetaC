@@ -142,6 +142,7 @@ expptr read_from_file();
 expptr file_expressions(char * fname);
 void pprint(expptr e, FILE * f, int i);
 void dbpprint(expptr e);
+char * exp_string(expptr);
 
 /** ========================================================================
 macros

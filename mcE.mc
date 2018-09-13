@@ -48,6 +48,7 @@ void install_base();
 char * strip_quotes(char *);
 expptr load(expptr);
 void print_preamble(expptr);
+expptr output_type(expptr);
 
 /** ========================================================================
 The REPL inserts base procedures into the symbol_value table (the linking table) by calling the macro insert_base.
@@ -187,11 +188,11 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   return (*_mc_doit)(symbol_value);
 }
 
-void install(expptr statement){ //only the following patterns are allowed.
+void install(expptr statement){
   ucase{statement;
     {typedef $def;}:{install_preamble(statement);}
     {typedef $def1,$def2;}:{install_preamble(statement);}
-    {#include $x}:{install_preamble(statement);}
+    {#include <$any>}:{install_preamble(statement);}
     {return $e;}:{push(statement,new_statements);}
     {$type $X[0];}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1});}
     {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1}); push(`{$X[0] = $e;},new_statements);}
@@ -200,7 +201,12 @@ void install(expptr statement){ //only the following patterns are allowed.
     {$type $f($args);}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, NULL);}
     {$e;}:{push(statement,new_statements)}
     {{$e}}:{push(statement,new_statements)}
-    {$e}:{push(`{return $e;},new_statements)}}
+    {$f($any)}:{
+      if(output_type(f) == `{void}){
+	push(statement, new_statements);}
+      else{
+	push(`{return $statement;}, new_statements);}}
+    {$any}:{push(`{return $statement;},new_statements)}}
 }
 
 void install_preamble(expptr e){
@@ -211,7 +217,7 @@ void install_preamble(expptr e){
 
 void print_preamble(expptr e){
   ucase{e;
-    {#include $f}.(atomp(f)):{fprintf(fileout,"#include %s\n", atom_string(f));}
+    {#include <$f>}:{fprintf(fileout,"#include <%s>\n", exp_string(f));}
     {$any}:{pprint(e,fileout,rep_column);}}
 }
 
@@ -241,6 +247,12 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
     setprop(f,`{body},newbody);
     symbol_value[symbol_index(f)] = NULL; //this will catch semi-defined functions without segmentation fault.
   }
+}
+
+expptr output_type(expptr f){
+  expptr sig = getprop(f,`{signature}, NULL);
+  if(cellp(sig))return car(sig);
+  return NULL;
 }
 
 void unrecognized_statement(expptr form){

@@ -213,9 +213,8 @@
 
 	;;the tag IDE returns from from gdb mode
 	((string= tag "IDE")
-	 (let ((w (get-buffer-window (mc-buffer))))
-	   (when w (delete-window w)))
-	 (pop-to-buffer *source-buffer*)
+	 (pop-to-buffer-same-window *source-buffer*)
+	 (delete-other-windows)
 	 (setq *gdb-mode* nil)
 	 (setq *starting* nil))
 
