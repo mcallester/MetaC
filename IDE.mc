@@ -53,7 +53,7 @@ void IDE_loop(){
         char *require_file;
         expptr exps_to_eval;
         ucase{e;
-          {#require($sym)} : {
+          {#require($sym)}.(atomp(sym)) : {
             if (!atomp(sym)) uerror(`{Require argument "$sym" must be a symbol});
             require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
             in_require=1;
