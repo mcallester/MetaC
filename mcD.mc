@@ -62,8 +62,7 @@ umacro{exp_from_undo_frame($exp)}{
   expptr stackexp = gensym("stack_exp");
   expptr newexp = gensym("new_exp");
   return
-    `{return
-      ({expptr $newexp;
+    `{({expptr $newexp;
 	unwind_protect({
 	    push_undo_frame();
 	    expptr $expvar = $exp; //can throw an error
@@ -73,7 +72,7 @@ umacro{exp_from_undo_frame($exp)}{
 	    $newexp = intern_from_stack($stackexp); //assumed safe
 	    pop_memory_frame();},
 	  {pop_undo_frame();});
-	$newexp;});};
+	$newexp;})};
 }
 
 init_fun(mcD_init)
