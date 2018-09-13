@@ -180,10 +180,13 @@
   (insert (replace-regexp-in-string "\n" "\n  " value)))
 
 (defun MC:dotag (tag value)
+  ;; (print (list tag value))
   (cond ((string= tag "ignore"))
 
 	((string= tag "result")
-	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
+	 (if (> (length value) 1)
+	     (MC:insert-in-segment (substring value 0 (- (length value) 1)))
+	   (insert "empty value"))
 	 (MC:next-def)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when  (> *load-count* 0)

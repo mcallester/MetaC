@@ -17,9 +17,7 @@ expptr load(expptr forms);
 int in_require=0;
 
 void MC_doit(expptr e){
-  pprint(load(append(preamble,append(init_forms,cons(e,nil)))),stdout,rep_column);
-  send_emacs_tag(in_require ? ignore_tag : result_tag);
-  fflush(stdout);
+
 }
 
 char *strip_quotes(char *input){
@@ -34,14 +32,30 @@ char *strip_quotes(char *input){
   else return input;
 }
 
+expptr simple_eval(expptr e){
+  return load(append(preamble,append(init_forms,cons(e,nil))));
+}
+
+void simple_eval_noval(expptr e){
+  load(append(preamble,append(init_forms,cons(e,nil))));
+}
+
 void eval_exp(expptr exp){
   preamble= nil;
   init_forms = nil;
-  MC_doit(macroexpand(exp));}
+  expptr e = macroexpand(exp);
+  ucase{e;
+    {#require($sym)}.(atomp(sym)) : {
+      char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
+      mapc(simple_eval_noval,file_expressions(require_file));
+      fprintf(stdout,"%s Provided ",require_file); }
+    {$any} : {pprint(simple_eval(e),stdout,0);}}
+}
 
 void IDE_loop(){
   while(1){
     push_memory_frame();
+
     catch_error({
 	send_emacs_tag(request_input_tag);
         expptr e=read_from_ide();
@@ -50,26 +64,11 @@ void IDE_loop(){
 	pprint(e,stdout,0);
         send_emacs_tag(print_tag);
 
-        char *require_file;
-        expptr exps_to_eval;
-        ucase{e;
-          {#require($sym)}.(atomp(sym)) : {
-            if (!atomp(sym)) uerror(`{Require argument "$sym" must be a symbol});
-            require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
-            in_require=1;
-            exps_to_eval=file_expressions(require_file);
-	  }
-          {$any} : {
-            exps_to_eval=cons(e,nil);}}
-
-        mapc(eval_exp,exps_to_eval);
-
-        if (in_require) {
-          fprintf(stdout,"%s Provided ",require_file); 
-          send_emacs_tag(result_tag);
-          in_require=0;}
-      })
-      pop_memory_frame();
+	eval_exp(e);
+	send_emacs_tag(result_tag);
+      });
+      
+    pop_memory_frame();
   }
 }
 
