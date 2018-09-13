@@ -46,6 +46,9 @@ expptr proc_def(expptr f);
 expptr link_def(expptr f);
 void install_base();
 expptr procedure_insertion (expptr f, expptr g);
+char * strip_quotes(char *);
+expptr load(expptr);
+
 
 /** ========================================================================
 The REPL inserts base procedures into the symbol_value table (the linking table) by calling the macro insert_base.
@@ -66,7 +69,37 @@ void mcE_init1(){
   compilecount = 0;
 }
 
-char * strip_quotes(char *);
+umacro{insert_base()}{
+  expptr result = nil;
+  dolist(f,procedures){
+    push(procedure_insertion(f,f), result);}
+  dolist(X,arrays){
+    push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);}
+  return result;
+}
+
+init_fun(mcE_init2)  //installs the macro insert_base (without calling it).
+
+expptr simple_eval(expptr e){
+  return load(append(preamble,append(init_forms,cons(e,nil))));
+}
+
+void simple_eval_noval(expptr e){
+  load(append(preamble,append(init_forms,cons(e,nil))));
+}
+
+
+void eval_exp(expptr exp){
+  preamble= nil;
+  init_forms = nil;
+  expptr e = macroexpand(exp);
+  ucase{e;
+    {#require($sym)}.(atomp(sym)) : {
+      char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
+      mapc(simple_eval_noval,file_expressions(require_file));
+      fprintf(stdout,"%s Provided\n",require_file); }
+    {$any} : {pprint(simple_eval(e),stdout,0);}}
+}
 
 void install_base(){
   dolist(sig,file_expressions(sformat("%s/base_decls.h", MetaC_directory))){
@@ -83,16 +116,7 @@ void install_base(){
     }}
 }
 
-umacro{insert_base()}{
-  expptr result = nil;
-  dolist(f,procedures){
-    push(procedure_insertion(f,f), result);}
-  dolist(X,arrays){
-    push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);}
-  return result;
-}
 
-init_fun(mcE_init2)  //mcE_init2 defines the macro insert_base (without calling it).
 
 /** ========================================================================
 insertion and extraction from the linking table.  Procedure extraction is
@@ -295,4 +319,16 @@ voidptr compile_load_file(charptr fstring){
     fprintf(stdout,"\nunable to open shared library %s with error %s\n", s3, dlerror());
     comp_error();}
   return header;
+}
+
+char *strip_quotes(char *input){
+  int len=strlen(input);
+
+  if (input[0]=='"' && input[len-1]=='"'){
+    char * buffer = (char *) stack_alloc(len-1);
+    strncpy(buffer,input+1,len-2);
+    buffer[len-2]=0;
+    return buffer; 
+  }
+  else return input;
 }
