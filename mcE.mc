@@ -66,6 +66,8 @@ void mcE_init1(){
   compilecount = 0;
 }
 
+char * strip_quotes(char *);
+
 void install_base(){
   dolist(sig,file_expressions(sformat("%s/base_decls.h", MetaC_directory))){
     ucase{sig;
@@ -77,7 +79,8 @@ void install_base(){
 	symbol_index(x);  //establish the index
 	push(x,arrays);
 	setprop(x,`{signature},sig);}
-      {$e}:{push(e,file_preamble);}}}
+      {$e}:{push(e,file_preamble);} //typedefs
+    }}
 }
 
 umacro{insert_base()}{
@@ -173,8 +176,6 @@ void install(expptr statement){ //only the following patterns are allowed.
   ucase{statement;
     {typedef $def;}:{install_preamble(statement);}
     {typedef $def1,$def2;}:{install_preamble(statement);}
-    {#define $def}:{install_preamble(statement);}
-    {#include <$file>}:{install_preamble(statement);}
     {#include $x}:{install_preamble(statement);}
     {return $e;}:{push(statement,new_statements);}
     {$type $X[0];}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1});}
@@ -295,4 +296,3 @@ voidptr compile_load_file(charptr fstring){
     comp_error();}
   return header;
 }
-

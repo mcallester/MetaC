@@ -141,7 +141,7 @@ expptr read_from_file();
 
 expptr file_expressions(char * fname);
 void pprint(expptr e, FILE * f, int i);
-void printexp(expptr e);
+void dbpprint(expptr e);
 
 /** ========================================================================
 macros
@@ -230,7 +230,7 @@ char *  expansion_error_tag;
 char *  comp_error_tag;
 char *  exec_error_tag;
 char *  breakpoint_tag;
-char *  ide_tag;
+char *  request_input_tag;
 char * print_tag;
 
 void send_emacs_tag(char *);

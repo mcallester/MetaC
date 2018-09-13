@@ -14,8 +14,6 @@
 
 expptr load(expptr forms);
 
-void IDE_pprint(expptr e, FILE * f, int level);
-
 int in_require=0;
 
 void MC_doit(expptr e){
@@ -45,10 +43,7 @@ void IDE_loop(){
   while(1){
     push_memory_frame();
     catch_error({
-	send_emacs_tag(ide_tag);
-	in_doit = 0;
-        in_require=0;
-
+	send_emacs_tag(request_input_tag);
         expptr e=read_from_ide();
 
 	fprintf(stdout, "processing:\n");

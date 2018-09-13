@@ -7,9 +7,9 @@ expptr casecode4(expptr,expptr,expptr);
 
 void match_failure(expptr value, expptr patterns){
   fprintf(stdout,"match error: the value \n\n");
-  printexp(value);
+  dbpprint(value);
   fprintf(stdout,"does not match any of\n\n");
-  printexp(patterns);
+  dbpprint(patterns);
   berror("");
 }
 

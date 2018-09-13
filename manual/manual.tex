@@ -405,25 +405,27 @@ A cell begins at any nonempty line whose first character is other than white spa
 The cell ends at the begging of the next non-empty line whose first character is other than white space or a a close character.  Note that a comment
 starting at the beginning of a line terminates a cell.
 
-\noindent {\bf Compile-Time Errors.}
-If an error occurs while attempting to read or compile the cell expression an error statement is displayed --- typically the output of the C compiler --- and
-an error message is printed in the code buffer as the value of cell.
+\noindent {\bf Errors and Breakpoints.}
+If an error occurs while macro-expanding a cell the NIDE will print {\tt "expansion error"} and enter the gdb debugger.  Typing the command {\tt continue}
+to gdb will return to the NIDE.
+If an error occurs while attempting to compile the macro-expanded expanded cell the NIDE will print {\tt "compilation error''} and display the output of the compiler.
 
-\noindent {\bf Run Time Errors and Breakpoints.} The MetaC procedure {\tt berror(char *)} enters the gdb debugger. Typing the continue command
-to gdb will return to the NIDE (or REPL) with the C process intact. MetaC primitives call {\tt berror} when safety checks fail.
-The MetaC procedure {\tt breakpt(char *)} can be used for breakpoints from which execution can be continued.  When this procedure is called
-gdb will be entered. Giving the continue command to gdb will continue from the breakpoint.
+The MetaC procedure {\tt berror(char *)} enters the gdb debugger. When gdb is invoked in this way typing the {\tt continue} command
+will return to the NIDE (or REPL) with the C process intact. MetaC primitives call {\tt berror} when safety checks fail.
+The MetaC procedure {\tt breakpt(char *)} can be used for breakpoints from which execution can be continued.  When {\tt breakpt} is called
+the NIDE will invoke the debugger and typing the command {\tt continue} will continue the execution from the breakpoint.
 
-\noindent {\bf Segmentation Faults.} Segmentation faults, and other types of errors, are trapped by gdb directly.  In this case the
+Segmentation faults, and other types of errors, are trapped by gdb directly.  In this case the
 NIDE will enter the gdb debugger.  However, in this case the normal gdb continue command will not return to the code buffer.
 To recover one types {\tt print NIDE()} to gdb which will typically
-return to the code buffer with the persistent C process intact.  When
-memory corruption is a possibility it is safest to restart the C
-process.
+return to the code buffer with the persistent C process intact.  MetaC is designed to minimize the possibility of memory corruption
+when returning from an error.  See the discussions of unwind protection in sections~\ref{sec:memory} and \ref{sec:undo}.
+But if there is a concern over memory corruption one can always restart the C process.
 
 \noindent {\bf Printing.} The procedure {\tt mcprint} is like {\tt fprintf} but omitting the file argument. The expression
-{\tt mcprint("x = \%s$\backslash$n",s)} will print to the *Messages* buffer in Emacs. The expression {\tt mcpprint($e$)}
-will pretty-print the expression $e$ to the *Messages* buffer.
+{\tt mcprint("x = \%s$\backslash$n",s)} will print to the *Messages* buffer in Emacs. The procedure {\tt mcpprint(expptr e)}
+will pretty-print the expression $e$ to the *Messages* buffer.  When in the gdb debugger the procedure {\tt dbpprint(expptr e)} will
+pretty print an expression in the gdb REPL.
 
 \noindent {\bf Key Bindings.}  mc.el provides the following key bindings.
 
@@ -476,56 +478,40 @@ It is also not difficult to assign types to particular properties so that the ty
 However, these features are not present in release 1.0.
 
 \subsection{Memory Frames}
+\label{sec:memory}
 
-A memory frame is analogous to a stack frame but is independent of the C stack.
-The procedure {\tt push\_memory\_frame()} pushes a memory frame.  The procedure {\tt stack\_alloc(int nbytes)}
-returns a pointer to a block of the given size allocated from the current memory frame.  The procedure {\tt pop\_memory\_frame()}
-pops the current memory-management frame by resetting a free pointer (a ``stack pointer'') so as to free all allocation done in that frame.
-MetaC pre-allocates the heap (stack space) used for memory frames.
+A memory frame is analogous to a stack frame but is only sparsely tied to the C stack.
+The macro {\tt in\_memory\_frame($<$statement$>$)} will execute the given statement inside a new memory frame.
+The procedure {\tt stack\_alloc(int nbytes)}
+returns a pointer to a block of the given size allocated from the current memory frame. When {\tt in\_memory\_frame($<$statement$>$)}  exits
+the memory-frame free pointer (or ``stack pointer'') is reset.  This frees all memory allocated from the frame.
+This architecture differs from traditional stack allocation in that recursive procedures can operate with a single memory frame and return newly allocated memory as values
+without copying.  The allocated storage will not be deallocated until exit from an enclosing use of {\tt in\_memory\_frame}.
+MetaC pre-allocates the heap (stack space) used for memory frames.  The deallocation (resetting of the freeptr) is unwind protected and will occur
+when an error is thrown beyond the frame entry point.  This avoids a memory leak when returning from the an error to the REPL or NIDE.
+
 
 \subsection{Undo Frames}
+\label{sec:undo}
 Undo frames are similar to memory frames but with the added feature of undoing effects tied to the frame.
-The procedure {\tt push\_undo\_frame()} enters a new undo frame.
-Memory is allocated from the current undo frame
+The macro {\tt exp\_from\_undo\_frame($<$expression$>$)} creates a new undo frame and executes the given expression
+in the new frame. Memory is allocated from the current undo frame
 with the procedure {\tt undo\_alloc(int nbytes)}.  Effect are tied to the current undo frame with the C preprocessor macro
-{\tt undo\_set(void * loc, void * val)}.  On exit from an undo frame all memory locations assigned by {\tt undo\_set} are restored to the values
-they had before entry to the frame.
+{\tt undo\_set(void * loc, void * val)}.  On exit from an undo frame all memory allocated from that frame are reclaimed by resetting a free pointer
+and all locations assigned by {\tt undo\_set} are restored to the values they had before entry to the frame.
 
 In MetaC all expression allocation and property assignments are tied to the current undo frame.
 On exit from the undo frame the database represented by expression properties is restored to
 the state that existing on frame entry.
 
-The procedure {\tt exp\_from\_undo(expptr exp)} pops the current
-undo frame copyng the given expression into the parent frame and returning the parent-frame copy as a value.
-This is used for returning the ``value'' or ``result'' of a large computation while freeing the allocation and undoing the effects of the computation.
-This can be implemented as follows.
-
-\begin{verbatim}
-exptr exp_from_undo_frame(expptr e){
-  push_memory_frame();
-  expptr temp = copy_exp_to_stack(e);
-  pop_undo_frame();
-  expptr result = copy_exp_from_stack(e);
-  pop_memory_frame();
-  return result;
-}
-\end{verbatim}
+The macro {\tt exp\_from\_undo\_frame($<$expression$>$)} computes the value of the given expression in the new frame, then pops that undo frame while
+copying the computed value into the parent undo frame.  The value must be a universal syntax expression
+(an expptr). This is used for returning the ``value'' or ``result'' of a large computation while freeing the allocation and undoing the effects of the computation.
+The macro {\tt exp\_from\_undo\_frame($<$expression$>$)} has unwind protection so that the undo frame is popped (with memory deallocated and effects undone)
+if an error is thrown in the execution of the expression.
 
 The procedure {\tt clean\_undo\_frame(expptr e)} is similar to {\tt exp\_from\_undo\_frame} but replaces the current undo frame with a fresh one
-into which the given expression is placed.  In this case there is no effect on the parent frame.
-
-\begin{verbatim}
-exptr clean_undo_frame(expptr e){
-  push_memory_frame();
-  expptr temp = copy_exp_to_stack();
-  pop_undo_frame();
-  push_undo_frame();
-  result = copy_exp_from_stack(temp);
-  pop_momory_frame();
-  return result; 
-}
-\end{verbatim}
-
+into which the given expression is copied.  In this case there is no allocation from the parent frame.
 The procedure {\tt clean\_undo\_frame(expptr e)} can be used for garbage collection
 as in {\tt (install\_live\_stuff(clean\_undo\_frame(compute\_live\_stuff())))}.
 
@@ -971,23 +957,19 @@ int length(expptr l);
 \subsection{Memory Frames}
 
 \begin{verbatim}
-push_memory_frame();
+in_memory_frame(<statement>)
 
 voidptr stack_alloc(int nbytes);
-
-pop_memory_frame();
 \end{verbatim}
 
 \subsection{Undo Frames}
 
 \begin{verbatim}
-void push_undo_frame();
+void exp_from_undo_frame(<expression>);
 
 voidptr undo_alloc(int nbytes);
 
 void undo_set(voidptr loc, voidptr val);
-
-void exp_from_undo_frame(expptr e);
 
 void clean_undo_frame(expptr e);
 \end{verbatim}

@@ -23,7 +23,7 @@ void init_tags(){
   comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";
   exec_error_tag = "*#*#dsflsadk#*#*exec-error*#*#dsflsadk#*#*";
   breakpoint_tag = "*#*#dsflsadk#*#*breakpoint*#*#dsflsadk#*#*";
-  ide_tag = "*#*#dsflsadk#*#*IDE*#*#dsflsadk#*#*";
+  request_input_tag = "*#*#dsflsadk#*#*IDE*#*#dsflsadk#*#*";
   print_tag = "*#*#dsflsadk#*#*print*#*#dsflsadk#*#*";
 }
 
@@ -54,7 +54,7 @@ void breakpt(char *s){
   else {
     send_emacs_tag(breakpoint_tag);
     cbreak();
-    send_emacs_tag(ide_tag);
+    send_emacs_tag(request_input_tag);
   }
 }
 
@@ -63,12 +63,11 @@ void berror(char *s){
   if(!in_ide){cbreak(); throw_error();}
   if(in_doit) send_emacs_tag(exec_error_tag); else send_emacs_tag(expansion_error_tag);
   cbreak();
-  send_emacs_tag(ide_tag);
   throw_error();
 }
 
 void uerror(expptr e){
-  printexp(e);
+  dbpprint(e);
   berror("");
 }
 
@@ -550,7 +549,7 @@ void pprint(expptr w, FILE * f, int indent_level){
   fprintf(f,"\n");
 }
 
-void printexp(expptr e){
+void dbpprint(expptr e){
   pprint(e,stdout,rep_column);}
 
 void mcpprint(expptr e){
