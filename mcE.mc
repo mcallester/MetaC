@@ -41,7 +41,6 @@ void install_var(expptr,expptr,expptr);
 void install_proc(expptr,expptr,expptr,expptr);
 int symbol_index(expptr);
 expptr symbol_index_exp(expptr);
-void unrecognized_statement(expptr form);
 expptr proc_def(expptr f);
 expptr link_def(expptr f);
 void install_base();
@@ -201,11 +200,6 @@ void install(expptr statement){
     {$type $f($args);}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, NULL);}
     {$e;}:{push(statement,new_statements)}
     {{$e}}:{push(statement,new_statements)}
-    {$f($any)}:{
-      if(output_type(f) == `{void}){
-	push(statement, new_statements);}
-      else{
-	push(`{return $statement;}, new_statements);}}
     {$any}:{push(`{return $statement;},new_statements)}}
 }
 
@@ -253,14 +247,6 @@ expptr output_type(expptr f){
   expptr sig = getprop(f,`{signature}, NULL);
   if(cellp(sig))return car(sig);
   return NULL;
-}
-
-void unrecognized_statement(expptr form){
-  uerror( `{unrecognized statement,
-	$form ,
-	types must be single symbols,
-	all global variables must be arrays,
-    });
 }
 
 int symbol_index(expptr sym){
