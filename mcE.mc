@@ -47,7 +47,6 @@ void install_base();
 char * strip_quotes(char *);
 expptr load(expptr);
 void print_preamble(expptr);
-expptr output_type(expptr);
 
 /** ========================================================================
 The REPL inserts base procedures into the symbol_value table (the linking table) by calling the macro insert_base.
@@ -241,12 +240,6 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
     setprop(f,`{body},newbody);
     symbol_value[symbol_index(f)] = NULL; //this will catch semi-defined functions without segmentation fault.
   }
-}
-
-expptr output_type(expptr f){
-  expptr sig = getprop(f,`{signature}, NULL);
-  if(cellp(sig))return car(sig);
-  return NULL;
 }
 
 int symbol_index(expptr sym){
