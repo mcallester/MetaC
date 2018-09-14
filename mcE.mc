@@ -217,7 +217,7 @@ void print_preamble(expptr e){
 void install_var(expptr type, expptr X, expptr dim){
   expptr oldsig = getprop(X,`{signature}, NULL);
   expptr newsig = `{$type $X[$dim];};
-  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change the type declaration, $oldsig , to $newsig});
+  if(oldsig != NULL && newsig != oldsig)berror(sformat("attempt to change signature from\n %s\n to\n %s\n", exp_string(oldsig), exp_string(newsig)));
   if(oldsig == NULL){
     setprop(X,`{signature},newsig);
     push(X, arrays);
@@ -228,7 +228,7 @@ void install_proc(expptr type, expptr f, expptr args, expptr newbody){
   expptr oldsig = getprop(f,`{signature}, NULL);
   expptr oldbody = getprop(f,`{body},NULL);
   expptr newsig = `{$type $f($args);};
-  if(oldsig != NULL && newsig != oldsig)uerror(`{attempt to change $oldsig to \n $newsig});
+  if(oldsig && newsig != oldsig)berror(sformat("attempt to change signature from\n %s\n to\n %s\n", exp_string(oldsig), exp_string(newsig)));
   if(oldsig == NULL){
     setprop(f,`{signature},newsig);
     push(f,procedures);}
