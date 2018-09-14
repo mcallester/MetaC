@@ -778,9 +778,13 @@ expptr read_from_ide(){
 }
 
 void simple_advance(){
+  if(next == EOF){readchar = 0; return;}
   readchar = next;
   if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
-  if(next > 127)berror("non-ascii input");
+  if(next < EOF || next > 126 || (next > 0 && next < 32 && next != 10 && next != 9) ){
+    fprintf(stdout,"non-printable-ascii input character %d",next);
+    berror("");
+  }
   paren_level += level_adjustment(readchar);
 }
 
