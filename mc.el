@@ -64,11 +64,11 @@
 (add-hookm c-mode-hook
   (define-key c-mode-map "\C-\M-q" 'MC:indent-def))
 
-(defun mc-buffer ()
-  (get-buffer-create "*MetaC*"))
+(defun gdb-buffer ()
+  (get-buffer-create "*gdb*"))
 
 (defun mc-process ()
-    (get-buffer-process (mc-buffer)))
+    (get-buffer-process (gdb-buffer)))
 
 (defun MC:null-filter (proc string) nil)
 
@@ -76,9 +76,9 @@
   (interactive)
   (setq *source-buffer* (current-buffer))
   (when (mc-process) (delete-process (mc-process)))
-  (with-current-buffer (mc-buffer) (erase-buffer))
-  (start-process "MetaC" (mc-buffer) *gdb*)
-  (with-current-buffer (mc-buffer) (shell-mode))
+  (with-current-buffer (gdb-buffer) (erase-buffer))
+  (start-process "MetaC" (gdb-buffer) *gdb*)
+  (with-current-buffer (gdb-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:filter))
   (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
   (process-send-string (mc-process) "break cbreak\n")
@@ -155,7 +155,7 @@
 
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
-    ;; (print (list 'filter-receiving clean))
+    ;;(print (list 'filter-receiving clean))
     (setq *mc-accumulator* (concat *mc-accumulator* clean))
     (MC:process-output)))
 
@@ -165,11 +165,9 @@
       (if cell
 	(let ((tag (car cell))
 	      (value (cdr cell)))
-	  ;;(print '**** doing )
-	  ;;(print value)
-	  ;;(print tag)
+	  ;;(print '(**** doing) )  (print value)  (print tag)
 	  (MC:dotag tag value)
-	  ;;(print '**** done)
+	  ;;(print '(**** done))
 	  (MC:process-output))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)
@@ -180,7 +178,6 @@
   (insert (replace-regexp-in-string "\n" "\n  " value)))
 
 (defun MC:dotag (tag value)
-  ;; (print (list tag value))
   (cond ((string= tag "ignore"))
 
 	((string= tag "result")
@@ -197,6 +194,7 @@
 	 (print value))
 	((string= tag "comp-error")
 	 (MC:insert-in-segment "compilation error")
+	 ;;(print value))
 	 (with-current-buffer (message-buffer)
 	   (erase-buffer) (MC:insert-in-segment value))
 	 (display-buffer (message-buffer) 'display-buffer-pop-up-window))
@@ -213,8 +211,8 @@
 
 	;;the tag IDE returns from from gdb mode
 	((string= tag "IDE")
-	 (pop-to-buffer-same-window *source-buffer*)
-	 (delete-other-windows)
+	 (pop-to-buffer *source-buffer*)
+	 (when *gdb-mode* (delete-other-windows))
 	 (setq *gdb-mode* nil)
 	 (setq *starting* nil))
 
@@ -222,7 +220,7 @@
 
 (defun MC:goto-gdb (value)
   (setq *source-buffer* (current-buffer))
-  (pop-to-buffer (mc-buffer))
+  (pop-to-buffer (gdb-buffer))
   (erase-buffer)
   (MC:insert-in-segment value)
   (set-marker (process-mark (mc-process)) (point))
@@ -275,7 +273,7 @@
       (cons "exec-error" value))))
 
 (defun message-buffer ()
-  (get-buffer-create "*MC-Messages*"))
+  (get-buffer-create "*MC Compiler Errors*"))
 
 (defun MC:num-cells-region ()
   (save-excursion
