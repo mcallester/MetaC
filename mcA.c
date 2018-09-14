@@ -67,7 +67,7 @@ void berror(char *s){
 }
 
 void uerror(expptr e){
-  dbpprint(e);
+  pp(e);
   berror("");
 }
 
@@ -549,7 +549,7 @@ void pprint(expptr w, FILE * f, int indent_level){
   fprintf(f,"\n");
 }
 
-void dbpprint(expptr e){
+void pp(expptr e){
   pprint(e,stdout,rep_column);}
 
 void mcpprint(expptr e){

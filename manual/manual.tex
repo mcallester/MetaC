@@ -60,25 +60,34 @@
 
 \begin{enumerate}
 \item Clone the MetaC repository in a local MetaC directory.
-\item From a shell running in your MetaC directory type make MC.
-\item From the same shell type MC to get the command line prompt MC$>$.
+\item Edit the first line of {\tt main} in REPL.mc to give your MetaC directory.
+\item From a shell running in your MetaC directory type {\tt make MC}.
+\item From the same shell type {\tt MC} to get the command line prompt {\tt MC$>$}.
 \end{enumerate}
 
 \noindent To install the NIDE:
 
 \begin{enumerate}
 \item Clone the repository into a repository directory.
-\item From a shell running in your MetaC directory type make NIDE.
 \item Add {\tt (load "$<$MetaC directory$>$/mc.el")} to your .emacs file.
 \item Edit the first line of  mc.el to give the path to your gdb executable (the Gnu debugger).
 \item Edit the second line of mc.el to give the path to your MetaC directory.
-\item Start or restart Emacs. The file mc.el adds hooks such that it is safest to restart Emacs rather than load em.el into a running Emacs.
+\item From a shell running in your MetaC directory type {\tt make NIDE}.
+\item Start or restart Emacs.\footnote{If you load mc.el into a running emacs
+MetaC will not be available in buffers created before the load.}
+  
 \end{enumerate}
 
-\noindent The NIDE can be run on any file with extension .mc in any directory.  To experiment with the NIDE use Emacs to visit the file NIDE-examples.mc from the MetaC repository.  
-Type C-M-s (control-meta-s) to start (or restart) the C kernel. Typing C-c C-c will run the cell containing the cursor and print
-the result in a C comment at the bottom of the cell.  This is substantially equivalent to typing the cell contents into the REPL.
-More Emacs key bindings and other features of the NIDE are described in section~\ref{sec:Emacs}.
+\noindent The NIDE can be run on any file with extension .mc in any
+directory. Buffers that 
+To experiment with the NIDE use Emacs to visit the file
+NIDE-examples.mc from the MetaC repository.  Type C-M-s
+(control-meta-s) to start (or restart) the C kernel. Typing C-c C-c
+will run the cell containing the cursor and print the result in a C
+comment at the bottom of the cell.  This is substantially equivalent
+to typing the cell contents into the REPL.  More Emacs key bindings
+and other features of the NIDE are described in
+section~\ref{sec:Emacs}.
 
 \medskip
 \noindent The following examples use the REPL.  However, all of these examples can be run as cells in the NIDE.
@@ -383,16 +392,16 @@ to compute the macro expansion and installs that procedure on a macro
 property of the symbol {\tt dolist}.  A typical macro pattern
 is a symbol followed by one or more parenthesis
 expressions in which case the macro is attached to the initial symbol.
-The pattern can also be
-a binary connective expressions such as {\tt {$x .> $y}}.  In this case
-the macro is attached to the connective.
+The macro can also be attached to a binary connective.
+For the macro pattern {\tt \{\$x $.\!>$ \$y\}}.
+the macro is attached to the two-character binary connective $.\!>$.
 
 \subsection{The Notebook IDE}
 \label{sec:Emacs}
 
 Starting the kernel with the key C-M-s creates a running C process.  When a cell is executed
-with the command C-c C-c the text of the cell is (invisibly) passed to $C$ process and a value returned
-y the process is printed inside a comment below the cell.  If a comment already occurs directly below the cell this
+with the command C-c C-c the text of the cell is passed to the $C$ process from which a value returned
+and then printed inside a comment below the cell.  If a comment already occurs directly below the cell this
 comment is replaced by a new comment containing the response of the REPL.  As in a Jupyter notebook,
 the values returned from the REPL are numbered so that one can see when the cell was executed
 relative to other cell execution in the notebook.  If C-M-s is run when a kernel is already running
@@ -408,7 +417,7 @@ starting at the beginning of a line terminates a cell.
 \noindent {\bf Errors and Breakpoints.}
 If an error occurs while macro-expanding a cell the NIDE will print {\tt "expansion error"} and enter the gdb debugger.  Typing the command {\tt continue}
 to gdb will return to the NIDE.
-If an error occurs while attempting to compile the macro-expanded expanded cell the NIDE will print {\tt "compilation error''} and display the output of the compiler.
+If an error occurs while attempting to compile the macro-expanded cell the NIDE will print {\tt "compilation error"} and display the output of the compiler.
 
 The MetaC procedure {\tt berror(char *)} enters the gdb debugger. When gdb is invoked in this way typing the {\tt continue} command
 will return to the NIDE (or REPL) with the C process intact. MetaC primitives call {\tt berror} when safety checks fail.
@@ -424,7 +433,7 @@ But if there is a concern over memory corruption one can always restart the C pr
 
 \noindent {\bf Printing.} The procedure {\tt mcprint} is like {\tt fprintf} but omitting the file argument. The expression
 {\tt mcprint("x = \%s$\backslash$n",s)} will print to the *Messages* buffer in Emacs. The procedure {\tt mcpprint(expptr e)}
-will pretty-print the expression $e$ to the *Messages* buffer.  When in the gdb debugger the procedure {\tt dbpprint(expptr e)} will
+will pretty-print the expression $e$ to the *Messages* buffer.  When in the gdb debugger the procedure {\tt pp(expptr e)} will
 pretty print an expression in the gdb REPL.
 
 \noindent {\bf Key Bindings.}  mc.el provides the following key bindings.
@@ -448,29 +457,28 @@ in files between commits.
 
 {\bf Include Statements.}  A cell in a code file containing {\tt \#include($<$filename$>$)} (with no semicolon) will load the cells of the named
 file into the persistent C process.  The extension ".mc" will be automatically added and should not be explicitly given.
-
-
+Include statements can also be given to the REPL to load (and link) C files into the running REPL process.
 
 \section{Miscellaneous Features}
 
 \subsection{Interning and Properties}
 
 In MetaC expressions are interned and have property lists.
-Interning means that two expressions which have the same tree structure and sequence of leaves --- that are ``equal'' in Lisp terminology --
-represented by the same data structure with the same memory address --- are ``eq''.
+Interning means that two expressions which have the same tree structure and sequence of leaves are represented by the same data structure with the same memory address.
+This is sometimes called ``hash-consing'' and can be expressed in Lisp terminology by saying that ``equal'' implies ``eq''.
 Hence we have
 \begin{verbatim}
 MC> int_exp(`{foo(a)} == `{foo(a)})
 1
 \end{verbatim}
 Interned expressions with properties provide the functionality of dictionary data structures such as C++ hashmaps or Python dictionaries.
-Interning also facilitates the implementation of forward chaining inference algorithms --- we do not want to waste noticing the same
-consequence over and over again.  Interned expressions with property lists can be viewed as a form of no-SQL database.
+Interning also facilitates the implementation of forward chaining inference algorithms --- we do not want to waste time noticing the same
+consequence over and over again.  Interned expressions with property lists can also be viewed as a form of no-SQL database.
 Interning also allows directed acyclic graphs (dags) to be represented compactly as expressions.  This is very convenient
 for the representation of machine-generated justifications (proofs).
 
 The procedure {\tt setprop(expptr exp, expptr prop, void * value)}
-sets the given property of the given expression to the given value.  The procedure {\tt getprop(expptr exp, expptr prop, void * default)}
+sets the given property of the given expression to the given value.  The procedure {\tt getprop(expptr exp, expptr prop, void * default)} returns
 the given property of the given value or the default value if no property value has been assigned.
 MetaC also provides the procedures {\tt setprop\_int(expptr e, expptr p, int n)} and {\tt getprop\_int(expptr e, expptr p, int default)}.
 It is not difficult to define polymorphic macros for setting and extracting properties where the type of the property is passed as an argument.
@@ -490,13 +498,15 @@ without copying.  The allocated storage will not be deallocated until exit from 
 MetaC pre-allocates the heap (stack space) used for memory frames.  The deallocation (resetting of the freeptr) is unwind protected and will occur
 when an error is thrown beyond the frame entry point.  This avoids a memory leak when returning from the an error to the REPL or NIDE.
 
+MetaC clears the base memory frame after every evaluation in the REPL and after every cell eveluation in the NIDE.  So it is important not to be using
+stack allocated memory between evaluations.
 
 \subsection{Undo Frames}
 \label{sec:undo}
 Undo frames are similar to memory frames but with the added feature of undoing effects tied to the frame.
 The macro {\tt exp\_from\_undo\_frame($<$expression$>$)} creates a new undo frame and executes the given expression
 in the new frame. Memory is allocated from the current undo frame
-with the procedure {\tt undo\_alloc(int nbytes)}.  Effect are tied to the current undo frame with the C preprocessor macro
+with {\tt undo\_alloc(int nbytes)}.  Effect are tied to the current undo frame with the C preprocessor macro
 {\tt undo\_set(void * loc, void * val)}.  On exit from an undo frame all memory allocated from that frame are reclaimed by resetting a free pointer
 and all locations assigned by {\tt undo\_set} are restored to the values they had before entry to the frame.
 
@@ -518,6 +528,12 @@ as in {\tt (install\_live\_stuff(clean\_undo\_frame(compute\_live\_stuff())))}.
 The procedures {\tt exp\_from\_undo\_frame} and {\tt clean\_undo\_frame} both run in time proportional to the dag size of the
 given expression. The dag size can be exponentially smaller than the tree size.
 
+The base undo frame is not cleared between evaluations. The base frame is holding properties needed for
+the proper functioning of MetaC.
+The base frame should not be manually cleared.  It is not difficult to write a collector for collecting the state used by the MetaC system which could then be integrated
+into a user-written state collector for garbage collecting the base frame.  However MetaC 1.0 does not support garbage collecting the base undo frame.  One can always
+restart the C process.
+
 \subsection{Bootstrapping and File Expansion}
 \label{sec:bootstrap}
 
@@ -537,8 +553,9 @@ mcC.c : expandB mcC.mc
 Here the file {\tt mcC.mc} implements additional macros using both backquote and ucase.  In the MetaC makefile this is continued up to mcE.mc and expandE.
 MetaC provides the procedure
 {\tt mcexpand(char * f1, char * f2)} which is used in the code for the expand commands.  This procedure macro-expands the
-file {\tt f1} and writes the result to file {\tt f2}.  This macro-expansion is done using whatever procedures and operators currently
-have macro expansion procedure pointers on their property lists, i.e., the expansion is done using whatever macros are defined in the current state.
+file {\tt f1} and writes the result to file {\tt f2}.  The expansion is done using whatever macros are defined
+in the current state --- the expansion uses whatever procedures and operators currently
+have macro expansion procedure pointers on their property lists.
 
 The procedure {\tt mcexpand(char * f1, char * f2)} is implemented using the MetaC procedure {\tt file\_expressions(char * f)}.
 This procedure takes a file name and returns a list of the expressions contained in the cells of that file.
@@ -640,11 +657,6 @@ $\{\fopen \mathtt{a~+~b} \fclose \}$.  Left-branching for binary connectives giv
 C-consistent treatment of semicolon as a binary connective while also supporting the interpretation of semicolon as a statement terminator.
 This is discussed in more detail below.
 
-It will generally be clear from context whether we using the Lisp right-branching list convention
-or the left-branching connective convention.
-A set of examples of strings and the phantom brackets generated by the reader is given in figure~\ref{fig:reader}.
-
-
 To emphasize the significance of left-branching binary connectives we note that
 the MetaC reader bracketing of
 $$\{e_1\;;\;e_2\;;\;e_3\;;\;e_4\}$$
@@ -686,19 +698,20 @@ The MetaC reader can be described in three phases --- preprocessing, lexicalizat
 
 The MetaC preprocessor replaces each C-style comment with a space character.  When processing an entire file,
 as is done in the MetaC procedure {\tt file\_expressions}
-described in section~\ref{sec:bootstrap}, the preprocessor divides the file in cells using the same conventions as is used in the NIDE.
+described in section~\ref{sec:bootstrap}, the preprocessor divides the file into
+cells using the same conventions as is used in the NIDE.
 A file must be parenthesis-balanced within each cell.
 
 Lexicalization segments a pre-processed character sting into to a sequence of atoms.
 The MetaC lexer preserves all non-white characters.  For the MetaC lexer each atom is one of the following.
 
 \begin{itemize}
-\item Symbols.  A symbol is a character string consisting of only alpha-numeric characters --- upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar.
+\item A symbol.  A symbol is a character string consisting of only alpha-numeric characters --- upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar.
   For example {\tt foo\_bar1}.
-\item Connectives.  A connective is a character string consisting of only ``connective characters'' --- the connective characters consist of all non-alphanumeric, non-white, non-parenthesis, characters
+\item A connective.  A connective is a character string consisting of only ``connective characters'' --- the connective characters consist of all non-alphanumeric, non-white, non-parenthesis, characters
   other than the three special characters {\tt \$}, {\tt `} and $\backslash$.
-\item Quoted strings.  A character string starting and ending with the same string quotation character.  For example {\tt "foo bar"}, {\tt "!:\&?;"} or {\tt 'a'}.
-\item Special character atoms. These are atoms whose strings are one character long where that character is one of
+\item A quoted string.  A character string starting and ending with the same string quotation character.  For example {\tt "foo bar"}, {\tt "!:\&?;"} or {\tt 'a'}.
+\item A special character atom. These are atoms whose strings are one character long where that character is one of
   the special characters $\mtt{`}$, $\mtt{\$}$, and $\backslash$.
 \end{itemize}
 
