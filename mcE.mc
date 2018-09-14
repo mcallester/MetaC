@@ -127,6 +127,7 @@ void simple_eval_noval(expptr e){
 void eval_exp(expptr exp){
   preamble= nil;
   init_forms = nil;
+  in_doit = 0;
   expptr e = macroexpand(exp);
   ucase{e;
     {#require($sym)}.(atomp(sym)) : {

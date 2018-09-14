@@ -740,7 +740,7 @@ int from_file;
 int from_ide;
 
 char readchar;
-char next;
+int next;
 int paren_level; // this is the paren_lever immediately after readchar.
 
 expptr mcread();;
@@ -780,6 +780,7 @@ expptr read_from_ide(){
 void simple_advance(){
   readchar = next;
   if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
+  if(next > 127)berror("non-ascii input");
   paren_level += level_adjustment(readchar);
 }
 
@@ -802,7 +803,7 @@ expptr file_expressions(char * fname){
 }
 
 expptr file_expressions2(){
-  if(readchar == EOF || next == EOF)return nil;
+  if(next == EOF)return nil;
   if(closep(readchar))berror("file contains unmatched close\n");
   expptr e = mcread();
   if(e == nil)return file_expressions2();
