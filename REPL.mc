@@ -30,7 +30,6 @@ void read_eval_print(){
 }
 
 int main(int argc, char **argv){
-  MetaC_directory = "/Users/davidmcallester/18/MC/";
   mcA_init();
   mcB_init();
   mcC_init();

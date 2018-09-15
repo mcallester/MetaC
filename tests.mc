@@ -9,7 +9,7 @@
 ======================================================================== **/
 
 `{a}
-/** 61: compilation error **/
+/** 1: a **/
 
 
 /** ========================================================================
@@ -252,16 +252,14 @@ foobar()
 /** 43: a **/
 
 /** ========================================================================
- Procedure definition failure should not leave the procedure semi-defined.
- the following should generate a compilation error on both invocations rather than
- a segment fault on the second invocation.
+ Procedure definition failure should leave the procedure undefined
 ======================================================================== **/
 
 expptr goo(expptr exp){returni exp;}
 /** 44: compilation error **/
 
 goo(`{a})
-/** 45: execution error **/
+/** 45: compilation error **/
 
 
 /** ========================================================================
@@ -338,11 +336,11 @@ exp_from_undo_frame(`{a})
 
 
 /** ========================================================================
- unfortunate
+ illegal signature should not be installed
 ======================================================================== **/
 
 notype bad(int x){return x;}
-/** 59: compilation error **/
+/** 58: compilation error **/
 
 int bad(int x){return x;}
-/** 60: expansion error **/
+/** 59: done **/

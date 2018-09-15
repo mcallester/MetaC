@@ -82,7 +82,7 @@
   (set-process-filter (mc-process) (function MC:filter))
   (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
   (process-send-string (mc-process) "break cbreak\n")
-  (process-send-string (mc-process) (format "run %s\n" *MetaC*))
+  (process-send-string (mc-process) "run\n")
   (setq *eval-count* 1)
   (setq *starting* t)
   (setq *mc-accumulator* nil)

@@ -13,8 +13,7 @@
 #include "mc.h"
 
 int main(int argc, char **argv){
-  if(argc != 4){fprintf(stdout,"wrong number of arguments to expandE"); return 1;}
-  MetaC_directory = argv[1];
+  if(argc != 3){fprintf(stdout,"wrong number of arguments to expandE"); return 1;}
   catch_error(
 	      mcA_init();
 	      mcB_init();
@@ -23,6 +22,6 @@ int main(int argc, char **argv){
 	      mcE_init1();
 	      mcE_init2();
 	      in_expand = 1;
-	      mcexpand(argv[2], argv[3]));
+	      mcexpand(argv[1], argv[2]));
   return error_flg;
 }

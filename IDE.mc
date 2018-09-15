@@ -34,9 +34,6 @@ void IDE_loop(){
 }
 
 int main(int argc, char **argv){
-  if(argc != 2){fprintf(stdout,"wrong number of arguments to NIDE"); return 1;}
-  MetaC_directory = argv[1];
-    
   mcA_init();
   mcB_init();
   mcC_init();

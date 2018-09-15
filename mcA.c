@@ -287,7 +287,7 @@ void init_expressions(){
 
 expptr string_atom(char * s){return intern_exp('A', (expptr) intern_string(s), NULL);}
 
-int atomp(expptr e){return constructor(e) == 'A';}
+int atomp(expptr e){return e && constructor(e) == 'A';}
 
 int symbolp(expptr e){return atomp(e) && alphap(atom_string(e)[0]);}
 
@@ -300,7 +300,7 @@ expptr cons(expptr x, expptr y){
   if(!x || !y)berror("null argument given to cons");
   return intern_exp(' ',x,y);}
 
-int cellp(expptr e){return constructor(e) == ' ';}
+int cellp(expptr e){return e && constructor(e) == ' ';}
 
 expptr car(expptr x){
   if(constructor(x) != ' '){
@@ -316,7 +316,7 @@ expptr intern_paren(char openchar, expptr arg){
   if(!arg)berror("null argument given to intern_paren");
   return intern_exp(openchar, arg, NULL);}
 
-int parenp(expptr e){return openp(constructor(e));}
+int parenp(expptr e){return e && openp(constructor(e));}
 
 expptr paren_inside(expptr e){
   if(!openp(constructor(e)))berror("paren_inside applied to non-paren");
@@ -1186,4 +1186,5 @@ void mcA_init(){
   
   stack_copy_sym=string_atom("stack_copy_token");
   set_macro(backquote, bquote_macro);
-}
+
+  MetaC_directory = "/Users/davidmcallester/18/MC/";}

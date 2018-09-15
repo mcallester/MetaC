@@ -27,6 +27,7 @@ expptr procedures;
 expptr arrays;
 
 expptr new_procedures;
+expptr new_sig_procedures;
 expptr new_arrays;
 expptr new_statements;
 
@@ -39,10 +40,10 @@ voidptr compile_load_file(charptr fstring);
 void install_preamble(expptr);
 void install_var(expptr,expptr,expptr);
 void install_proc(expptr,expptr,expptr,expptr);
+void install_proc_def(expptr f);
+void install_link_def(expptr f);
 int symbol_index(expptr);
 expptr symbol_index_exp(expptr);
-expptr proc_def(expptr f);
-expptr link_def(expptr f);
 void install_base();
 char * strip_quotes(char *);
 expptr load(expptr);
@@ -64,6 +65,7 @@ void mcE_init1(){
   procedures = nil;
   symbol_count = 0;
   install_base();  //all executables built on mcE (ExpandE, REPL and IDE) have the same indeces for base functions.
+  fprintf(stdout,"nproces = %d\n",length(procedures));
   compilecount = 0;
 }
 
@@ -76,7 +78,7 @@ umacro{insert_base()}{
   return result;
 }
 
-init_fun(mcE_init2)  //installs the macro insert_base (without calling it).
+init_fun(mcE_init2)  //the procedure mcE_init2() installs the macro insert_base (without calling it).
 
 void install_base(){
   dolist(sig,file_expressions(sformat("%sbase_decls.h", MetaC_directory))){
@@ -84,7 +86,9 @@ void install_base(){
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
 	symbol_index(f);  //establish the index
         setprop(f,`{base},`{true});
-        install(sig);}
+        push(f,procedures);
+	setprop(f,`{signature},sig);
+      }
       {$type $x[$dim];}:{
 	symbol_index(x);  //establish the index
 	push(x,arrays);
@@ -102,6 +106,7 @@ expptr new_procedure_insertion (expptr f){
     return `{
       symbol_value[${symbol_index_exp(f)}] = ${getprop(f,`{gensym_name},NULL)};};
 }
+
 expptr new_array_insertion (expptr x){
   ucase{getprop(x,`{signature},nil);
     {$type $x[$dim];}:{return `{symbol_value[${symbol_index_exp(x)}] = malloc($dim*sizeof($type));};}}
@@ -145,6 +150,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   fprintf(fileout,"#include \"%spremacros.h\"\n", MetaC_directory);
 
   new_procedures = nil;
+  new_sig_procedures = nil;
   new_arrays = nil;
   new_statements = nil;
   
@@ -154,17 +160,19 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   pprint(`{void * * symbol_value_copy;},fileout,0);
 
   //variable declarations
-  dolist(f,procedures){pprint(getprop(f,`{signature},NULL),fileout,0);}
+  dolist(f,procedures){
+    expptr sig =getprop(f,`{signature},NULL);
+    if(sig){pprint(sig,fileout,0);}
+  }
   dolist(x,arrays){
     ucase{getprop(x,`{signature},NULL);
-      {$type $x[$dim];}:{pprint(`{$type * $x;},fileout,0);}}}
+      {$type $x[$dim];}:{pprint(`{$type * $x;},fileout,0);}
+      {$any}:{}}}
 
   //procedure value extractions.  array extractions are done in doit.
 
-  dolist(f,procedures){
-    pprint(link_def(f),fileout,0);}
-  dolist(f,new_procedures){
-    pprint(proc_def(f),fileout,0);} 
+  mapc(install_link_def,procedures);
+  mapc(install_proc_def,new_procedures);
 
   pprint(`{
       expptr _mc_doit(voidptr * symbol_value){
@@ -218,28 +226,35 @@ void print_preamble(expptr e){
 void install_var(expptr type, expptr X, expptr dim){
   expptr oldsig = getprop(X,`{signature}, NULL);
   expptr newsig = `{$type $X[$dim];};
-  if(oldsig != NULL && newsig != oldsig)berror(sformat("attempt to change signature from\n %s\n to\n %s\n", exp_string(oldsig), exp_string(newsig)));
+  if(oldsig != NULL && newsig != oldsig){
+    berror(sformat("attempt to change signature from\n %s\n to\n %s\n",
+		   exp_string(oldsig),
+		   exp_string(newsig)));
+  }
   if(oldsig == NULL){
     setprop(X,`{signature},newsig);
     push(X, arrays);
     push(X,new_arrays);}
 }
 
-void install_proc(expptr type, expptr f, expptr args, expptr newbody){
+void install_proc(expptr type, expptr f, expptr args, expptr body){
   expptr oldsig = getprop(f,`{signature}, NULL);
-  expptr oldbody = getprop(f,`{body},NULL);
   expptr newsig = `{$type $f($args);};
-  if(oldsig && newsig != oldsig)berror(sformat("attempt to change signature from\n %s\n to\n %s\n", exp_string(oldsig), exp_string(newsig)));
-  if(oldsig == NULL){
-    setprop(f,`{signature},newsig);
-    push(f,procedures);}
-
-  if(oldbody != newbody && newbody){
+  if(!getprop(f,`{on_procedures},NULL)){
+    push(f,procedures);
+    setprop(f,`{on_procedures},`{true});}
+  if(!oldsig){
+    push(f,new_sig_procedures);
+    setprop(f,`{signature},newsig);}    
+  if(oldsig && newsig != oldsig){
+    berror(sformat("attempt to change signature from\n %s\n to\n %s\n",
+		   exp_string(oldsig),
+		   exp_string(newsig)));}
+  if(body){
+    if (getprop(f,`{base},NULL))berror(sformat("attempt to change base function %s",atom_string(f)));
     push(f, new_procedures);
-    if (getprop(f,`{base},NULL)) uerror(`{attempt to change base function $f});
     setprop(f,`{gensym_name},gensym(atom_string(f)));
-    setprop(f,`{body},newbody);
-    symbol_value[symbol_index(f)] = NULL; //this will catch semi-defined functions without segmentation fault.
+    setprop(f,`{body},body);
   }
 }
 
@@ -257,39 +272,42 @@ expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));
 }
 
-expptr link_def(expptr f){
+void install_link_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
     {$type $f($args);}:{
-      return
-	`{$type $f($args){
-	  $type (* _mc_f)($args);
-	  _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
-
-	  if(!_mc_f){berror("call to undefined procedure");}
-	  
-	  ${(type == `{void} ?
-	     `{(* _mc_f)(${args_variables(args)});}
-	     : `{return (* _mc_f)(${args_variables(args)});})}}};}
-    {$e}:{return NULL;}}
-  return NULL;
+      pprint(
+	     `{$type $f($args){
+		 $type (* _mc_f)($args);
+		 _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
+		 
+		 if(!_mc_f){berror("call to undefined procedure");}
+		 
+		 ${(type == `{void} ?
+		    `{(* _mc_f)(${args_variables(args)});}
+		    : `{return (* _mc_f)(${args_variables(args)});})}}},
+	     fileout,
+	     0);}
+    {$any}:{}}
 }
 
-expptr proc_def(expptr f){
+void install_proc_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
     {$type $f($args);}:{
-      return `{$type ${getprop(f,`{gensym_name},NULL)}($args){${getprop(f,`{body},NULL)}}};}
-    {$e}:{return NULL;}}
+      pprint(
+	     `{$type ${getprop(f,`{gensym_name},NULL)}($args){
+		 ${getprop(f,`{body},NULL)}}},
+	     fileout, 0);}
+    {$e}:{}}
 }
 
 void comp_error(){
   fflush(stderr);
-  if(in_ide){
-    dolist(f,new_procedures){
-      setprop(f,`{body},NULL);}
-    send_emacs_tag(comp_error_tag);}
-  else{
-    fprintf(stdout,"\n evaluation aborted\n\n");}
-  throw_error();}
+  dolist(f,new_sig_procedures){setprop(f,`{signature},NULL);}
+  dolist(x,new_arrays){setprop(x,`{signature},NULL);}
+  if(in_ide)send_emacs_tag(comp_error_tag);
+  else fprintf(stdout,"\n evaluation aborted\n\n");
+  throw_error();
+}
 
 voidptr compile_load_file(charptr fstring){
   int flg;
