@@ -45,7 +45,7 @@ void send_print_tag(){send_emacs_tag(print_tag);}
 int in_ide_proc(){return in_ide;}
 
 void NIDE(){
-  throw_error();
+  throw_error_clean();
 }
 
 void breakpt(char *s){
@@ -60,10 +60,10 @@ void breakpt(char *s){
 
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
-  if(!in_ide){cbreak(); throw_error();}
+  if(!in_ide){cbreak(); throw_error_clean();}
   if(in_doit) send_emacs_tag(exec_error_tag); else send_emacs_tag(expansion_error_tag);
   cbreak();
-  throw_error();
+  throw_error_clean();
 }
 
 void uerror(expptr e){
@@ -117,7 +117,7 @@ void * undo_alloc(int size){
     fprintf(stdout,"undo heap exhausted\n");
     heap_reserve = heap_reserve/2;
     cbreak();
-    throw_error();}
+    throw_error_clean();}
   char * result = &undo_heap[undo_heap_freeptr];
   undo_heap_freeptr += size;
   return result;
@@ -787,6 +787,13 @@ void simple_advance(){
   }
   paren_level += level_adjustment(readchar);
 }
+
+void throw_error_clean(){
+  while(next != EOF && next != 0){
+    simple_advance();}
+  throw_error();
+}
+
 
 /** ========================================================================
 file_expressions

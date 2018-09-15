@@ -306,7 +306,7 @@ void comp_error(){
   dolist(x,new_arrays){setprop(x,`{signature},NULL);}
   if(in_ide)send_emacs_tag(comp_error_tag);
   else fprintf(stdout,"\n evaluation aborted\n\n");
-  throw_error();
+  throw_error_clean();
 }
 
 voidptr compile_load_file(charptr fstring){

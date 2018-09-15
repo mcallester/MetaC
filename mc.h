@@ -1,5 +1,7 @@
 #include "premacros.h"
 
+void throw_error_clean();
+
 typedef char * charptr;
 typedef void * voidptr;
 
