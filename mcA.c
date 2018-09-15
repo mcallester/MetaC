@@ -808,8 +808,11 @@ expptr file_expressions(char * fname){
   if(read_stream == NULL){
     fprintf(stdout,"attempt to open %s failed",fname);
     berror("");}
-  expptr exps = file_expressions2();
-  fclose(read_stream);
+  expptr exps;
+  unwind_protect({
+      exps = file_expressions2();
+      fclose(read_stream);},
+    {fclose(read_stream);});
   return exps;
 }
 
