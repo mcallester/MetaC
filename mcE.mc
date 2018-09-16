@@ -1,5 +1,7 @@
 #include "mc.h"
 
+voidptr symbol_value[SYMBOL_DIM] = {0};
+
 /** ========================================================================
 In this implementation all global data variables must be arrays.
 We can replace a declaration
@@ -135,7 +137,7 @@ void eval_exp(expptr exp){
   in_doit = 0;
   expptr e = macroexpand(exp);
   ucase{e;
-    {#require($sym)}.(atomp(sym)) : {
+    {load($sym)}.(atomp(sym)) : {
       char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
       mapc(simple_eval_noval,file_expressions(require_file));
       fprintf(stdout,"%s Provided\n",require_file); }

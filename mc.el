@@ -204,7 +204,7 @@
 	 (MC:insert-in-segment "execution error")
 	 (MC:goto-gdb value))
 	((string= tag "expansion-error")
-	 (MC:insert-in-segment "expansion error")
+	 (MC:insert-in-segment "reader or expansion error")
 	 (MC:goto-gdb value))
 	((string= tag "breakpoint")
 	 (MC:goto-gdb value))

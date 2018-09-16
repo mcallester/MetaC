@@ -107,8 +107,9 @@ hello world
 MC>
 \end{verbatim}
 
-In the above example the backquote expression given to the REPL macro-expands to a C expression which evaluates to the expression ``hello world''.
-Backquote is described in more detail below.
+In the above example the backquote expression given to the REPL macro-expands to a C expression which evaluates to a
+MetaC universal syntax  expression which prints as {\tt hello world}.
+MetaC universal syntax expressions are described in more detail below.
 
 \subsection{C Statements and C Expressions}
 
@@ -146,9 +147,6 @@ is a universal syntax tree (also called an expression, giving a second, and conf
 sense of the term ``expression''). The procedure {\tt int\_exp} above
 converts an integer to a universal syntax expression.  Universal syntax expressions are abstract
 syntax trees but can viewed as representations of strings.
-%% 
-%% Perhaps introduce the type expptr here?
-%% 
 
 If a C statement executes a {\tt return} outside of any
 procedure then that value is returned to the REPL and printed.
@@ -193,7 +191,12 @@ MC> expptr myexp_exp(myexp x){
 }
 
 done
+\end{verbatim}
 
+Note that the last procedure has output type {\tt expptr}.  This is the type of the value returned by a backquote expression --- the
+type of MetaC universal syntax expressions.
+
+\begin{verbatim}
 MC> myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 
 
@@ -219,7 +222,23 @@ as follows.
 MC> int y[0] = 2;
 
 done
+\end{verbatim}
 
+MetaC treats {\tt int y[0] = 2;} as equivalent to
+
+\begin{verbatim}
+MC> int y[1];
+
+done
+
+MC> y[0] = 2;
+
+done
+\end{verbatim}
+
+We can continue with
+
+\begin{verbatim}
 MC> y[0] += 1;
 
 done
@@ -231,12 +250,7 @@ MC> int_exp(y[0])
 MC>
 \end{verbatim}
 
-%% A single-element array in C is defined ``int y[1];''. The text here
-%% seems to suggest ``int y[0];'' is proper C.  Could revise to
-%% explain that we extend C in this way, or could revise MetaC to use
-%% y[1] and abandon the y[0] syntax
-
-Here assignments to $y[0]$ are allowed but assignments to $y$ are not --- assignments to array variables
+Here assignments to {\tt y[0]} are allowed but assignments to {\tt y} are not --- assignments to array variables
 are not allowed in $C$. As noted above, this restriction greatly simplifies dynamic linking of data variables.
 
 \subsection{The Single Symbol Type Restriction}
@@ -266,39 +280,18 @@ MC>
 
 While universal syntax expressions can be viewed as representations of strings, universal syntax
 expressions are actually abstract syntax trees. The tree structure
-plays an important role in pattern matching. The tree structure is
-more apparent in the following example.
-
-%% I don't see how the tree structure is more apparent in this example
-
-\begin{verbatim}
-MC> expptr e[0] = `{a+b};
-
-done
-
-MC> `{bar(${e[0]})}
-
-bar(a+b)
-
-MC>
-\end{verbatim}
-
-As described in the next section, the pattern {\tt foo($\$$x)} will match the expression {\tt foo(a+b)} with {\tt x} bound to the expression (tree) {\tt a+b}.
+plays an important role in pattern matching.
 
 \subsection{Pattern Matching}
 
 MetaC provides a pattern matching case construct {\tt ucase} (universal case).
-The general form of the case construct is
-
-%% the general form should show the optional conditional tests for each pattern/body pair
-%% I would add this but not certain how you want to do it.  Could be just
-%% [.<test1>] before first colon, and [.<testn>] before second colon.
+The basic form of the case construct is
 
 \begin{verbatim}
 ucase{e;
-  {<pattern1>}:{<body1>}
+  <pattern1>:{<body1>}
    ...
-  {<patternn>}:{<bodyn>}}
+  <patternn>:{<bodyn>}}
 \end{verbatim}
 
 Variables are marked in patterns by the prefix $\$$.
@@ -326,7 +319,13 @@ MC> int value(expptr e)
   }
 
 done
+\end{verbatim}
 
+The last clauses of the last procedure uses a condition feature where a pattern can have the
+form \{$<$pattern$>$\}.($<$condition$>$)
+where $<$condition$>$ is a C expression which must be non-zero in order for the clause to be selected.
+
+\begin{verbatim}
 MC>int_exp(value(`{5+2*10}))
 
 25
@@ -394,14 +393,11 @@ where instances of {\tt <pattern>} in MetaC code are to be replaced by
 the value returned by {\tt <body>} under the variable bindings
 determined by the match.  The pattern is restricted so as to have
 an identifiable head symbol to which the macro is attached.
+
 The procedure {\tt macroexpand(exptr e)} takes a
 universal syntax expression and returns the result of repeatedly
 expanding outermost macros until no further macro expansion is
 possible.
-
-%%
-%% might want to mention and provide macroexpand1 as well?
-%%
 
 The macro expansion of the above definition of {\tt dolist}
 defines a procedure
@@ -412,6 +408,10 @@ expressions in which case the macro is attached to the initial symbol.
 The macro can also be attached to a binary connective.
 For the macro pattern {\tt \{\$x $.\!>$ \$y\}}.
 the macro is attached to the two-character binary connective $.\!>$.
+
+It is sometimes useful to see the result of a single step
+of macro expansion. The procedure {\tt macroexpand1(expptr)} returns
+the result of a single step of macro expansion on the root of the given argument.
 
 \subsection{The Notebook IDE}
 \label{sec:Emacs}
@@ -428,69 +428,67 @@ restarted the execution numbering is reset to start with 1.  Changing a procedur
 
 {\bf Cell Boundaries.}
 A cell begins at any nonempty line whose first character is other than white space (space or tab), a close character ')', '\}', or ']', or a slash '/'.
-The cell ends at the beginning of the next non-empty line whose first character is other than white space or a close character.  
-%% or at the end of the file if no such line exists??
-%%
+The cell ends at the beginning of the next non-empty line whose first character is other than white space or a close character
+or at the end of the file if no such line exists.
+
 Note that a comment
 starting at the beginning of a line terminates a cell.
 
 \noindent {\bf Errors and Breakpoints.}
-If an error occurs while macro-expanding a cell the NIDE will print {\tt "expansion error"} and enter the gdb debugger.  Typing the command {\tt continue}
-to gdb will return to the NIDE.
-If an error occurs while attempting to compile the macro-expanded cell the NIDE will print {\tt "compilation error"} and display the output of the compiler.
+If an error occurs while reading the cell expression, or while macro-expanding the cell expression,
+the NIDE will print {\tt "reader or expansion error"} and enter the gdb debugger.  The MetaC procedure {\tt berror(char *)}
+enters the gdb debugger.  MetaC primitives call {\tt berror} when safety checks fail.
+Whenever the gdb debugger is invoked entering
+{\tt print NIDE()}, which can be abbreviate as {\tt p NIDE}, will return to the NIDE.
 
-The MetaC procedure {\tt berror(char *)} enters the gdb debugger. When gdb is invoked in this way typing the {\tt continue} command
-will return to the NIDE (or REPL) with the C process intact. MetaC primitives call {\tt berror} when safety checks fail.
-The MetaC procedure {\tt breakpt(char *)} can be used for breakpoints from which execution can be continued.  When {\tt breakpt} is called
-the NIDE will invoke the debugger and typing the command {\tt continue} will continue the execution from the breakpoint.
+If an error occurs while attempting to compile the macro-expanded cell the NIDE will print {\tt "compilation error"}
+and display the output of the compiler.
 
-%% mention the message ``Execution error'' for user to detect whether
-%% ``p NIDE()'' or ``continue'' is needed
-Segmentation faults, and other types of errors, are trapped by gdb directly.  In this case the
-NIDE will enter the gdb debugger.  However, in this case the normal gdb continue command will not return to the code buffer.
-To recover one types {\tt print NIDE()} to gdb which will typically
-return to the code buffer with the persistent C process intact.  MetaC is designed to minimize the possibility of memory corruption
-when returning from an error.  See the discussions of unwind protection in sections~\ref{sec:memory} and \ref{sec:undo}.
+The MetaC procedure {\tt breakpt(char *)} can be used for breakpoints
+from which execution can be continued.  When {\tt breakpt} is called
+the NIDE will invoke the debugger.  In this case entering the command {\tt continue}
+will continue the execution from the breakpoint.
+
+Segmentation faults, and other types of errors, are trapped by gdb directly.  Again one can return
+to the NIDE by entering {\tt p NIDE()}.
+MetaC is designed to minimize the possibility of memory corruption
+when returning from an error such as a segmentation fault.
+See the discussions of unwind protection in sections~\ref{sec:memory} and \ref{sec:undo}.
 But if there is a concern over memory corruption one can always restart the C process.
 
 \noindent {\bf Printing.} The procedure {\tt mcprint} is like {\tt fprintf} but omitting the file argument. The expression
 {\tt mcprint("x = \%s$\backslash$n",s)} will print to the *Messages* buffer in Emacs. The procedure {\tt mcpprint(expptr e)}
-will pretty-print the expression $e$ to the *Messages* buffer.  When in the gdb debugger the procedure {\tt pp(expptr e)} will
-pretty print an expression in the gdb REPL.
+will pretty-print the expression $e$ to the *Messages* buffer.  When in the gdb debugger entering {\tt p pp($<$exp$>$)} will
+pretty print the given expression.
 
 \noindent {\bf Key Bindings.}  mc.el provides the following key bindings.
 
 \begin{itemize}
-\item[C-M-s] starts or restarts the persistent C process.
+\item[C-z s] starts or restarts the persistent C process.
 
-\item[C-c C-c] executes the cell containing the cursor.
+\item[C-z x] executes the cell containing the cursor.
   
-\item[C-c C-r] executes all cells in the current region sequentially with a different execution number for each cell execution.
+\item[C-z r] executes all cells in the current region sequentially with a different execution number for each cell execution.
 
-\item[C-M-a] moves to the begging of the current cell.
+\item[C-z b] executes the entire buffer
 
-\item[C-M-p] moves to the beginning of the preceding cell.
+\item[C-z B] executes the buffer up to the current cursor position.
+  
+\item[C-z a] moves to the begging of the current cell.
 
-\item[C-M-n] moves to the beginning of the next cell.
+\item[C-z p] moves to the beginning of the preceding cell.
 
-\item[C-M-c] removes all cell values.  This is useful before a git commit as it can reduce or eliminate differences
-in files between commits.
+\item[C-z n] moves to the beginning of the next cell.
 
-%% Note that I have added a couple more keystroke commands that are in
-%% mc.el but not mentioned here.  I use them all the time:
-%%    C-c b  load the entire buffer
-%%    C-c B  load the buffer up to the current point
-
+\item[C-z c] removes all cell values.  This is useful before a git commit as it can reduce or eliminate file differences.
 \end{itemize}
 
-{\bf Include Statements.}  A cell in a code file containing {\tt \#include($<$filename$>$)} (with no semicolon) will load the cells of the named
-file into the persistent C process.  The extension ".mc" will be automatically added and should not be explicitly given.
-Include statements can also be given to the REPL to load (and link) C files into the running REPL process.
-%% Did you mean to rename from #require to #include?
-%% Also, as I wrote it, the <filename> could be a string or a symbol.
-%%
-%% A problem with using the name #require is that nothing is done to avoid reloading
-%% A problem with using the name #include is that it is already in C but this is a bit different
+{\bf Load Statements.}  A cell in a code file containing {\tt
+load($<$filename$>$)} (with no semicolon) will load the cells
+of the named file (which should be a string constant) into the persistent C process.  The extension ".mc"
+will be automatically added and should not be explicitly given.
+Load statements can also be given to the REPL to load (and link) C
+files into the running REPL process.
 
 \section{Miscellaneous Features}
 
@@ -510,35 +508,42 @@ consequence over and over again.  Interned expressions with property lists can a
 Interning also allows directed acyclic graphs (dags) to be represented compactly as expressions.  This is very convenient
 for the representation of machine-generated justifications (proofs).
 
-%%
-%% Note that setprop_int and getprop_int are not in base_decls.h
-%%
 The procedure {\tt setprop(expptr exp, expptr prop, void * value)}
-sets the given property of the given expression to the given value.  The procedure {\tt getprop(expptr exp, expptr prop, void * default)} returns
-the given property of the given value or the default value if no property value has been assigned.
-MetaC also provides the procedures {\tt setprop\_int(expptr e, expptr p, int n)} and {\tt getprop\_int(expptr e, expptr p, int default)}.
-It is not difficult to define polymorphic macros for setting and extracting properties where the type of the property is passed as an argument.
-It is also not difficult to assign types to particular properties so that the type argument is not needed in polymorphic property setting and retrieving.
-However, these features are not present in release 1.0.
+sets the given property of the given expression to the given value.
+The procedure {\tt getprop(expptr exp, expptr prop, void * default)}
+returns the given property of the given value or the default value if
+no property value has been assigned.  MetaC also provides the
+procedures {\tt setprop\_int(expptr e, expptr p, int n)} and {\tt
+  getprop\_int(expptr e, expptr p, int default)}.  It is not difficult
+to define polymorphic macros for setting and extracting properties
+where the type of the property is passed as an argument.  It is also
+not difficult to assign types to particular properties so that the
+type argument is not needed in polymorphic property setting and
+retrieving.  However, these features are not present in release 1.0.
 
 \subsection{Memory Frames}
 \label{sec:memory}
 
-%% ``sparsely'' perhaps should be ``loosely'' ?
-%% 
-A memory frame is analogous to a stack frame but is only sparsely tied to the C stack.
-The macro {\tt in\_memory\_frame($<$statement$>$)} will execute the given statement inside a new memory frame.
-The procedure {\tt stack\_alloc(int nbytes)}
-returns a pointer to a block of the given size allocated from the current memory frame. When {\tt in\_memory\_frame($<$statement$>$)}  exits
-the memory-frame free pointer (or ``stack pointer'') is reset.  This frees all memory allocated from the frame.
-This architecture differs from traditional stack allocation in that recursive procedures can operate with a single memory frame and return newly allocated memory as values
-without copying.  The allocated storage will not be deallocated until exit from an enclosing use of {\tt in\_memory\_frame}.
-MetaC pre-allocates the heap (stack space) used for memory frames.  The deallocation (resetting of the freeptr) is unwind protected and will occur
-%% 
-%% is ``unwind protect'' a concept well understood outside the LISP community?
-when an error is thrown beyond the frame entry point.  This avoids a memory leak when returning from the an error to the REPL or NIDE.
+A memory frame is analogous to a stack frame but is only loosely tied
+to the C stack.  The macro {\tt in\_memory\_frame($<$statement$>$)}
+will execute the given statement inside a new memory frame.  The
+procedure {\tt stack\_alloc(int nbytes)} returns a pointer to a block
+of the given size allocated from the current memory frame. When {\tt
+  in\_memory\_frame($<$statement$>$)} exits the memory-frame free
+pointer (or ``stack pointer'') is reset.  This frees all memory
+allocated from the frame.  This architecture differs from traditional
+stack allocation in that recursive procedures can operate with a
+single memory frame and return newly allocated memory as values
+without copying.  The allocated storage will not be deallocated until
+exit from an enclosing use of {\tt in\_memory\_frame}.  MetaC
+pre-allocates the heap (stack space) used for memory frames.  The
+deallocation (resetting of the freeptr) is unwind protected --- it
+will occur when an error is thrown beyond the frame entry point.  This
+avoids a memory leak when returning from the an error to the REPL or
+NIDE.
 
-MetaC clears the base memory frame after every evaluation in the REPL and after every cell evaluation in the NIDE.  So it is important not to be using
+MetaC clears the base memory frame after every evaluation in the REPL and after every cell evaluation in the NIDE.
+It is therefore important not to be using
 stack allocated memory between evaluations.
 
 \subsection{Undo Frames}
@@ -561,6 +566,9 @@ The macro {\tt exp\_from\_undo\_frame($<$expression$>$)} has unwind protection s
 if an error is thrown in the execution of the expression.
 %%
 %% is there a way for the user to throw an error other than berror, i.e. not go to gdb?
+%%
+%% internally there is the procedure throw_error() but this will throw all the way to the NIDE.
+%% we do not currently have general exceptions.
 %% 
 
 The procedure {\tt clean\_undo\_frame(expptr e)} is similar to {\tt exp\_from\_undo\_frame} but replaces the current undo frame with a fresh one
@@ -571,15 +579,17 @@ as in {\tt (install\_live\_stuff(clean\_undo\_frame(compute\_live\_stuff())))}.
 %% It seems we lack a functionality to leave the current undo frame with an expression.
 %% Perhaps this should be called return_from_undo_frame(expptr exp)
 %% Or there could just be an optional argument to pop_undo_frame (making it a umacro)
+%%
+%% this would require an additional notion of ``throw'', or a general exception mechanism, to throw to the
+%% nearest enclosing exp_from_undo_frame.  Doable but somewhat nontrivial.  Maybe in a future release.
 
-The procedures {\tt exp\_from\_undo\_frame} and {\tt clean\_undo\_frame} both run in time proportional to the dag size of the
-given expression. The dag size can be exponentially smaller than the tree size.
-%% 
-%% the runtime of course also is proportional to the amount of undo
-%% for clean_undo_frame, or computation time for computing the argument code for exp_from
+The procedures {\tt exp\_from\_undo\_frame} and {\tt clean\_undo\_frame} both use expression copying that runs
+in time proportional to the dag size of the expression. The dag size can be exponentially smaller than the tree size.
 
-%% Somewhere (here?) might be good to mention the GNU C extension for
-%% compound statements as expressions.
+{\tt exp\_from\_undo\_frame} is a macro that expands to a C expression.  Recall that C expressions have values
+while C statements do not.  Macros that expand to expressions (with values)
+typically expand to compound expressions of the form (\{... $<$var$>$;\}) where the value returned
+is the value of the final variable after executing the previous statement.  Compound expressions are a GNU C extension.
 
 The base undo frame is not cleared between evaluations. The base frame is holding properties needed for
 the proper functioning of MetaC.
@@ -621,7 +631,8 @@ This procedure takes a file name and returns a list of the expressions contained
 
 Macros expansion can have effects.  The macro {\tt umacro} expands to a procedure definition of the macro expansion code but also
 generates a statement which installs that procedure pointer in the macro property of the head symbol.  During macro expansion the
-MetaC primitive {\tt add\_init\_form(expptr statement)} is called with a statement that installs the procedure pointer on the appropriate property list.
+MetaC primitive {\tt add\_init\_form(expptr statement)} is called with a statement that installs the procedure pointer on the appropriate property list.  The procedure {\tt add\_init\_form} is provided to the user for use in defining complex macros
+requiring this feature.
 
 In file expansion the initialization forms generated during macro expansion are incorporated into an initialization procedure.
 The macro {\tt init\_fun(<fname>)} macro expands to a definition of the given procedure name with no arguments but with the sequence
@@ -631,15 +642,26 @@ of initialization forms in its body.  In the REPL and IDE the initialization for
 
 %% Can lambda with free variables be handled? This would seem to
 %% require local procedures and not strictly preambles?
+%%
+%% A Preamble suffices.  The preamble procedure needs to take both the free variable values and the argument values.
+%% The macro then expands into the creation of the closure data structure holding the free variable values.
+%% The hard part is determining the free variables.
 
-Macro expansion can also generate preliminary definitions.  It is possible to implement syntactic closures (lambda) as a macro.
-A closure consists of a procedure pointer together with values for the free variables in the body of the lambda expression.  The lambda
-macro must first create the procedure that executes the body of the lambda expression and then incorporate that procedure pointer into
-the expansion of lambda macro.  The construction of the procedure definition is a ``preamble'' to the macro expansion.
-MetaC provides the primitive {\tt add\_preamble(expptr definition)} for creating preambles during macro expansion.
-In file expansion these preamble definitions are inserted into the output file before the
-expression generated by the macro.  In the REPL and NIDE these preamble definitions are installed along with the expression created by the macro.
-MetaC 1.0 supports preambles but does not provide a macro for lambda expressions.
+Macro expansion can also generate preliminary definitions.  It is
+possible to implement syntactic closures (lambda) as a macro.  A
+closure consists of a procedure pointer together with values for the
+free variables of the lambda expression.  The lambda macro
+must first create the procedure that executes the body of the lambda
+expression and then incorporate that procedure pointer into the
+expansion of the lambda macro.  The construction of the procedure
+definition is a ``preamble'' to the macro expansion.  MetaC provides
+the primitive {\tt add\_preamble(expptr definition)} for creating
+preambles during macro expansion.  In file expansion these preamble
+definitions are inserted into the output file before the expression
+generated by the macro.  In the REPL and NIDE these preamble
+definitions are installed along with the expression created by the
+macro.  MetaC 1.0 supports preambles but does not provide a macro for
+lambda expressions.
 
 \section{Universal Syntax}
 
@@ -738,21 +760,31 @@ $$\{\fopen \fopen e_1\;;\fclose \;\fopen \fopen e_2\;;\fclose \;\fopen \fopen e_
   \mathtt{(x+y)*z} & \Rightarrow & \fopen (\fopen \mathtt{x~+~y} \fclose )\;\mathtt{*~z}\fclose \\
   \mathtt{foo}(\mathtt{int~x}) & \Rightarrow & \fopen \mathtt{foo}\; (\fopen \mathtt{int}\;  \; \mathtt{x}\fclose)\fclose \\
   \mathtt{foo(int~x,~float~y)} & \Rightarrow & \fopen \mathtt{foo} \; (\fopen\fopen \mathtt{int}\; \mathtt{x} \fclose\;
-  \mathtt{,}\; \fopen\mathtt{float} \; \mathtt{y} \fclose\fclose )\;\fclose
-  
-%% I think it is important to show an example bracketing that reveals
-%% the non-Lisp behavior of parenthesized lists (a (b c) d) ==> (<<a
-%% (<b c>)> d>) and comment thereon.  This will cause untold confusion
-%% among Lisp background folks even with this warning, worse without.
-
+  \mathtt{,}\; \fopen\mathtt{float} \; \mathtt{y} \fclose\fclose )\;\fclose \\
+  \mathtt{(foo\; (int~x,~float~y)\; bar)} & \Rightarrow & (\fopen \fopen \mathtt{foo} \; (\mathtt{int}\; \mathtt{x}
+  \mathtt{,}\; \mathtt{float} \; \mathtt{y})\fclose\;{\tt bar}\fclose) \\
+  \\
+  \mathtt{(f\; b\;c)} & \Rightarrow & (\fopen \mathtt{f\;b\;c}\fclose)   \\
+  \mathtt{(f\; (b)\;c)} & \Rightarrow & (\fopen \fopen \mathtt{f} \; (\mathtt{b})\fclose\;{\tt c}\fclose) \\
+  \mathtt{(a\; (b)\;(c)\; d\;e)} & \Rightarrow & (\fopen \fopen \mathtt{a} \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose)  \\
+  \\
+  \mathtt{(\$\; \;f\; b\;c)} & \Rightarrow & (\fopen\fopen\$\; \mathtt{f}\fclose\; \mathtt{b}\;{\tt c}\fclose)   \\
+  \mathtt{(\$\; f\; (b)\;(c)\;d\;e)} & \Rightarrow &
+  (\fopen \fopen \fopen\$\; \mathtt{f}\fclose \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose) \\
+  \mathtt{(\$\; \{f(x)\}\;(b)\;(c)\;d\;e)} & \Rightarrow &
+  (\fopen \fopen \fopen\$\; \{\mathtt{f(x)}\}\fclose \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose)
 \end{eqnarray*}
 
 \caption{{\bf Examples of Reader Bracketings.} Bracketings are shown for the expression that results from reading the given strings.
-  A complete bracketing shows a pair of brackets for every expression pair (cons cell).
-  The second and third example show two somewhat informal conventions for dropping some of the brackets --- general sequences are
-  assumed to be right-associative and binary connective applications are assumed to be left-associative.  These conventions are used in the other examples.
-  Expressions are printed without the brackets --- the brackets are ``phantoms'' that show the tree structure.   The bracketing (parsing) done by the reader
-  is specified formally in section~\ref{sec:reader}. Since the bracketing does not affect the represented string, the precise bracketing is often unimportant.}
+  A complete bracketing shows a pair of brackets for every expression
+  pair (cons cell).  The second and third example show two conventions
+  for dropping some of the brackets --- general sequences are assumed
+  to be right-associative and binary connective applications are
+  assumed to be left-associative.  These conventions are used in the
+  other examples.  Expressions are printed without the brackets ---
+  the brackets are ``phantoms'' that show the tree structure.  The
+  bracketing (parsing) done by the reader is specified formally in
+  section~\ref{sec:reader}.}
 \label{fig:reader}
 \end{figure}
 
@@ -770,18 +802,22 @@ A file must be parenthesis-balanced within each cell.
 
 Lexicalization segments a pre-processed character string into a sequence of atoms.
 The MetaC lexer preserves all non-white characters.  For the MetaC lexer each atom is one of the following.
-%% 
-%% It might be good to specify here the set of allowed characters overall given the recent fix.
-%% 
 
 \begin{itemize}
 \item A symbol.  A symbol is a character string consisting of only alpha-numeric characters --- upper and lower case letters of the alphabet, plus the decimal numerals, plus underbar.
   For example {\tt foo\_bar1}.
-\item A connective.  A connective is a character string consisting of only ``connective characters'' --- the connective characters consist of all non-alphanumeric, non-white, non-parenthesis, characters
-  other than the three special characters {\tt \$}, {\tt `} and $\backslash$.
-%% 
-%% Should connective characters also be non-quotation?
-%% 
+\item A connective.  A connective is a character string consisting of only ``connective characters''.
+  Grouped by precedence, the connective characters are
+  
+  \medskip
+  \centerline{~\;\;\;\;\;\;\{\mtt{;}\} \{\mtt{,}\}  \{\mtt{|}\} \{$\epsilon$\}
+  \{{\tt \&}, {\tt ?}, {\tt !}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\}
+  \{{\tt *}, {\tt /}\} \{{\tt \%}, $\hat{~}$, {\tt .}\} \{\mtt{:},  {\tt @}, {\tt \#}\}.}
+  
+  \medskip
+  The characters are listed from low precedence (weakly binding) to high precedence (strongly binding). A connective
+  ---a string of connective characters --- has the precedence of its first character.  The ``null connective'' $\epsilon$
+  intuitively represents the space character used as a connective.  The null connective and null arguments are discussed below.
 \item A quoted string.  A character string starting and ending with the same string quotation character.  For example {\tt "foo bar"}, {\tt "!:\&?;"} or {\tt 'a'}.
 \item A special character atom. These are atoms whose strings are one character long where that character is one of
   the special characters $\mtt{`}$, $\mtt{\$}$, and $\backslash$.
@@ -813,9 +849,9 @@ The nonterminal $E_\infty$ includes an epsilon production allowing null argument
   
 \begin{eqnarray*}
   P & ::= & (E_p) \;|\; \{E_p\} \;|\; [E_p] \\
-  E_p & ::= & \fopen \fopen E_\ell\;\conn_p\fclose \;E_r\fclose\;\;\;\;p \in {\cal R}, \;\ell > p, \; r \geq p \\
-  E_p & ::= & \fopen \fopen E_\ell\;\conn_p\fclose \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p \\
-  E_3 & ::= & \fopen E_\ell \;E_r\fclose \;\;\;\ell > 3,\;r \geq 3\\
+  E_p & ::= & \fopen  E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal R}, \;\ell > p, \; r \geq p \\
+  E_p & ::= & \fopen E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p \\
+  E_4 & ::= & \fopen E_\ell \;E_r\fclose \;\;\;\ell > 4,\;r \geq 4\\
   E_\infty & ::= & \quot \;|\; \fopen S \; \;P^* \fclose \;|\; \fopen `\;P\fclose \;|\; P \;|\; \epsilon \;|\; \mathrm{JUNK}\\
   S & ::= & \;\sym \;|\; \var \\
   \var & ::= & \fopen \$\;\sym\fclose \;|\; \fopen \$\;P\fclose \;|\; \fopen \backslash \; \var \fclose\\
@@ -866,12 +902,6 @@ and the reader can be viewed as replacing $\fopen e\;\epsilon \fclose$ or $\fope
 all cells are of the form $\fopen e_1\;e_2\fclose$ where $e_1$ and $e_2$ are expressions representing non-empty strings.  An empty parenthesis string {\tt ()}
 is read as a parenthesis expression containing an atom for the empty string.
 
-\noindent Grouped by precedence, the binary connective characters are
-
-\medskip
-\centerline{\{\mtt{;}\} \{\mtt{,}\}  \{\mtt{|}\} \{$\epsilon$\}
-  \{{\tt \&}, {\tt ?}, {\tt !}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\}
-  \{{\tt *}, {\tt /}\} \{{\tt \%}, $\hat{~}$, {\tt .}\} \{\mtt{:},  {\tt @}, {\tt \#}\}.}
 
 \noindent The precedence of a binary connective is determined by its first character.  The
 characters have low to high (outer to inner) precedence in the order given with symbols in the same
@@ -1023,8 +1053,9 @@ void add_preamble(expptr aux_definition);
 \end{verbatim}
 
 \subsection{List Processing}
-%% 
-%% might want to mention how these ``lists'' are terminated
+
+In Lisp lists are terminated with the special value {\tt nil}.  In MetaC lists any atom in the
+cdr of a cell is treated as {\tt nil}.
 
 \begin{verbatim}
 expptr append(expptr l1, expptr l2);

@@ -12,6 +12,8 @@
 #include <string.h>
 #include "mc.h"
 
+voidptr symbol_value[SYMBOL_DIM];
+
 void eval_exp(expptr);
 
 void IDE_loop(){
