@@ -19,9 +19,10 @@ void eval_exp(expptr);
 void read_eval_print(){
   while(1){
     push_memory_frame();
+    fprintf(stdout, "MC>");
+    in_doit = 0;
     catch_error({
-	fprintf(stdout, "MC>");
-	expptr e = macroexpand(read_from_repl());
+	expptr e = read_from_repl();
 	if(!e || e == nil)continue;
 	ucase{e;
 	  {quit}:{break;}

@@ -19,9 +19,10 @@ void eval_exp(expptr);
 void IDE_loop(){
   while(1){
     push_memory_frame();
+    send_emacs_tag(request_input_tag);
 
     catch_error({
-	send_emacs_tag(request_input_tag);
+	in_doit = 0;
         expptr e=read_from_ide();
 	fprintf(stdout, "processing:\n");
 	pprint(e,stdout,0);

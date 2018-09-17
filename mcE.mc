@@ -67,7 +67,6 @@ void mcE_init1(){
   procedures = nil;
   symbol_count = 0;
   install_base();  //all executables built on mcE (ExpandE, REPL and IDE) have the same indeces for base functions.
-  fprintf(stdout,"nproces = %d\n",length(procedures));
   compilecount = 0;
 }
 
@@ -134,7 +133,6 @@ void simple_eval_noval(expptr e){
 void eval_exp(expptr exp){
   preamble= nil;
   init_forms = nil;
-  in_doit = 0;
   expptr e = macroexpand(exp);
   ucase{e;
     {load($sym)}.(atomp(sym)) : {
@@ -308,7 +306,7 @@ void comp_error(){
   dolist(x,new_arrays){setprop(x,`{signature},NULL);}
   if(in_ide)send_emacs_tag(comp_error_tag);
   else fprintf(stdout,"\n evaluation aborted\n\n");
-  throw_error_clean();
+  throw_error();
 }
 
 voidptr compile_load_file(charptr fstring){

@@ -19,6 +19,7 @@ void init_source(){
 void init_tags(){
   ignore_tag = "*#*#dsflsadk#*#*ignore*#*#dsflsadk#*#*";
   result_tag = "*#*#dsflsadk#*#*result*#*#dsflsadk#*#*";
+  reader_error_tag = "*#*#dsflsadk#*#*reader-error*#*#dsflsadk#*#*";
   expansion_error_tag = "*#*#dsflsadk#*#*expansion-error*#*#dsflsadk#*#*";
   comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";
   exec_error_tag = "*#*#dsflsadk#*#*exec-error*#*#dsflsadk#*#*";
@@ -45,7 +46,7 @@ void send_print_tag(){send_emacs_tag(print_tag);}
 int in_ide_proc(){return in_ide;}
 
 void NIDE(){
-  throw_error_clean();
+  throw_error();
 }
 
 void breakpt(char *s){
@@ -60,10 +61,11 @@ void breakpt(char *s){
 
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
-  if(!in_ide){cbreak(); throw_error_clean();}
-  if(in_doit) send_emacs_tag(exec_error_tag); else send_emacs_tag(expansion_error_tag);
+  if(in_ide){
+    if(in_doit) send_emacs_tag(exec_error_tag);
+    else send_emacs_tag(expansion_error_tag);}
   cbreak();
-  throw_error_clean();
+  throw_error();
 }
 
 void uerror(expptr e){
@@ -117,7 +119,7 @@ void * undo_alloc(int size){
     fprintf(stdout,"undo heap exhausted\n");
     heap_reserve = heap_reserve/2;
     cbreak();
-    throw_error_clean();}
+    throw_error();}
   char * result = &undo_heap[undo_heap_freeptr];
   undo_heap_freeptr += size;
   return result;
@@ -777,21 +779,25 @@ expptr read_from_ide(){
   return e;
 }
 
+void reader_error(){
+  fprintf(stdout,"illegal input character %d\n",next);
+  if(in_expand)throw_error();
+  if(in_ide){
+    send_emacs_tag(reader_error_tag);
+    while(next != 0)next = fgetc(read_stream);
+    fgetc(read_stream);
+    throw_error();
+  }
+  while(next != '\n')next = fgetc(read_stream);
+  throw_error();
+}
+
 void simple_advance(){
   if(next == EOF){readchar = 0; return;}
   readchar = next;
   if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
-  if(next < EOF || next > 126 || (next > 0 && next < 32 && next != 10 && next != 9) ){
-    fprintf(stdout,"non-printable-ascii input character %d",next);
-    berror("");
-  }
+  if(next < EOF || next > 126 || (next > 0 && next < 32 && next != 10 && next != 9) )reader_error();
   paren_level += level_adjustment(readchar);
-}
-
-void throw_error_clean(){
-  while(next != EOF && next != 0){
-    simple_advance();}
-  throw_error();
 }
 
 

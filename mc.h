@@ -1,7 +1,5 @@
 #include "premacros.h"
 
-void throw_error_clean();
-
 typedef char * charptr;
 typedef void * voidptr;
 
@@ -224,6 +222,7 @@ int in_ide;
 
 char *  ignore_tag;
 char *  result_tag;
+char *  reader_error_tag;
 char *  expansion_error_tag;
 char *  comp_error_tag;
 char *  exec_error_tag;
