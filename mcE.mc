@@ -122,17 +122,26 @@ expptr array_extraction (expptr x){
  eval_exp
 ======================================================================== **/
 
-expptr simple_eval(expptr e){
-  return load(append(preamble,append(init_forms,cons(e,nil))));
+expptr simple_eval(expptr exp){
+  in_doit = 0;
+  expptr e = macroexpand(exp);
+  ucase{e;
+    {load($sym)}.(atomp(sym)) : {
+      fprintf(stdout,"recursive load is not supported in MetaC relase 1.0");
+      if(in_ide)send_emacs_tag(comp_error_tag);
+      if(in_repl)fprintf(stdout,"\n evaluation aborted");
+      throw_error();}
+    {$any} : {return load(append(preamble,append(init_forms,cons(e,nil))));}}
 }
 
 void simple_eval_noval(expptr e){
-  load(append(preamble,append(init_forms,cons(e,nil))));
+  simple_eval(e);
 }
 
 void eval_exp(expptr exp){
   preamble= nil;
   init_forms = nil;
+  in_doit = 0;
   expptr e = macroexpand(exp);
   ucase{e;
     {load($sym)}.(atomp(sym)) : {

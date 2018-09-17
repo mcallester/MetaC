@@ -22,7 +22,6 @@ void IDE_loop(){
     send_emacs_tag(request_input_tag);
 
     catch_error({
-	in_doit = 0;
         expptr e=read_from_ide();
 	fprintf(stdout, "processing:\n");
 	pprint(e,stdout,0);

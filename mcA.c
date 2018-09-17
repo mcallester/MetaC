@@ -780,7 +780,6 @@ expptr read_from_ide(){
 }
 
 void reader_error(){
-  fprintf(stdout,"illegal input character %d\n",next);
   if(in_expand)throw_error();
   if(in_ide){
     send_emacs_tag(reader_error_tag);
@@ -796,7 +795,10 @@ void simple_advance(){
   if(next == EOF){readchar = 0; return;}
   readchar = next;
   if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
-  if(next < EOF || next > 126 || (next > 0 && next < 32 && next != 10 && next != 9) )reader_error();
+  if(next < EOF || next > 126 || (next > 0 && next < 32 && next != 10 && next != 9) ){
+    fprintf(stdout,"illegal input character %d\n",next);
+    reader_error();
+  }
   paren_level += level_adjustment(readchar);
 }
 
@@ -865,14 +867,20 @@ void advance_readchar(){
   //readchar modifications
   if(readchar == '/' && next == '*'){
     //replace comment with white space
-    if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
+    if(from_repl && paren_level == 0){
+      fprintf(stdout,"comment from REPL outside of parens");
+      reader_error();
+    }
     while(!(readchar == '*' && next == '/')){if(endp(readchar))return; simple_advance();}
     simple_advance();
     readchar = ' ';}
 
   else if(readchar == '/' && next == '/'){
     //replace comment with white space
-    if(from_repl && paren_level == 0)berror("comment from REPL outside of parens");
+    if(from_repl && paren_level == 0){
+      fprintf(stdout,"comment from REPL outside of parens");
+      reader_error();
+    }
     while(readchar != '\n' && !endp(readchar))simple_advance();}
 
   else if(readchar == '\\' && next == '\n'){
@@ -942,7 +950,8 @@ expptr mcread_string(){
   int quoted = 0;
   while(1){
     if(readchar == EOF || readchar == '\0' || readchar == '\n'){
-      berror("unterminated string constant");
+      fprintf(stdout,"unterminated string constant");
+      reader_error();
     }
     ephemeral_putc(readchar);
     if(readchar == q && quoted == 0)break;
@@ -976,7 +985,7 @@ expptr mcread_open(){
 void declare_unmatched(char openchar, expptr e, char closechar){
   fprintf(stdout,"unmatched parentheses %c%c\n",openchar, closechar);
   pprint(e,stdout,rep_column);
-  berror("");
+  reader_error();
 }
 
 /** ========================================================================

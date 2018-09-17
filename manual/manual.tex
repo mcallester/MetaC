@@ -60,7 +60,7 @@
 
 \begin{enumerate}
 \item Clone the MetaC repository in a local MetaC directory.
-\item Edit the first line of {\tt main} in REPL.mc to give your MetaC directory.
+\item Edit the last line of the file mcA.c to give your MetaC directory.
 \item From a shell running in your MetaC directory type {\tt make MC}.
 \item From the same shell type {\tt MC} to get the command line prompt {\tt MC$>$}.
 \end{enumerate}
@@ -68,20 +68,20 @@
 \noindent To install the NIDE:
 
 \begin{enumerate}
-\item Clone the repository into a repository directory.
+\item Clone the MetaC repository in a local MetaC directory.
+\item Edit the last line of the file mcA.c to give your MetaC directory.
 \item Add {\tt (load "$<$MetaC directory$>$/mc.el")} to your .emacs file.
 \item Edit the first line of  mc.el to give the path to your gdb executable (the Gnu debugger).
 \item Edit the second line of mc.el to give the path to your MetaC directory.
 \item From a shell running in your MetaC directory type {\tt make NIDE}.
 \item Start or restart Emacs.\footnote{If you load mc.el into a running emacs
 MetaC will not be available in buffers created before the load.}
-  
 \end{enumerate}
 
 \noindent The NIDE can be run on any file with extension .mc in any
 directory. To experiment with the NIDE use Emacs to visit the file
-NIDE-examples.mc from the MetaC repository.  Type C-M-s
-(control-meta-s) to start (or restart) the C kernel. Typing C-c C-c
+NIDE-examples.mc from the MetaC repository.  Type {\tt C-z s}
+(control-z followed by s) to start (or restart) the C kernel. Typing {\tt C-z x}
 will run the cell containing the cursor and print the result in a C
 comment at the bottom of the cell.  This is substantially equivalent
 to typing the cell contents into the REPL.  More Emacs key bindings
@@ -485,7 +485,7 @@ pretty print the given expression.
 
 {\bf Load Statements.}  A cell in a code file containing {\tt
 load($<$filename$>$)} (with no semicolon) will load the cells
-of the named file (which should be a string constant) into the persistent C process.  The extension ".mc"
+of the named file (which should be a string constant) into the persistent C process.  The extension .mc
 will be automatically added and should not be explicitly given.
 Load statements can also be given to the REPL to load (and link) C
 files into the running REPL process.
@@ -716,6 +716,48 @@ int parenp(expptr);
 expptr paren_inside(expptr);
 \end{verbatim}
 
+\begin{figure}
+\begin{eqnarray*}
+  \mathtt{Hello~World} & \Rightarrow & \fopen \mathtt{Hello}\;\; \mathtt{World}\fclose \\
+  \mathtt{one~two~three} & \Rightarrow & \fopen \mathtt{one}\;\; \fopen \mathtt{two} \; \;\mathtt{three}\fclose\fclose \\
+   & = & \fopen \mathtt{one~two~three} \fclose \\
+  \mathtt{x~+~y} & \Rightarrow & \fopen\fopen \mathtt{x~+}\fclose\;\mathtt{y}\fclose \\
+  & = & \fopen \mathtt{x~+~y} \fclose \\
+  \mathtt{x+y*z} & \Rightarrow & \fopen \mathtt{x~+}\; \fopen \mathtt{y~*~z} \fclose\fclose \\
+  \mathtt{(x+y)*z} & \Rightarrow & \fopen (\fopen \mathtt{x~+~y} \fclose )\;\mathtt{*~z}\fclose \\
+  \mathtt{foo}(\mathtt{int~x}) & \Rightarrow & \fopen \mathtt{foo}\; (\fopen \mathtt{int}\;  \; \mathtt{x}\fclose)\fclose \\
+  \mathtt{foo(int~x,~float~y)} & \Rightarrow & \fopen \mathtt{foo} \; (\fopen\fopen \mathtt{int}\; \mathtt{x} \fclose\;
+  \mathtt{,}\; \fopen\mathtt{float} \; \mathtt{y} \fclose\fclose )\;\fclose \\
+  \mathtt{(foo\; (int~x,~float~y)\; bar)} & \Rightarrow & (\fopen \fopen \mathtt{foo} \; (\mathtt{int}\; \mathtt{x}
+  \mathtt{,}\; \mathtt{float} \; \mathtt{y})\fclose\;{\tt bar}\fclose) \\
+  \\
+  \mathtt{(foo\; b\;c)} & \Rightarrow & (\fopen \mathtt{foo\;b\;c}\fclose)   \\
+  \mathtt{(foo\; (b)\;c)} & \Rightarrow & (\fopen \fopen \mathtt{foo} \; (\mathtt{b})\fclose\;{\tt c}\fclose) \\
+  \mathtt{(foo\; (b)\;(c)\; d\;e)} & \Rightarrow & (\fopen \fopen \mathtt{foo} \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose)  \\
+  \\
+  \mathtt{(\$\; \;f\; b\;c)} & \Rightarrow & (\fopen\fopen\$\; \mathtt{f}\fclose\; \mathtt{b}\;{\tt c}\fclose)   \\
+  \mathtt{(\$\; f\; (b)\;(c)\;d\;e)} & \Rightarrow &
+  (\fopen \fopen \fopen\$\; \mathtt{f}\fclose \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose) \\
+  \mathtt{(\$\; \{f(x)\}\;(b)\;(c)\;d\;e)} & \Rightarrow &
+  (\fopen \fopen \fopen\$\; \{\mathtt{f(x)}\}\fclose \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose)
+\end{eqnarray*}
+
+\caption{{\bf Examples of Reader Bracketings.} Bracketings are shown for the expression that results from reading the given strings.
+  A complete bracketing shows a pair of brackets for every expression
+  pair (cons cell).  The second and third example show two conventions
+  for dropping some of the brackets --- general sequences are assumed
+  to be right-associative and binary connective applications are
+  assumed to be left-associative.  These conventions are used in the
+  other examples.  Expressions are printed to files, the REPL or the NIDE without the brackets ---
+  the brackets are ``phantoms'' that show the tree structure.  Because {\tt f(x)} in generally interpreted as (high-precedence) application,
+  it is best to avoid the Lisp convention of using space as a list connective.
+  When designing a syntax for lists it is better to use semicolon or comma
+  as in {\tt (f,(x),b)}. The
+  bracketing (parsing) done by the reader is specified formally in
+  section~\ref{sec:reader}.}
+\label{fig:reader}
+\end{figure}
+
 \subsection{Universal Expressions: Phantom Brackets}
 
 The MetaC reader maps a character string to a universal syntax expression.  A specification of the reader is given in section~\ref{sec:reader}.
@@ -749,44 +791,6 @@ $$\{\fopen \fopen e_1\;;\fclose \;\fopen e_2\;;\fclose \;\fopen e_3\;;\fclose\;e
 both of which abbreviate the same full bracketing
 $$\{\fopen \fopen e_1\;;\fclose \;\fopen \fopen e_2\;;\fclose \;\fopen \fopen e_3\;;\fclose\;e_4\fclose\fclose\fclose\}.$$
 
-\begin{figure}
-\begin{eqnarray*}
-  \mathtt{Hello~World} & \Rightarrow & \fopen \mathtt{Hello}\;\; \mathtt{World}\fclose \\
-  \mathtt{one~two~three} & \Rightarrow & \fopen \mathtt{one}\;\; \fopen \mathtt{two} \; \;\mathtt{three}\fclose\fclose \\
-   & = & \fopen \mathtt{one~two~three} \fclose \\
-  \mathtt{x~+~y} & \Rightarrow & \fopen\fopen \mathtt{x~+}\fclose\;\mathtt{y}\fclose \\
-  & = & \fopen \mathtt{x~+~y} \fclose \\
-  \mathtt{x+y*z} & \Rightarrow & \fopen \mathtt{x~+}\; \fopen \mathtt{y~*~z} \fclose\fclose \\
-  \mathtt{(x+y)*z} & \Rightarrow & \fopen (\fopen \mathtt{x~+~y} \fclose )\;\mathtt{*~z}\fclose \\
-  \mathtt{foo}(\mathtt{int~x}) & \Rightarrow & \fopen \mathtt{foo}\; (\fopen \mathtt{int}\;  \; \mathtt{x}\fclose)\fclose \\
-  \mathtt{foo(int~x,~float~y)} & \Rightarrow & \fopen \mathtt{foo} \; (\fopen\fopen \mathtt{int}\; \mathtt{x} \fclose\;
-  \mathtt{,}\; \fopen\mathtt{float} \; \mathtt{y} \fclose\fclose )\;\fclose \\
-  \mathtt{(foo\; (int~x,~float~y)\; bar)} & \Rightarrow & (\fopen \fopen \mathtt{foo} \; (\mathtt{int}\; \mathtt{x}
-  \mathtt{,}\; \mathtt{float} \; \mathtt{y})\fclose\;{\tt bar}\fclose) \\
-  \\
-  \mathtt{(f\; b\;c)} & \Rightarrow & (\fopen \mathtt{f\;b\;c}\fclose)   \\
-  \mathtt{(f\; (b)\;c)} & \Rightarrow & (\fopen \fopen \mathtt{f} \; (\mathtt{b})\fclose\;{\tt c}\fclose) \\
-  \mathtt{(a\; (b)\;(c)\; d\;e)} & \Rightarrow & (\fopen \fopen \mathtt{a} \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose)  \\
-  \\
-  \mathtt{(\$\; \;f\; b\;c)} & \Rightarrow & (\fopen\fopen\$\; \mathtt{f}\fclose\; \mathtt{b}\;{\tt c}\fclose)   \\
-  \mathtt{(\$\; f\; (b)\;(c)\;d\;e)} & \Rightarrow &
-  (\fopen \fopen \fopen\$\; \mathtt{f}\fclose \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose) \\
-  \mathtt{(\$\; \{f(x)\}\;(b)\;(c)\;d\;e)} & \Rightarrow &
-  (\fopen \fopen \fopen\$\; \{\mathtt{f(x)}\}\fclose \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose)
-\end{eqnarray*}
-
-\caption{{\bf Examples of Reader Bracketings.} Bracketings are shown for the expression that results from reading the given strings.
-  A complete bracketing shows a pair of brackets for every expression
-  pair (cons cell).  The second and third example show two conventions
-  for dropping some of the brackets --- general sequences are assumed
-  to be right-associative and binary connective applications are
-  assumed to be left-associative.  These conventions are used in the
-  other examples.  Expressions are printed without the brackets ---
-  the brackets are ``phantoms'' that show the tree structure.  The
-  bracketing (parsing) done by the reader is specified formally in
-  section~\ref{sec:reader}.}
-\label{fig:reader}
-\end{figure}
 
 
 \subsection{The Reader Specification}
@@ -817,7 +821,7 @@ The MetaC lexer preserves all non-white characters.  For the MetaC lexer each at
   \medskip
   The characters are listed from low precedence (weakly binding) to high precedence (strongly binding). A connective
   ---a string of connective characters --- has the precedence of its first character.  The ``null connective'' $\epsilon$
-  intuitively represents the space character used as a connective.  The null connective and null arguments are discussed below.
+  intuitively represents the space character used as a connective.  The null connective and the null argument are discussed below.
 \item A quoted string.  A character string starting and ending with the same string quotation character.  For example {\tt "foo bar"}, {\tt "!:\&?;"} or {\tt 'a'}.
 \item A special character atom. These are atoms whose strings are one character long where that character is one of
   the special characters $\mtt{`}$, $\mtt{\$}$, and $\backslash$.
@@ -841,7 +845,7 @@ For each positive integer $p$ we have a nonterminal $\conn_p$ ranging over conne
 We have a nonterminal $E_p$ for expressions formed with connectives
 of precedence $p$.  We also have a nonterminal $E_\infty$ for expressions that are formed at higher precedence than any connective expression.
 The precedence levels are divided into a set ${\cal L}$ of left-associative precedence levels and a set ${\cal R}$ of right associative precedence levels.
-There is a special precedence level 3 for combining expressions with the ``null connective''. The null connective is left-associative.
+There is a special precedence level 4 for combining expressions with the ``null connective''. The null connective is left-associative.
 The null connective is higher precedence than semicolon and comma but lower precedence than all other connectives.
 The nonterminal $E_\infty$ includes an epsilon production allowing null arguments.
 
@@ -852,10 +856,10 @@ The nonterminal $E_\infty$ includes an epsilon production allowing null argument
   E_p & ::= & \fopen  E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal R}, \;\ell > p, \; r \geq p \\
   E_p & ::= & \fopen E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p \\
   E_4 & ::= & \fopen E_\ell \;E_r\fclose \;\;\;\ell > 4,\;r \geq 4\\
+  P^* & ::= &  \epsilon  \;|\; \fopen P\;P^* \fclose \\
   E_\infty & ::= & \quot \;|\; \fopen S \; \;P^* \fclose \;|\; \fopen `\;P\fclose \;|\; P \;|\; \epsilon \;|\; \mathrm{JUNK}\\
   S & ::= & \;\sym \;|\; \var \\
   \var & ::= & \fopen \$\;\sym\fclose \;|\; \fopen \$\;P\fclose \;|\; \fopen \backslash \; \var \fclose\\
-  P^* & ::= &  \epsilon  \;|\; \fopen P\;P^* \fclose \\
   \mathrm{JUNK} & ::= & ` \;|\; \mathrm{SJUNK} \\
   \mathrm{SJUNK} & :: = & \$ \;|\;  \backslash \;|\; \fopen \backslash\;\mathrm{SJUNK} \fclose\\
 \end{eqnarray*}
@@ -867,7 +871,8 @@ Only the largest finite precedence level is left-associative. MetaC classifies a
 {\tt `}, $\$$ or $\backslash$.
 The reader will accept any parenthesis-balanced string. $\epsilon$ denotes the empty string. Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$.
 Although the grammar is ambiguous, the reader is deterministic as specified by the constraints that
-$E_\infty$ expressions must be maximal and that the use of the $\epsilon$ production for $E_\infty$ must be minimized.  See the text for details.
+$E_\infty$ expressions must be maximal and that the use of the $\epsilon$ production for $E_\infty$ must be minimized.  The reader is implemented as a deterministic shift-reduce process.
+See the text for details.
   }
 \label{fig:grammar}
 \end{figure}

@@ -264,20 +264,23 @@ exp_from_undo_frame(`{a})
 notype bad(int x){return x;}
 
 int bad(int x){return x;}
-/** 3: done **/
 
 int_exp(bad(3))
-/** 4: 3 **/
+
+
+/** ========================================================================
+reader errors
+======================================================================== **/
+
+foo(lkj)))`{foo bar}
 
 expptr friend[0] = ‘{Bob Givan};
 
 
 /** ========================================================================
-failure to recover from expansion error
+some version of the system failed to recover from this expansion error
 ======================================================================== **/
 
 umacro{test()}{return file_expressions("nonexistent_file");}
-/** 1: done **/
 
 test()
-/** 2: expansion error **/

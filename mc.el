@@ -3,6 +3,23 @@
 
 (require 'shell)
 
+(define-prefix-command 'ctr-z-command 'ctr-z-map)
+
+(add-hookm c-mode-hook
+  (define-key c-mode-map "\C-z" 'ctr-z-command))
+
+(define-key ctr-z-map "s" 'MC:start-metac)
+(define-key ctr-z-map "x" 'MC:execute-cell)
+(define-key ctr-z-map "r" 'MC:load-region)
+(define-key ctr-z-map "B" 'MC:load-buffer-to-point)
+(define-key ctr-z-map "b" 'MC:load-buffer)
+
+(define-key ctr-z-map "a" 'MC:beginning-of-def)
+(define-key ctr-z-map "p" 'MC:previous-def)
+(define-key ctr-z-map "n" 'MC:next-def)
+
+(define-key ctr-z-map "c" 'MC:clean-cells)
+
 (setq *seperator* "*#*#dsflsadk#*#*")
 
 (setq auto-mode-alist
@@ -22,17 +39,11 @@
        (when (or  (= c 32) (= c 47) (= c ?\t) (= c ?\n))
 	 (MC:next-def))))))
 
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\M-\C-a" 'MC:beginning-of-def))
-
 (defun MC:previous-def ()
   (interactive)
   (MC:beginning-of-def)
   (backward-char)
   (MC:beginning-of-def))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\M-\C-b" 'MC:previous-def))
 
 (defun MC:next-def ()
   (interactive)
@@ -41,9 +52,6 @@
 	     (re-search-forward "\n[^] \n\t})/=]")
 	     (move-beginning-of-line nil))
     (error (end-of-buffer))))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\M-\C-n" 'MC:next-def))
 
 (defun MC:indent-def ()
   (interactive)
@@ -60,9 +68,6 @@
 	  (move-beginning-of-line nil))
 	(goto-line line)
 	(c-indent-line)))))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-\M-q" 'MC:indent-def))
 
 (defun gdb-buffer ()
   (get-buffer-create "*gdb*"))
@@ -89,28 +94,21 @@
   (setq *gdb-mode* nil)
   (print "kernel restarted"))
 
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\M-\C-s" 'MC:start-metac))
-
-(defun MC:load-definition ()
+(defun MC:execute-cell ()
   (interactive)
+  (setq *source-buffer* (current-buffer))
   (setq *load-count* 1)
-  (MC:load-definition-internal))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-c\C-c" 'MC:load-definition))
+  (MC:execute-cell-internal))
 
 (defun MC:load-region ()
   (interactive)
+  (setq *source-buffer* (current-buffer))
   (let ((top (region-beginning)))
     (setq *load-count* (MC:num-cells-region))
     (goto-char top)
-    (MC:load-definition-internal)))
+    (MC:execute-cell-internal)))
 
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-c\C-r" 'MC:load-region))
-
-(defun MC:load-definition-internal ()
+(defun MC:execute-cell-internal ()
   (delete-other-windows)
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
   (setq buffer-file-coding-system 'utf-8-unix)
@@ -147,8 +145,6 @@
       (insert (format "%d: " *eval-count*))
       (setq *eval-count* (+ *eval-count* 1))
       
-      (setq *source-buffer* (current-buffer))
-      (setq *gdb-mode* nil)
       (process-send-string (mc-process) (format "%s\0\n" exp))
       ;; the above return seems needed to flush the buffer
     )))
@@ -187,7 +183,7 @@
 	 (MC:next-def)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when  (> *load-count* 0)
-	   (MC:load-definition-internal)))
+	   (MC:execute-cell-internal)))
 
 	;;the following two tags print
 	((string= tag "print")
@@ -225,7 +221,6 @@
 	(t (error (format "unrecognized tag %s" tag)))))
 
 (defun MC:goto-gdb (value)
-  (setq *source-buffer* (current-buffer))
   (pop-to-buffer (gdb-buffer))
   (erase-buffer)
   (MC:insert-in-segment value)
@@ -291,11 +286,7 @@
 	  (MC:next-def))
 	count))))
 
-(defun MC:goto-code ()
-  (interactive)
-  (pop-to-buffer *source-buffer*))
-
-(defun MC:strip-cell-values ()
+(defun MC:clean-cells ()
   (interactive)
   (save-excursion
     (condition-case nil
@@ -303,16 +294,13 @@
               (end (if (use-region-p) (region-end) (point-max))))
           (while t
             (goto-char start) 
-            (re-search-forward "/\\\*\\\* [0-9]*:" end)
+            (re-search-forward "/** [0-9]+:" end)
             (beginning-of-line)
             (push-mark)
-            (re-search-forward "\\\*\\\*/" end)
+            (re-search-forward "**/" end)
             (forward-char)
             (kill-region (mark) (point))))
       (error nil))))
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\M-\C-c" 'MC:strip-cell-values))
 
 (defun MC:load-interval (start end)
   (set-mark start)
@@ -323,12 +311,7 @@
   (interactive)
   (MC:load-interval (point-min) (point)))
 
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-cB" 'MC:load-buffer-to-point))
-
 (defun MC:load-buffer ()
   (interactive)
   (MC:load-interval (point-min) (point-max)))
 
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-cb" 'MC:load-buffer))
