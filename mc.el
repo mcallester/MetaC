@@ -106,7 +106,9 @@
   (let ((top (region-beginning)))
     (setq *load-count* (MC:num-cells-region))
     (goto-char top)
-    (MC:execute-cell-internal)))
+    (if (zerop *load-count*)
+        (message "Region contains no cell beginning")
+      (MC:execute-cell-internal))))
 
 (defun MC:execute-cell-internal ()
   (delete-other-windows)
@@ -278,8 +280,12 @@
 
 (defun MC:num-cells-region ()
   (save-excursion
-    (let ((end (region-end)))
-      (goto-char (region-beginning))
+    (let ((end (region-end))
+          (beg (region-beginning)))
+      (goto-char beg)
+      (MC:beginning-of-def)
+      (while (< (point) beg)
+        (MC:next-def))
       (let ((count 0))
 	(while (< (point) end)
 	  (setq count (+ count 1))
