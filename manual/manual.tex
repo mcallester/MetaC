@@ -416,12 +416,12 @@ the result of a single step of macro expansion on the root of the given argument
 \subsection{The Notebook IDE}
 \label{sec:Emacs}
 
-Starting the kernel with the key C-M-s creates a running C process.  When a cell is executed
-with the command C-c C-c the text of the cell is passed to the C process from which a value is returned
+Starting the kernel with the key C-z s creates a running C process.  When a cell is executed
+with the command C-z x the text of the cell is passed to the C process from which a value is returned
 and then printed inside a comment below the cell.  If a comment already occurs directly below the cell this
 comment is replaced by a new comment containing the response of the REPL.  As in a Jupyter notebook,
 the values returned from the REPL are numbered so that one can see when the cell was executed
-relative to other cell execution in the notebook.  If C-M-s is run when a kernel is already running
+relative to other cell execution in the notebook.  If C-z s is run when a kernel is already running
 the kernel process is killed and a new one started (as in a Jupyter notebook).  When the kernel is
 restarted the execution numbering is reset to start with 1.  Changing a procedure signature
 (argument and return types) requires restarting the kernel.
