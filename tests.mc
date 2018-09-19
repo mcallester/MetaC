@@ -284,3 +284,21 @@ some version of the system failed to recover from this expansion error
 umacro{test()}{return file_expressions("nonexistent_file");}
 
 test()
+
+
+/** ========================================================================
+ preamble bug
+======================================================================== **/
+
+umacro{foo()}{
+  add_preamble(`{int x[0]=0;});
+  return `{intexp(x[0])};}
+
+foo()
+ // compilation error expected
+
+umacro{bar()}{
+  add_preamble(`{int x[0]=0;});
+  return `{int_exp(x[0])};}
+
+bar()

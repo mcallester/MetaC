@@ -115,7 +115,8 @@ expptr new_array_insertion (expptr x){
 }
 
 expptr array_extraction (expptr x){
-  return `{$x = symbol_value[${symbol_index_exp(x)}];};
+  if(getprop(x,`{signature},NULL)) return `{$x = symbol_value[${symbol_index_exp(x)}];};
+  else return `{{}};
 }
 
 /** ========================================================================
@@ -188,7 +189,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
 	symbol_value_copy = symbol_value;
 	${mapcar(new_procedure_insertion, new_procedures)}
 	${mapcar(new_array_insertion, new_arrays)}
-	${mapcar(array_extraction, arrays)} // procedure extractions are done by linkdefs and procdefs above
+	${mapcar(array_extraction, arrays)} // procedure extractions are done by install_link_def above
 	${reverse(new_statements)}
 	return string_atom("done");}},
     fileout,0);
@@ -235,6 +236,9 @@ void print_preamble(expptr e){
 void install_var(expptr type, expptr X, expptr dim){
   expptr oldsig = getprop(X,`{signature}, NULL);
   expptr newsig = `{$type $X[$dim];};
+  if(!getprop(X,`{on_arrays},NULL)){
+    push(X,arrays);
+    setprop(X,`{on_arrays},`{true});}
   if(oldsig != NULL && newsig != oldsig){
     berror(sformat("attempt to change signature from\n %s\n to\n %s\n",
 		   exp_string(oldsig),
@@ -242,7 +246,6 @@ void install_var(expptr type, expptr X, expptr dim){
   }
   if(oldsig == NULL){
     setprop(X,`{signature},newsig);
-    push(X, arrays);
     push(X,new_arrays);}
 }
 
