@@ -702,7 +702,7 @@ void add_init_form(expptr form){
 
 void add_preamble(expptr e){
   expptr e2 = macroexpand(e); //this macro expansion can add to the preamble first.
-  preamble = append(preamble, cons(e2,NULL));}
+  preamble = append(preamble, cons(e2,nil));}
 
 
 /** ========================================================================

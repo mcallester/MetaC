@@ -163,3 +163,7 @@ expptr intern_memo_hits ();
 expptr intern_from_stack(expptr stack_exp);
 
 expptr stack_copy_exp(expptr exp);
+
+expptr add_init_form(expptr form);
+
+expptr add_preamble(expptr form);
