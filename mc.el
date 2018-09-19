@@ -205,10 +205,13 @@
 
 	;;the following three tags enter gdb mode
 	((string= tag "exec-error")
-	 (MC:insert-in-segment "execution error")
+	 (MC:insert-in-segment "dynamic-check execution error")
+	 (MC:goto-gdb value))
+	((string= tag "gdb-exec-error")
+	 (MC:insert-in-segment "gdb-trapped execution error")
 	 (MC:goto-gdb value))
 	((string= tag "expansion-error")
-	 (MC:insert-in-segment "expansion error")
+	 (MC:insert-in-segment "macro expansion error")
 	 (MC:goto-gdb value))
 	((string= tag "breakpoint")
 	 (MC:goto-gdb value))
@@ -273,7 +276,7 @@
 	     (eq t (compare-strings "(gdb)" nil nil *mc-accumulator* -6 -1)))
     (let ((value *mc-accumulator*))
       (setq *mc-accumulator* nil)
-      (cons "exec-error" value))))
+      (cons "gdb-exec-error" value))))
 
 (defun message-buffer ()
   (get-buffer-create "*MC Compiler Errors*"))

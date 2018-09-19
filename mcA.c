@@ -50,7 +50,7 @@ void NIDE(){
 }
 
 void breakpt(char *s){
-  fprintf(stdout,"%s\n",s);
+  fprintf(stdout,"breakpt: %s\n",s);
   if(!in_ide)cbreak();
   else {
     send_emacs_tag(breakpoint_tag);

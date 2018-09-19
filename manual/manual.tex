@@ -435,26 +435,30 @@ Note that a comment
 starting at the beginning of a line terminates a cell.
 
 \noindent {\bf Errors and Breakpoints.}
-If an error occurs while reading the cell expression, or while macro-expanding the cell expression,
-the NIDE will print {\tt "reader or expansion error"} and enter the gdb debugger.  The MetaC procedure {\tt berror(char *)}
-enters the gdb debugger.  MetaC primitives call {\tt berror} when safety checks fail.
-Whenever the gdb debugger is invoked entering
-{\tt print NIDE()}, which can be abbreviate as {\tt p NIDE}, will return to the NIDE.
 
-If an error occurs while attempting to compile the macro-expanded cell the NIDE will print {\tt "compilation error"}
-and display the output of the compiler.
+If the cell contains unbalanced parentheses, or non-ascii unicode characters, the NIDE will print {\tt "reader error"} as the value of the cell and display an error message.
+
+If an error occurs while macro-expanding the cell expression, the NIDE will print {\tt "macro expansion error"} as the value of the cell and enter the gdb debugger.  Such an error may be
+due to a bug in a user-written macro and gdb can be useful in this case.  Typing the continue command, which can be abbreviated as just {\tt "c"}, will abort the cell execution and return to the NIDE.
+
+If an error occurs while attempting to compile the macro-expanded cell, the NIDE will print {\tt "compilation error"} as the value of the cell
+and display the compiler errors.
+
+If an error is trapped by dynamic checking while executing the compiled code for the cell, the NIDE will print {\tt "dynamic-check execution error"} as the value of the cell and enter the gdb debugger.
+Typing the continue command to gdb will abort execution and return to the NIDE. The procedure {\tt berror(char *)} can be called by the user to declare a dynamic-check error.
+
+If an error is trapped directly by gdb during execution, for example a segmentation fault in user code, the NIDE will print {\tt "gdb-trapped execution error"} as the value of the cell and enter the gdb debugger.
+In this case the continue command is ineffective and one must type {\tt p NIDE()} to return to the NIDE.
 
 The MetaC procedure {\tt breakpt(char *)} can be used for breakpoints
 from which execution can be continued.  When {\tt breakpt} is called
-the NIDE will invoke the debugger.  In this case entering the command {\tt continue}
-will continue the execution from the breakpoint.
+the NIDE will invoke the debugger with no error message printed in the NIDE but with the string passed to {\tt breakpt} printed in the first line in the debugger window.
+The continue command will continue execution from the breakpoint.
 
-Segmentation faults, and other types of errors, are trapped by gdb directly.  Again one can return
-to the NIDE by entering {\tt p NIDE()}.
-MetaC is designed to minimize the possibility of memory corruption
-when returning from an error such as a segmentation fault.
+MetaC is designed to minimize the risk of memory corruption
+when returning to the NIDE from an error.
 See the discussions of unwind protection in sections~\ref{sec:memory} and \ref{sec:undo}.
-But if there is a concern over memory corruption one can always restart the C process.
+If there is a concern over memory corruption one can always restart the C process.
 
 \noindent {\bf Printing.} The procedure {\tt mcprint} is like {\tt fprintf} but omitting the file argument. The expression
 {\tt mcprint("x = \%s$\backslash$n",s)} will print to the *Messages* buffer in Emacs. The procedure {\tt mcpprint(expptr e)}

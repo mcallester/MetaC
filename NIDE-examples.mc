@@ -4,6 +4,8 @@ expptr f(expptr exp){return exp;}
 
 f(`{a})
 
+
+
 int x[10];
 
 for(int i = 0; i < 10; i++)x[i] = i;
@@ -13,6 +15,9 @@ for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
 int_exp(x[5])
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
+
+
+
 
 typedef struct myexpstruct{
   char * label;
@@ -34,11 +39,15 @@ expptr myexp_exp(myexp x){
 
 myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 
+
+
 int y[0] = 2;
 
 y[0] += 1;
 
 int_exp(y[0])
+
+
 
 expptr friend[0] = `{Bob Givan};
 
@@ -46,9 +55,8 @@ int height[0] = 6;
 
 `{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
 
-expptr e[0] = `{a+b};
 
-`{bar(${e[0]})}
+
 
 expptr g(expptr x){return x;}
 
@@ -57,6 +65,8 @@ g(`{a})
 expptr g(expptr x){return `{$x $x};}
 
 g(`{a})
+
+
 
 expptr bar(int i);
 
@@ -76,6 +86,8 @@ expptr bar(int i){
 
 foo(1)
 
+
+
 umacro{mydolist($x, $L){$body}}{
      expptr rest = gensym("rest");
      return `{for(explist $rest = $L;
@@ -88,6 +100,8 @@ macroexpand(`{mydolist(item,list){f(item);}})
 macroexpand(`{ucase{`{a;b};{\$a;\$any}:{return a;}}})
 
 ucase{`{a;b};{$a;$any}:{return a;}}
+
+
 
 int numeralp(expptr x){
   if(!atomp(x))return 0;
@@ -106,16 +120,24 @@ int value(expptr e){
   return 0;
 }
 
-int_exp(value(`{5+2*10}))
+int_exp(value(`{(5+2)*10}))
 
-int_exp(value(`foo))
 
-int_exp(value(`{foo}))
 
-expptr bar(){
-  breakpt("bar break");
-  return `{a};
-}
+ucase{x;{?any}:{return x;)}
 
-bar()
+ucase{x;{?any}:(return x;)}
+
+ucase{x;{?any}:{return x;}}
+
+ucase{NULL;{$x}:{return car(x);}}
+
+int_exp(value(`{x}))
+
+{expptr x = NULL; return x->arg1;}
+
+ucase{`{a};{$x}:{return x;}}
+
+ucase{`{a};{$x}:{breakpt("foo");return x;}}
+
 
