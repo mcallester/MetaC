@@ -142,17 +142,16 @@ void simple_eval_noval(expptr e){
 }
 
 void eval_exp(expptr exp){
-  expptr e = macroexpand(exp);
-  ucase{e;
+  ucase{exp;
     {load($sym)}.(atomp(sym)) : {
       char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
       mapc(simple_eval_noval,file_expressions(require_file));
       fprintf(stdout,"%s Provided\n",require_file); }
-    {$any} : {pprint(simple_eval(e),stdout,0);}}
+    {$any} : {pprint(simple_eval(exp),stdout,0);}}
 }
 
 expptr load(expptr forms){ // forms must be fully macro expanded.
-  
+
   compilecount ++; //should not be inside sformat --- sformat duplicates.
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
