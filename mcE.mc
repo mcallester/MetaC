@@ -124,6 +124,8 @@ expptr array_extraction (expptr x){
 ======================================================================== **/
 
 expptr simple_eval(expptr exp){
+  preamble= nil;
+  init_forms = nil;
   in_doit = 0;
   expptr e = macroexpand(exp);
   ucase{e;
@@ -140,9 +142,6 @@ void simple_eval_noval(expptr e){
 }
 
 void eval_exp(expptr exp){
-  preamble= nil;
-  init_forms = nil;
-  in_doit = 0;
   expptr e = macroexpand(exp);
   ucase{e;
     {load($sym)}.(atomp(sym)) : {
