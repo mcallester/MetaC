@@ -71,7 +71,7 @@ properties of expressions
 
 expptr getprop(expptr e, expptr key, expptr defaultval);
 void setprop(expptr e, expptr key, void * val);
-expptr getprop_int(expptr e, expptr key, int defaultval);
+int getprop_int(expptr e, expptr key, int defaultval);
 void setprop_int (expptr e, expptr key, int val);
 
 
