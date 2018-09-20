@@ -291,14 +291,25 @@ test()
 ======================================================================== **/
 
 umacro{foo()}{
-  add_preamble(`{int x[0]=0;});
-  return `{intexp(x[0])};}
+  add_preamble(`{int z[0]=0;});
+  return `{intexp(z[0])};}
 
 foo()
  // compilation error expected
 
 umacro{bar()}{
-  add_preamble(`{int x[0]=0;});
-  return `{int_exp(x[0])};}
+  add_preamble(`{int z[0]=0;});
+  return `{int_exp(z[0])};}
 
 bar()
+
+
+/** ========================================================================
+ funky recursive test.
+======================================================================== **/
+
+file_expressions("tests.mc")
+/** 1:  **/
+
+`{a}
+/** 2:  **/

@@ -780,15 +780,15 @@ expptr read_from_ide(){
 }
 
 void reader_error(){
-  if(in_expand)throw_error();
-  if(in_ide){
-    send_emacs_tag(reader_error_tag);
+  if(in_ide)send_emacs_tag(reader_error_tag);
+  if(from_file)throw_error();
+  if(from_ide){
     while(next != 0)next = fgetc(read_stream);
     fgetc(read_stream);
-    throw_error();
-  }
-  while(next != '\n')next = fgetc(read_stream);
-  throw_error();
+    throw_error();}
+  if(from_repl){
+    while(next != '\n')next = fgetc(read_stream);
+    throw_error();}
 }
 
 void simple_advance(){
