@@ -420,3 +420,5 @@ file_expressions("tests.mc")
 `{value prints as empty string}
 /** 74: value prints as empty string **/
 
+nil()
+/** 75: value prints as empty string **/
