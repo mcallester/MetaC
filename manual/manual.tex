@@ -442,7 +442,7 @@ If an error occurs while macro-expanding the cell expression, the NIDE will prin
 due to a bug in a user-written macro and gdb can be useful in this case.  Typing the continue command, which can be abbreviated as just {\tt "c"}, will abort the cell execution and return to the NIDE.
 
 If an error occurs while attempting to compile the macro-expanded cell, the NIDE will print {\tt "compilation error"} as the value of the cell
-and display the compiler errors.
+and display the compiler errors.  These errors contain the name of the C file passed to the compiler.  Examining this C file is sometimes helpful.
 
 If an error is trapped by dynamic checking while executing the compiled code for the cell, the NIDE will print {\tt "dynamic-check execution error"} as the value of the cell and enter the gdb debugger.
 Typing the continue command to gdb will abort execution and return to the NIDE. The procedure {\tt berror(char *)} can be called by the user to declare a dynamic-check error.
