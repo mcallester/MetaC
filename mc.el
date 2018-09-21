@@ -181,7 +181,7 @@
 	((string= tag "result")
 	 (if (> (length value) 1)
 	     (MC:insert-in-segment (substring value 0 (- (length value) 1)))
-	   (insert "empty value"))
+	   (insert "value prints as empty string"))
 	 (MC:next-def)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when  (> *load-count* 0)
