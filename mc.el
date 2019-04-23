@@ -98,6 +98,7 @@
   (interactive)
   (setq *source-buffer* (current-buffer))
   (setq *load-count* 1)
+  (setq *beep-when-done* nil)
   (MC:execute-cell-internal))
 
 (defun MC:load-region ()
@@ -105,6 +106,7 @@
   (setq *source-buffer* (current-buffer))
   (let ((top (region-beginning)))
     (setq *load-count* (MC:num-cells-region))
+    (setq *beep-when-done* t)
     (goto-char top)
     (if (zerop *load-count*)
         (message "Region contains no cell beginning")
@@ -184,19 +186,22 @@
 	   (insert "value prints as empty string"))
 	 (MC:next-def)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
-	 (when  (> *load-count* 0)
-	   (MC:execute-cell-internal)))
+	 (if (> *load-count* 0)
+             (MC:execute-cell-internal)
+           (when *beep-when-done* (beep))))
 
 	;;the following two tags print
 	((string= tag "print")
 	 (print value))
 	((string= tag "comp-error")
+         (beep)
 	 (MC:insert-in-segment "compilation error")
 	 ;;(print value))
 	 (with-current-buffer (message-buffer)
 	   (erase-buffer) (MC:insert-in-segment value))
 	 (display-buffer (message-buffer) 'display-buffer-pop-up-window))
 	((string= tag "reader-error")
+         (beep)
 	 (MC:insert-in-segment "reader error")
 	 ;;(print value))
 	 (with-current-buffer (message-buffer)
@@ -205,15 +210,19 @@
 
 	;;the following three tags enter gdb mode
 	((string= tag "exec-error")
+         (beep)
 	 (MC:insert-in-segment "dynamic-check execution error")
 	 (MC:goto-gdb value))
 	((string= tag "gdb-exec-error")
+         (beep)
 	 (MC:insert-in-segment "gdb-trapped execution error")
 	 (MC:goto-gdb value))
 	((string= tag "expansion-error")
+         (beep)
 	 (MC:insert-in-segment "macro expansion error")
 	 (MC:goto-gdb value))
 	((string= tag "breakpoint")
+         (beep)
 	 (MC:goto-gdb value))
 
 	;;the tag IDE returns from from gdb mode
