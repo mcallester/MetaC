@@ -6,7 +6,6 @@
 \usepackage{color}
 
 \newcommand{\mtt}[1]{\mbox{\tt #1}}
-\input /users/davidmcallester/03/tex/nofill.tex
 
 \newcommand{\fopen}{{\color{red} \langle}}
 \newcommand{\fclose}{{\color{red} \rangle}}
@@ -543,7 +542,7 @@ exit from an enclosing use of {\tt in\_memory\_frame}.  MetaC
 pre-allocates the heap (stack space) used for memory frames.  The
 deallocation (resetting of the freeptr) is unwind protected --- it
 will occur when an error is thrown beyond the frame entry point.  This
-avoids a memory leak when returning from the an error to the REPL or
+avoids a memory leak when returning from an error to the REPL or
 NIDE.
 
 MetaC clears the base memory frame after every evaluation in the REPL and after every cell evaluation in the NIDE.
@@ -820,7 +819,7 @@ The MetaC lexer preserves all non-white characters.  For the MetaC lexer each at
   \medskip
   \centerline{~\;\;\;\;\;\;\{\mtt{;}\} \{\mtt{,}\}  \{\mtt{|}\} \{$\epsilon$\}
   \{{\tt \&}, {\tt ?}, {\tt !}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\}
-  \{{\tt *}, {\tt /}\} \{{\tt \%}, $\hat{~}$, {\tt .}\} \{\mtt{:},  {\tt @}, {\tt \#}\}.}
+  \{{\tt *}, {\tt /}\} \{{\tt \%}, $\hat{~}$, {\tt \#}\} \{\mtt{:},  {\tt @}, {\tt .}\}.}
   
   \medskip
   The characters are listed from low precedence (weakly binding) to high precedence (strongly binding). A connective

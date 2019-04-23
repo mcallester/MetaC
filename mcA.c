@@ -1212,4 +1212,4 @@ void mcA_init(){
   stack_copy_sym=string_atom("stack_copy_token");
   set_macro(backquote, bquote_macro);
 
-  MetaC_directory = "/Users/davidmcallester/18/MC/";}
+  MetaC_directory = "/Users/davidmcallester/MC/";}
