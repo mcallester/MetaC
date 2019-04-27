@@ -11,6 +11,7 @@ typedef struct pliststruct{
 
 typedef struct expstruct{
   plist data;
+  void * internal;
   char constructor;
   struct expstruct * arg1;
   struct expstruct * arg2;
