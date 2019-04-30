@@ -19,5 +19,5 @@ int main(int argc, char **argv){
   mcD_init();
   in_expand = 1;
   catch_error({mcexpand(argv[1], argv[2]);});
-  return error_flg;
+  return error_flg[0];
 }

@@ -14,14 +14,13 @@
 
 int main(int argc, char **argv){
   if(argc != 3){fprintf(stdout,"wrong number of arguments to expandE"); return 1;}
-  catch_error(
-	      mcA_init();
-	      mcB_init();
-	      mcC_init();
-	      mcD_init();
-	      mcE_init1();
-	      mcE_init2();
-	      in_expand = 1;
-	      mcexpand(argv[1], argv[2]));
-  return error_flg;
+  mcA_init();
+  mcB_init();
+  mcC_init();
+  mcD_init();
+  mcE_init1();
+  mcE_init2();
+  in_expand = 1;
+  catch_error(mcexpand(argv[1], argv[2]));
+  return error_flg[0];
 }

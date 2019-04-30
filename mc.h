@@ -30,19 +30,6 @@ void pop_memory_frame();
 undo
 ======================================================================== **/
 
-typedef struct undopair{
-  void * * location;
-  void * oldval;
-}undopair;
-
-#define UNDO_TRAIL_DIM  (1 << 16)
-undopair undo_trail[UNDO_TRAIL_DIM];
-int undo_trail_freeptr;
-
-//in undo_set(p,v) it is important that sizeof(p) = sizeof(v) = 8 ----  8 bytes will be written at undo time.
-
-#define undo_set(p, v) {if(undo_trail_freeptr >= UNDO_TRAIL_DIM)berror("undo trail exhausted"); undo_trail[undo_trail_freeptr].location = (void *) &(p);undo_trail[undo_trail_freeptr++].oldval = (void *) p;p=v;}
-
 void * undo_alloc(int size);
 
 void push_undo_frame();

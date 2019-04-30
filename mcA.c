@@ -137,7 +137,7 @@ int undo_restore_freeptr;
 
 void push_undo_frame(){
   if(undo_restore_freeptr >= UNDO_RESTORE_DIM)berror("undo freeptr stack exhausted");
-  undo_restore[undo_restore_freeptr].undo_trail_freeptr = undo_trail_freeptr;
+  undo_restore[undo_restore_freeptr].undo_trail_freeptr = undo_trail_freeptr[0];
   undo_restore[undo_restore_freeptr].undo_heap_freeptr = undo_heap_freeptr;
   undo_restore_freeptr++;
 }
@@ -147,9 +147,9 @@ void pop_undo_frame(){
 
   undo_restore_freeptr--;
   int old_trail_freeptr = undo_restore[undo_restore_freeptr].undo_trail_freeptr;
-  while(undo_trail_freeptr != old_trail_freeptr){
-    undo_trail_freeptr--;
-    *(undo_trail[undo_trail_freeptr].location) = (void *) undo_trail[undo_trail_freeptr].oldval;
+  while(undo_trail_freeptr[0] != old_trail_freeptr){
+    undo_trail_freeptr[0]--;
+    *(undo_trail[undo_trail_freeptr[0]].location) = (void *) undo_trail[undo_trail_freeptr[0]].oldval;
   }
 
   undo_heap_freeptr = undo_restore[undo_restore_freeptr].undo_heap_freeptr;
@@ -158,7 +158,6 @@ void pop_undo_frame(){
 void init_undo_frames(){
   undo_heap_freeptr = 0;
   undo_restore_freeptr = 0;
-  undo_trail_freeptr = 0;
   heap_reserve = .1;
 }
 
@@ -1197,6 +1196,20 @@ section: initialization
 ========================================================================**/
 
 void mcA_init(){
+
+  //state variables of catch and throw macros must be visible to dynamically linked code.
+  catch_freeptr = malloc(sizeof(int));
+  catch_freeptr[0] = 0;
+  catch_stack = malloc(CATCH_DIM*sizeof(jmp_buf));
+  error_flg = malloc(sizeof(int));
+  error_flg[0] = 0;
+
+  //state variables of the macro undo_set need to be visible to dynamically linked code.
+
+  undo_trail_freeptr = malloc(sizeof(int));
+  undo_trail_freeptr[0] = 0;
+  undo_trail = malloc(UNDO_TRAIL_DIM*sizeof(undopair));
+  
   init_source();
   init_tags();
   init_stack_frames();
@@ -1206,7 +1219,7 @@ void mcA_init(){
   init_exp_constants();
   
   gensym_count = 1;
-  catch_freeptr = 0;
+
   in_doit = 0; //this controlled in the IDE and not touched in the REPL or file_expressions.
   
   stack_copy_sym=string_atom("stack_copy_token");

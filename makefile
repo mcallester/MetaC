@@ -2,7 +2,7 @@ gcc := gcc -O0
 
 # expandA  mcA implements universal syntax and backquote.  expandA expands backquote.
 
-mcA.o : mc.h mcA.c premacros.h
+mcA.o : premacros.h mc.h mcA.c premacros.h
 	${gcc} -g mcA.c -c
 
 expandA : mcA.o expandA.c
