@@ -287,7 +287,10 @@ test()
 
 
 /** ========================================================================
- preamble bug
+This example failed to behave in some version.
+
+compilation error expected for foo() because of intexp rather than int_exp
+bar() has the bug fixed.
 ======================================================================== **/
 
 umacro{foo()}{
@@ -295,7 +298,6 @@ umacro{foo()}{
   return `{intexp(z[0])};}
 
 foo()
- // compilation error expected
 
 umacro{bar()}{
   add_preamble(`{int z[0]=0;});
@@ -305,11 +307,8 @@ bar()
 
 
 /** ========================================================================
- funky recursive test.
+NULL values
 ======================================================================== **/
-
-file_expressions("tests.mc")
-
 0
 
 `{}
@@ -326,18 +325,11 @@ dynamic linking of catch and throw
 void throw_test(){
   throw();
 }
-/** 1: done **/
 
 void catch_test(){
   catch(throw_test(););
 }
-/** 2: done **/
 
 catch_test();
-/** 3: done **/
 
-expptr foo[0] = `{foo};
-/** 1: done **/
 
-expptr bar[0] = `{bar};
-/** 2: done **/

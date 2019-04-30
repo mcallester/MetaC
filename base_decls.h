@@ -44,7 +44,7 @@ The state variables used in undo_set must be visible to dynamically linked code.
 ======================================================================== **/
 
 int undo_trail_freeptr[1];
-undo_pair undo_trail[UNDO_TRAIL_DIM];
+undopair undo_trail[UNDO_TRAIL_DIM];
 
 /** ========================================================================
 interning (procedures called by the expansion of backquote)
