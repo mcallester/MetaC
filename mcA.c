@@ -1,212 +1,411 @@
 #include "mc.h"
 
 /** ========================================================================
-See mc.h for catch, throw, catch-error, throw-error, and unwind_protect.
-========================================================================**/
+Permanent memory.  Permanent memory is not garbage collected.
 
-/** ========================================================================
-the following flags are primarily used in the reader but also used in a
-minor way in berror below and in the printer.
+perm_alloc and intern_permexp
+
+See mc.h for the types expstruct and expptr
 ======================================================================== **/
 
-void init_source(){
-  in_repl = 0;
-  in_expand = 0;
-  in_ide = 0;
-  in_doit = 0;
-}
+#define PERMHEAP_DIM (1<<20)
+char permheap[PERMHEAP_DIM];
+int permheap_freeptr;
 
-void init_tags(){
-  ignore_tag = "*#*#dsflsadk#*#*ignore*#*#dsflsadk#*#*";
-  result_tag = "*#*#dsflsadk#*#*result*#*#dsflsadk#*#*";
-  reader_error_tag = "*#*#dsflsadk#*#*reader-error*#*#dsflsadk#*#*";
-  expansion_error_tag = "*#*#dsflsadk#*#*expansion-error*#*#dsflsadk#*#*";
-  comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";
-  exec_error_tag = "*#*#dsflsadk#*#*exec-error*#*#dsflsadk#*#*";
-  breakpoint_tag = "*#*#dsflsadk#*#*breakpoint*#*#dsflsadk#*#*";
-  request_input_tag = "*#*#dsflsadk#*#*IDE*#*#dsflsadk#*#*";
-  print_tag = "*#*#dsflsadk#*#*print*#*#dsflsadk#*#*";
-}
-
-
-/** ========================================================================
-cbreak, berror
-========================================================================**/
-
-void cbreak(){};
-
-void send_emacs_tag(char * tag){
-  fflush(stderr);
-  fprintf(stdout,"%s",tag);
-  fflush(stdout);
-}
-
-void send_print_tag(){send_emacs_tag(print_tag);}
-
-int in_ide_proc(){return in_ide;}
-
-void NIDE(){
-  throw_error();
-}
-
-void breakpt(char *s){
-  fprintf(stdout,"breakpt: %s\n",s);
-  if(!in_ide)cbreak();
-  else {
-    send_emacs_tag(breakpoint_tag);
-    cbreak();
-    send_emacs_tag(request_input_tag);
-  }
-}
-
-void berror(char *s){
-  fprintf(stdout,"\n%s\n",s);
-  if(in_ide){
-    if(in_doit) send_emacs_tag(exec_error_tag);
-    else send_emacs_tag(expansion_error_tag);}
-  cbreak();
-  throw_error();
-}
-
-void uerror(expptr e){
-  pp(e);
-  berror("");
-}
-
-/** ========================================================================
-push_memory_frame, pop_memory_frame, and stack_alloc
-========================================================================**/
-#define STACK_DIM  (1 << 17)
-int stack_restore[STACK_DIM];
-int stack_frame_count;
-
-#define STACK_HEAP_DIM (1<<19)
-char stack_heap[STACK_HEAP_DIM];
-int stack_heap_freeptr;
-
-void * stack_alloc(int size){
-  if(stack_heap_freeptr + size > STACK_HEAP_DIM)berror("stack heap exhausted");
-  char * result = &stack_heap[stack_heap_freeptr];
-  stack_heap_freeptr += size;
+void * perm_alloc(int size){
+  if(permheap_freeptr + size > PERMHEAP_DIM)berror("perm heap exhausted");
+  void * result = &permheap[permheap_freeptr];
+  permheap_freeptr += size;
   return result;
 }
 
-void push_memory_frame(){
-  if(stack_frame_count >= STACK_DIM)berror("MC stack exhausted");
-  stack_restore[stack_frame_count++] = stack_heap_freeptr;
-}
+#define PERMEXP_HASH_DIM  (1 << 15)
+expptr permexp_hash_table[PERMEXP_HASH_DIM];
+int permexp_count;
 
-void pop_memory_frame(){
-  if(stack_frame_count == 0)berror("attempt to pop base stack frame");
-  stack_heap_freeptr = stack_restore[--stack_frame_count];
-}
-
-void init_stack_frames(){
-  stack_heap_freeptr = 0;
-  stack_frame_count = 0;
-}
-
-/** ========================================================================
-undo
-========================================================================**/
-#define UNDO_HEAP_DIM (1<<26)
-char undo_heap[UNDO_HEAP_DIM];
-int undo_heap_freeptr;
-float heap_reserve;
-
-void * undo_alloc(int size){
-  if(undo_heap_freeptr + size > UNDO_HEAP_DIM*(1-heap_reserve)){
-    fprintf(stdout,"undo heap exhausted\n");
-    heap_reserve = heap_reserve/2;
-    cbreak();
-    throw_error();}
-  char * result = &undo_heap[undo_heap_freeptr];
-  undo_heap_freeptr += size;
-  return result;
-}
-
-typedef struct freeptr_frame{
-  int undo_trail_freeptr;
-  int undo_heap_freeptr;
-}freeptr_frame;
-
-#define UNDO_RESTORE_DIM (1<<10)
-freeptr_frame undo_restore[UNDO_RESTORE_DIM];
-int undo_restore_freeptr;
-
-
-void push_undo_frame(){
-  if(undo_restore_freeptr >= UNDO_RESTORE_DIM)berror("undo freeptr stack exhausted");
-  undo_restore[undo_restore_freeptr].undo_trail_freeptr = undo_trail_freeptr[0];
-  undo_restore[undo_restore_freeptr].undo_heap_freeptr = undo_heap_freeptr;
-  undo_restore_freeptr++;
-}
-
-void pop_undo_frame(){
-  if(undo_restore_freeptr == 0)berror("attempt to pop base undo frame");
-
-  undo_restore_freeptr--;
-  int old_trail_freeptr = undo_restore[undo_restore_freeptr].undo_trail_freeptr;
-  while(undo_trail_freeptr[0] != old_trail_freeptr){
-    undo_trail_freeptr[0]--;
-    *(undo_trail[undo_trail_freeptr[0]].location) = (void *) undo_trail[undo_trail_freeptr[0]].oldval;
+expptr intern_permexp(char constr, expptr a1, expptr a2){
+  unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & PERMEXP_HASH_DIM-1;
+  for(int i = j;1;i++){
+    if(i == PERMEXP_HASH_DIM)i=0;
+    expptr oldexp = permexp_hash_table[i];
+    if(oldexp == NULL){
+      if(permexp_count >= (2*PERMEXP_HASH_DIM)/3)berror("permanent expression hash table exhausted");
+      permexp_count++;
+      expptr newexp = perm_alloc(sizeof(expstruct));
+      newexp->plist = NULL;
+      newexp->internal = NULL;
+      newexp->constructor = constr;
+      newexp->arg1 = a1;
+      newexp->arg2 = a2;
+      permexp_hash_table[i] = newexp;
+      return newexp;
+    }else{
+      if(oldexp -> constructor == constr && oldexp->arg1 == a1 && oldexp-> arg2 == a2)return oldexp;
+    }
   }
-
-  undo_heap_freeptr = undo_restore[undo_restore_freeptr].undo_heap_freeptr;
 }
 
-void init_undo_frames(){
-  undo_heap_freeptr = 0;
-  undo_restore_freeptr = 0;
-  heap_reserve = .1;
-}
 
 /** ========================================================================
-Interning strings see also mc.h
-========================================================================**/
+permanent strings
+======================================================================== **/
 
-#define STRING_HASH_DIM 10000
-char * string_hash_table[STRING_HASH_DIM];
-int string_count;
+#define PERMSTRING_HASH_DIM 10000
+char * permstring_hash_table[PERMSTRING_HASH_DIM];
+int permstring_count;
 
-char * copy_string_to_undo(char *s){
-  char * s2 = undo_alloc(strlen(s) + 1);
-  strcpy(s2,s);
-  return s2;
-}
-
-int preintern_string(char * s){
+int permstring_key(char * s){
   int i, key;
 
   key=0;
   for(i=0;s[i] != 0;i++){
     key = (1458*key + s[i]);
   }
-  key = key&(STRING_HASH_DIM-1);
+  key = key&(PERMSTRING_HASH_DIM-1);
 
-  while(string_hash_table[key] != NULL
-	&& strcmp(string_hash_table[key], s) != 0){
+  while(permstring_hash_table[key] != NULL
+	&& strcmp(permstring_hash_table[key], s) != 0){
     key++;
-    if(key==STRING_HASH_DIM)key=0;
+    if(key==PERMSTRING_HASH_DIM)key=0;
   }
   return key;
 }
 
-char * intern_string(char * s){
-  int key = preintern_string(s);
-  if(string_hash_table[key]==NULL){
-    if(string_count >= (2*STRING_HASH_DIM)/3)berror("string hash table exhausted");
-    undo_set(string_hash_table[key],copy_string_to_undo(s));
-    string_count++;
+char * string_to_perm(char * s){
+  int key = permstring_key(s);
+  if(permstring_hash_table[key]==NULL){
+    if(permstring_count >= (2*PERMSTRING_HASH_DIM)/3)berror("string hash table exhausted");
+    char * s2 = perm_alloc(strlen(s) + 1);
+    strcpy(s2,s);
+    permstring_hash_table[key] = s2;
+    permstring_count++;
   }
-  return string_hash_table[key];
+  return permstring_hash_table[key];
 }
 
-void init_strings(){
-  string_count = 0;
-  for(int i=0;i<STRING_HASH_DIM;i++)string_hash_table[i]=NULL;
+void init_perm_memory(){
+  permheap_freeptr = 0;
+  for(int i=0;i<PERMEXP_HASH_DIM;i++)permexp_hash_table[i] = NULL;
+  permexp_count = 0;
+  for(int i=0;i<PERMSTRING_HASH_DIM;i++)permstring_hash_table[i]=NULL;
+  permstring_count = 0;
 }
 
+/** ========================================================================
+permanent properties of permanent expressions
+========================================================================**/
+
+static inline plist exp_plist(expptr e){
+  if(e == NULL)berror("attempt to take plist of null expression");
+  return e -> plist;}
+
+plist getprop_cell(expptr e, expptr key){
+  for(plist p = exp_plist(e); p!= NULL; p=p->rest){
+    if(p->key == key) return p;}
+  return NULL;
+}
+
+void * getprop(expptr e, expptr key, void * defaultval){
+  if(e == NULL)berror("attempt to get a property of the null expression");
+  plist p = getprop_cell((expptr) e, key);
+  if(p == NULL)return defaultval;
+  return p -> value;
+}
+
+void perm_addprop(expptr e, expptr key, void * val){
+  if(e == NULL)berror("attempt to add a property of the null expression");
+  plist new = (plist) perm_alloc(sizeof(pliststruct));
+  new->key = key;
+  new->value = val;
+  new->rest = e->plist;
+  e-> plist = new;
+}
+
+void perm_setprop(expptr e, expptr key, void * val){
+  if(e == NULL)berror("attempt to set a property of the null expression");
+  plist cell = getprop_cell(e, key);
+  if(cell != NULL){
+    cell->value = val;
+    return;}
+  perm_addprop(e,key,val);
+}
+
+//the following procedures are designed to be robust with respect to the
+//representation of integers.  they avoids casting between integers and pointers.
+//instead casting is done only between different pointer types.
+
+int perm_getprop_int(expptr e, expptr key, int defaultval){
+  if(e == NULL)berror("attempt to get a property of the null expression");
+  plist p = getprop_cell(e, key);
+  if(p == NULL)return defaultval;
+  int * y = (int *) &(p -> value);
+  return *y;
+}
+
+void perm_setprop_int(expptr e, expptr key, int x){
+  char buffer[8]; //buffer is a pointer.
+  int * y = (int *) buffer;
+  *y = x;
+  perm_setprop(e,key, * (expptr *) buffer);
+}
+
+
+/** ========================================================================
+stack memory
+
+stack objects are not interned and stack expressions do not have properties
+========================================================================**/
+#define STACKHEAP_DIM (1<<19)
+char stackheap[STACKHEAP_DIM];
+int stackheap_freeptr;
+
+void * stack_alloc(int size){
+  if(stackheap_freeptr + size > STACKHEAP_DIM)berror("stack memory heap exhausted");
+  char * result = &stackheap[stackheap_freeptr];
+  stackheap_freeptr += size;
+  return result;
+}
+
+#define STACK_DIM  (1 << 10)
+int stackmem_stack[STACK_DIM];
+int stack_frame_freeptr;
+
+void init_stack_memory(){
+  stackheap_freeptr = 0;
+  stack_frame_freeptr = 0;
+}
+
+void push_memory_frame(){
+  if(stack_frame_freeptr >= STACK_DIM)berror("stack memory stack exhausted");
+  stackmem_stack[stack_frame_freeptr++] = stackheap_freeptr;
+}
+
+void pop_memory_frame(){
+  if(stack_frame_freeptr == 0)berror("attempt to pop base stack memory frame");
+  stackheap_freeptr = stackmem_stack[--stack_frame_freeptr];
+}
+
+char * string_to_stack(char * s){
+  char * s2 = stack_alloc(strlen(s) + 1);
+  strcpy(s2,s);
+  return s2;
+}
+
+expptr stack_exp(char constr, expptr a1, expptr a2){
+  if(constr == '\0')berror("bad constructuctor in stack_exp");
+  expptr newexp = stack_alloc(sizeof(expstruct));
+  newexp->constructor = constr;
+  newexp->arg1 = a1;
+  newexp->arg2 = a2;
+  return newexp;
+}
+
+/** ========================================================================
+undo memory
+
+premacros.h contains
+
+#define undo_set(pointer,value) undo_set_proc((void **) &pointer,value)
+========================================================================**/
+
+#define UNDO_HEAP_DIM (1<<26)
+char undo_heap[UNDO_HEAP_DIM];
+int undo_heap_freeptr;
+
+void * undo_alloc(int size){
+  if(undo_heap_freeptr + size > UNDO_HEAP_DIM)berror("undo heap exhausted");
+  char * result = &undo_heap[undo_heap_freeptr];
+  undo_heap_freeptr += size;
+  return result;
+}
+
+typedef struct undopair{
+  void * * location;
+  void * oldval;
+}undopair;
+
+#define UNDO_TRAIL_DIM  (1 << 16)
+undopair undo_trail[UNDO_TRAIL_DIM];
+int undo_trail_freeptr;
+
+void undo_set_proc(void ** loc, void * val){
+  if(undo_trail_freeptr == UNDO_TRAIL_DIM)berror("undo trail exhausted");
+  undo_trail[undo_trail_freeptr].location = loc;
+  undo_trail[undo_trail_freeptr++].oldval = *loc;
+  *loc = val;}
+
+#define UNDOEXP_HASH_DIM  (1 << 24)
+expptr undoexp_hash_table[UNDOEXP_HASH_DIM];
+int undoexp_count;
+
+expptr intern_exp(char constr, expptr a1, expptr a2){
+  if(constr == '\0')berror("bad constructuctor in intern_exp");
+  unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & UNDOEXP_HASH_DIM-1;
+  for(int i = j;1;i++){
+    if(i == UNDOEXP_HASH_DIM)i=0;
+    expptr oldexp = undoexp_hash_table[i];
+    if(oldexp == NULL){
+      if(undoexp_count >= (2*UNDOEXP_HASH_DIM)/3)berror("expression heap exhausted");
+      undoexp_count++;
+      expptr newexp = (expptr) undo_alloc(sizeof(expstruct));
+      newexp->plist = NULL;
+      newexp->constructor = constr;
+      newexp->arg1 = a1;
+      newexp->arg2 = a2;
+      undo_set(undoexp_hash_table[i],newexp);
+      return newexp;
+    }else{
+      if(oldexp -> constructor == constr && oldexp->arg1 == a1 && oldexp-> arg2 == a2)return oldexp;
+    }
+  }
+}
+
+/** ========================================================================
+undo strings
+======================================================================== **/
+
+#define UNDOSTRING_HASH_DIM 10000
+char * undostring_hash_table[UNDOSTRING_HASH_DIM];
+int undostring_count;
+
+int undostring_key(char * s){
+  int i, key;
+
+  key=0;
+  for(i=0;s[i] != 0;i++){
+    key = (1458*key + s[i]);
+  }
+  key = key&(UNDOSTRING_HASH_DIM-1);
+
+  while(undostring_hash_table[key] != NULL
+	&& strcmp(undostring_hash_table[key], s) != 0){
+    key++;
+    if(key==UNDOSTRING_HASH_DIM)key=0;
+  }
+  return key;
+}
+
+char * string_to_undo(char * s){
+  int key = undostring_key(s);
+  if(undostring_hash_table[key]==NULL){
+    if(undostring_count >= (2*UNDOSTRING_HASH_DIM)/3)berror("string hash table exhausted");
+    char * s2 = undo_alloc(strlen(s) + 1);
+    strcpy(s2,s);
+    undo_set(undostring_hash_table[key],s2);
+    undostring_count++;
+  }
+  return undostring_hash_table[key];
+}
+
+/** ========================================================================
+undo properties
+======================================================================== **/
+
+void undo_addprop(expptr e, expptr key, void * val){
+  if(e == NULL)berror("attempt to add a property of the null expression");
+  plist new = (plist) undo_alloc(sizeof(pliststruct));
+  new->key = key;
+  new->value = val;
+  new->rest = e->plist;
+  undo_set(e-> plist,new);
+}
+
+void undo_setprop(expptr e, expptr key, void * val){
+  if(e == NULL)berror("attempt to set a property of the null expression");
+  plist cell = getprop_cell(e, key);
+  if(cell != NULL){undo_set(cell->value,val); return;}
+  undo_addprop(e,key,val);
+}
+
+void undo_setprop_int(expptr e, expptr key, int x){
+  char buffer[8]; //buffer is a pointer.
+  int * y = (int *) buffer;
+  *y = x;
+  undo_setprop(e,key, * (expptr *) buffer);
+}
+
+/** ========================================================================
+undo stack frames and the undo stack
+======================================================================== **/
+
+typedef struct undo_frame{
+  int undo_trail_freeptr;
+  int undo_heap_freeptr;
+  int undoexp_count;
+  int undostring_count;
+}undo_frame;
+
+#define UNDOSTACK_DIM (1<<10)
+undo_frame undo_stack[UNDOSTACK_DIM];
+int undostack_freeptr;
+
+void push_undo_frame(){
+  if(undostack_freeptr == UNDOSTACK_DIM)berror("undo freeptr stack exhausted");
+  undo_stack[undostack_freeptr].undo_trail_freeptr = undo_trail_freeptr;
+  undo_stack[undostack_freeptr].undo_heap_freeptr = undo_heap_freeptr;
+  undo_stack[undostack_freeptr].undoexp_count = undoexp_count;
+  undo_stack[undostack_freeptr++].undostring_count = undostring_count;
+}
+
+void init_undo_memory(){
+  undo_heap_freeptr = 0;
+  undo_trail_freeptr = 0;
+  for(int i=0;i<UNDOEXP_HASH_DIM;i++)undoexp_hash_table[i] = NULL;
+  undoexp_count = 0;
+  for(int i=0;i<UNDOSTRING_HASH_DIM;i++)undostring_hash_table[i]=NULL;
+  undostring_count = 0;
+  undostack_freeptr = 0;
+  push_undo_frame();
+}
+
+void pop_undo_frame(){
+  if(undostack_freeptr == 0)berror("MetaC bug: attempt to pop base undo frame");
+  undostack_freeptr--;
+
+  int old_trail_freeptr = undo_stack[undostack_freeptr].undo_trail_freeptr;
+  while(undo_trail_freeptr != old_trail_freeptr){
+    undo_trail_freeptr--;
+    *(undo_trail[undo_trail_freeptr].location) = undo_trail[undo_trail_freeptr].oldval;}
+
+  undo_heap_freeptr = undo_stack[undostack_freeptr].undo_heap_freeptr;
+  undoexp_count = undo_stack[undostack_freeptr].undoexp_count;
+  undostring_count = undo_stack[undostack_freeptr].undostring_count;
+
+  if(undostack_freeptr == 0)push_undo_frame();
+}
+
+/** ========================================================================
+clean undo frame and expptr_to_perm
+======================================================================== **/
+
+expptr expptr_to_stack(expptr exp){
+  if(!exp)return NULL;
+  if (atomp(exp))return stack_exp('A', (expptr) string_to_stack((char *) exp->arg1), NULL);
+  return stack_exp(exp->constructor,expptr_to_stack(exp->arg1),expptr_to_stack(exp->arg2));
+}
+
+expptr expptr_to_perm(expptr exp){
+  if(!exp)return NULL;
+  if (atomp(exp))return intern_permexp('A', (expptr) string_to_perm((char *) exp->arg1), NULL);
+  return stack_exp(exp->constructor,expptr_to_perm(exp->arg1),expptr_to_perm(exp->arg2));
+}
+
+expptr expptr_to_undo(expptr exp){
+  if(!exp)return NULL;
+  if (atomp(exp))return intern_exp('A',(expptr) string_to_undo((char *) exp->arg1),NULL);
+  return intern_exp(exp->constructor,expptr_to_undo(exp->arg1),expptr_to_undo(exp->arg2));
+}
+
+expptr clean_undo_frame(expptr exp){
+  //this is safe --- no user code.
+  push_memory_frame();
+  expptr stack_exp = expptr_to_stack(exp);
+  pop_undo_frame();
+  push_undo_frame();
+  expptr result = expptr_to_undo(stack_exp);
+  pop_memory_frame();
+  return result;
+}
 
 /** ========================================================================
 character types
@@ -248,45 +447,8 @@ int terminatorp(char c){return closep(c) || endp(c);}
 //the characters \, $ and ` are treated explicitly in the grammar.
 
 /** ========================================================================
-interning expressions
-
-see mc.h for the definitions of types plist and expptr.
+cons-car-cdr interface to expressions.  conses into undo space.
 ========================================================================**/
-
-#define EXP_HASH_DIM  (1 << 24)
-expptr exp_hash_table[EXP_HASH_DIM];
-int exp_count;
-
-expptr intern_exp(char constr, expptr a1, expptr a2){
-  if(constr == '\0')berror("bad constructuctor in tern_exp");
-  expptr e;
-  unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & EXP_HASH_DIM-1;
-  expptr oldexp;
-  for(int i = j;1;i++){
-    if(i == EXP_HASH_DIM)i=0;
-    oldexp = exp_hash_table[i];
-    if(oldexp == NULL){
-      if(exp_count >= (2*EXP_HASH_DIM)/3)berror("expression heap exhausted");
-      exp_count++;
-      expptr newexp = (expptr) undo_alloc(sizeof(expstruct));
-      newexp->data = NULL;
-      newexp->constructor = constr;
-      newexp->arg1 = a1;
-      newexp->arg2 = a2;
-      undo_set(exp_hash_table[i],newexp);
-      return newexp;
-    }else{
-      if(oldexp -> constructor == constr && oldexp->arg1 == a1 && oldexp-> arg2 == a2)return oldexp;
-    }
-  }
-}
-
-void init_expressions(){
-  exp_count = 0;
-  for(int i=0;i<EXP_HASH_DIM;i++)exp_hash_table[i] = NULL;
-}
-
-expptr string_atom(char * s){return intern_exp('A', (expptr) intern_string(s), NULL);}
 
 int atomp(expptr e){return e && constructor(e) == 'A';}
 
@@ -297,6 +459,14 @@ char * atom_string(expptr a){
     berror("attempt to get string of non-atom");}
   return (char *) a->arg1;}
 
+expptr string_atom(char * s){
+  return intern_exp('A', (expptr) string_to_undo(s),NULL);
+}
+
+expptr string_permatom(char * s){
+  return intern_permexp('A', (expptr) string_to_perm(s),NULL);
+}
+
 expptr cons(expptr x, expptr y){
   if(!x || !y)berror("null argument given to cons");
   return intern_exp(' ',x,y);}
@@ -304,13 +474,11 @@ expptr cons(expptr x, expptr y){
 int cellp(expptr e){return e && constructor(e) == ' ';}
 
 expptr car(expptr x){
-  if(constructor(x) != ' '){
-    berror("taking car of non-cell");}
+  if(constructor(x) != ' '){berror("taking car of non-cell");}
   return x->arg1;}
 
 expptr cdr(expptr x){
-  if(constructor(x) != ' '){
-    berror("taking cdr of non-cell");}
+  if(constructor(x) != ' '){berror("taking cdr of non-cell");}
   return x->arg2;}
 
 expptr intern_paren(char openchar, expptr arg){
@@ -323,31 +491,8 @@ expptr paren_inside(expptr e){
   if(!openp(constructor(e)))berror("paren_inside applied to non-paren");
   return e->arg1;}
 
-
 /** ========================================================================
-common expression constants
-======================================================================== **/
-
-void init_exp_constants(){
-  period = string_atom(".");
-  comma = string_atom(",");
-  colon = string_atom(":");
-  semi = string_atom(";");
-  backquote = string_atom("`");
-  dollar = string_atom("$");
-  backslash = string_atom("\\");
-  exclam = string_atom("!");
-  question = string_atom("?");
-  any = cons(dollar,string_atom("any"));
-
-  nil = string_atom("");
-  macro = string_atom("macro");
-}
-
-
-
-/** ========================================================================
-list operations
+basic list procedures (dolist is defined as a macro in mc.D)
 ======================================================================== **/
 expptr nil;
 
@@ -379,63 +524,6 @@ int length(expptr l){
 }
 
 /** ========================================================================
-properties  see mc.h for the definition of the type plist
-========================================================================**/
-static inline plist data(expptr e){
-  if(e == NULL)berror("attempt to take data of null expression");
-  return e -> data;}
-
-plist getprop_cell(expptr e, expptr key){
-  for(plist p = data(e); p!= NULL; p=p->rest){
-    if(p->key == key) return p;}
-  return NULL;
-}
-
-expptr getprop(expptr e, expptr key, expptr defaultval){
-  if(e == NULL)berror("attempt to get a property of the null expression");
-  plist p = getprop_cell(e, key);
-  if(p == NULL)return defaultval;
-  return p -> data;
-}
-
-void addprop(expptr e, expptr key, expptr val){
-  if(e == NULL)berror("attempt to add a property of the null expression");
-  plist new = (plist) undo_alloc(sizeof(pliststruct));
-  new->key = key;
-  new->data = val;
-  new->rest = e->data;
-  undo_set(e-> data,new);
-}
-
-void setprop(expptr e, expptr key, void * val){
-  if(e == NULL)berror("attempt to set a property of the null expression");
-  plist cell = getprop_cell(e, key);
-  if(cell != NULL){
-    undo_set(cell->data,val);
-    return;}
-  addprop(e,key,val);
-}
-
-//the following procedures are designed to be robust with respect to the
-//representation of integers.  It avoids casting between integers and pointers.
-//instead casting is done only between different pointer types.
-
-void setprop_int(expptr e, expptr key, int x){
-  char buffer[8]; //buffer is a pointer.
-  int * y = (int *) buffer;
-  *y = x;
-  setprop(e,key, * (expptr *) buffer);
-}
-
-int getprop_int(expptr e, expptr key, int defaultval){
-  if(e == NULL)berror("attempt to get a property of the null expression");
-  plist p = getprop_cell(e, key);
-  if(p == NULL)return defaultval;
-  int * y = (int *) &(p -> data);
-  return *y;
-}
-
-/** ========================================================================
 printing: exp_string
 ======================================================================== **/
 void putexp(expptr);
@@ -444,7 +532,7 @@ void putone(char);
 char print_lastchar;
 
 char * exp_string(expptr e){
-  char * s = &(stack_heap[stack_heap_freeptr]);
+  char * s = &(stackheap[stackheap_freeptr]);
   print_lastchar = '\0';
   putexp(e);
   putone('\0');
@@ -452,8 +540,8 @@ char * exp_string(expptr e){
 }
 
 void putone(char c){
-  if(stack_heap_freeptr == STACK_HEAP_DIM)berror("stack heap exhausted");
-  stack_heap[stack_heap_freeptr++] = c;
+  if(stackheap_freeptr == STACKHEAP_DIM)berror("stack heap exhausted");
+  stackheap[stackheap_freeptr++] = c;
   print_lastchar=c;
 }
 
@@ -557,11 +645,6 @@ void mcpprint(expptr e){
   if(in_ide_proc()){pprint(e,stdout,0); send_print_tag();}
   else pprint(e,stdout,0);
 }
-
-/** ========================================================================
-ephemeral buffer
-======================================================================== **/
-
 /** ========================================================================
 section: backquote
 
@@ -657,7 +740,7 @@ section: macroexpand
 ========================================================================**/
 
 void set_macro(expptr sym, expptr f(expptr)){
-   setprop(sym, macro, (expptr) f);
+  perm_setprop(expptr_to_perm(sym), macro, (expptr) f);
 }
 
 expptr macroexpand1(expptr);
@@ -685,7 +768,7 @@ expptr macroexpand1(expptr e){
   expptr s = top_atom(e);
   if(s == NULL)return e;
   expptr (*f)(expptr);
-  f = (expptr (*)(expptr)) getprop(s,macro,NULL);
+  f = (expptr (*)(expptr)) getprop(expptr_to_perm(s),macro,NULL);
   if(f == NULL){return e;}
   return f(e);
 }
@@ -727,8 +810,8 @@ expptr gensym(char * s){
     gensym_count++;
     int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_gen%s%d",s,i);
     if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
-    int key = preintern_string(ephemeral_buffer);
-    if(string_hash_table[key]==NULL)break;}
+    int key = undostring_key(ephemeral_buffer);
+    if(undostring_hash_table[key]==NULL)break;}
   return string_atom(ephemeral_buffer);
 }
 
@@ -1090,69 +1173,87 @@ expptr mcread(){//this is called from top level read functions only
 }
 
 /** ========================================================================
-section: exp_from_undo_frame support
+cbreak, berror
 ========================================================================**/
 
-expptr temp_intern_exp(char constr, expptr a1, expptr a2){
-  if(constr == '\0')berror("bad constructuctor in temp_intern_exp");
+void cbreak(){};
 
-  expptr newexp = (expptr) stack_alloc(sizeof(expstruct));
-  newexp->data = NULL;
-  newexp->constructor = constr;
-  newexp->arg1 = a1;
-  newexp->arg2 = a2;
-
-  return newexp;
+void send_emacs_tag(char * tag){
+  fflush(stderr);
+  fprintf(stdout,"%s",tag);
+  fflush(stdout);
 }
 
-char * copy_string_to_stack(char *s){
-  char * s2 = stack_alloc(strlen(s) + 1);
-  strcpy(s2,s);
-  return s2;
+void send_print_tag(){send_emacs_tag(print_tag);}
+
+int in_ide_proc(){return in_ide;}
+
+void NIDE(){
+  throw_error();
 }
 
-expptr stack_copy_sym;
-
-expptr stack_copy_exp(expptr exp){
-  if(!exp)return NULL;
-
-  expptr prev_value=getprop(exp,stack_copy_sym,NULL);
-  if (prev_value) {
-    return prev_value;}
-
-  expptr result;
-  if (atomp(exp))result = temp_intern_exp('A', (expptr) copy_string_to_stack((char *) exp->arg1), NULL);
-  else result =temp_intern_exp(exp->constructor,stack_copy_exp(exp->arg1),stack_copy_exp(exp->arg2));
-  setprop(exp,stack_copy_sym,result);
-  return result;
-} 
-
-expptr intern_from_stack(expptr exp){
-  if(!exp)return NULL;
-  if (exp->data) return (expptr) exp->data;
-
-  expptr result;
-  if (atomp(exp))result = string_atom((char *) exp->arg1);
-  else result = intern_exp(exp->constructor,intern_from_stack(exp->arg1),intern_from_stack(exp->arg2));
-  exp->data = (plist) result;
-  return result;
+void breakpt(char *s){
+  fprintf(stdout,"breakpt: %s\n",s);
+  if(!in_ide)cbreak();
+  else {
+    send_emacs_tag(breakpoint_tag);
+    cbreak();
+    send_emacs_tag(request_input_tag);
+  }
 }
 
-expptr clean_undo_frame(expptr exp){
-  //this is safe --- no user code.
-  push_memory_frame();
-  expptr stack_exp = stack_copy_exp(exp);
-  pop_undo_frame();
-  push_undo_frame();
-  expptr result = intern_from_stack(stack_exp);
-  pop_memory_frame();
-  return result;
+void berror(char *s){
+  fprintf(stdout,"\n%s\n",s);
+  if(in_ide){
+    if(in_doit) send_emacs_tag(exec_error_tag);
+    else send_emacs_tag(expansion_error_tag);}
+  cbreak();
+  throw_error();
 }
 
+void uerror(expptr e){
+  pp(e);
+  berror("");
+}
 
 /** ========================================================================
 section: initialization
 ========================================================================**/
+
+void init_source(){
+  in_repl = 0;
+  in_expand = 0;
+  in_ide = 0;
+  in_doit = 0;
+}
+
+void init_tags(){
+  ignore_tag = "*#*#dsflsadk#*#*ignore*#*#dsflsadk#*#*";
+  result_tag = "*#*#dsflsadk#*#*result*#*#dsflsadk#*#*";
+  reader_error_tag = "*#*#dsflsadk#*#*reader-error*#*#dsflsadk#*#*";
+  expansion_error_tag = "*#*#dsflsadk#*#*expansion-error*#*#dsflsadk#*#*";
+  comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";
+  exec_error_tag = "*#*#dsflsadk#*#*exec-error*#*#dsflsadk#*#*";
+  breakpoint_tag = "*#*#dsflsadk#*#*breakpoint*#*#dsflsadk#*#*";
+  request_input_tag = "*#*#dsflsadk#*#*IDE*#*#dsflsadk#*#*";
+  print_tag = "*#*#dsflsadk#*#*print*#*#dsflsadk#*#*";
+}
+
+void init_exp_constants(){
+  period = string_permatom(".");
+  comma = string_permatom(",");
+  colon = string_permatom(":");
+  semi = string_permatom(";");
+  backquote = string_permatom("`");
+  dollar = string_permatom("$");
+  backslash = string_permatom("\\");
+  exclam = string_permatom("!");
+  question = string_permatom("?");
+  any = cons(dollar,string_permatom("any"));
+
+  nil = string_permatom("");
+  macro = string_permatom("macro");
+}
 
 void mcA_init(){
 
@@ -1163,25 +1264,17 @@ void mcA_init(){
   error_flg = malloc(sizeof(int));
   error_flg[0] = 0;
 
-  //state variables of the macro undo_set need to be visible to dynamically linked code.
-
-  undo_trail_freeptr = malloc(sizeof(int));
-  undo_trail_freeptr[0] = 0;
-  undo_trail = malloc(UNDO_TRAIL_DIM*sizeof(undopair));
-  
   init_source();
   init_tags();
-  init_stack_frames();
-  init_undo_frames();
-  init_strings();
-  init_expressions();
+  init_perm_memory();
+  init_stack_memory();
+  init_undo_memory();
   init_exp_constants();
   
   gensym_count = 1;
 
   in_doit = 0; //this controlled in the IDE and not touched in the REPL or file_expressions.
   
-  stack_copy_sym=string_atom("stack_copy_token");
   set_macro(backquote, bquote_macro);
 
   MetaC_directory = "/Users/davidmcallester/MC/";}

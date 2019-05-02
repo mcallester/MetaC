@@ -45,25 +45,10 @@ int *error_flg;
 
 
 /** ========================================================================
-The state variables used in undo_set must be visible to dynamically linked code.
-
-see mcA_init at the end of mcA.c and base_decls.h
+undo_set
 ======================================================================== **/
 
-typedef struct undopair{
-  void * * location;
-  void * oldval;
-}undopair;
-
-#define UNDO_TRAIL_DIM  (1 << 16)
-undopair *undo_trail;
-int *undo_trail_freeptr;
-
-//in undo_set(p,v) it is important that sizeof(p) = sizeof(v) = 8 ----  8 bytes will be written at undo time.
-
-#define undo_set(p, v)\
-  {if(undo_trail_freeptr[0] >= UNDO_TRAIL_DIM)berror("undo trail exhausted"); \
-    undo_trail[undo_trail_freeptr[0]].location = (void *) &(p);undo_trail[undo_trail_freeptr[0]++].oldval = (void *) p;p=v;}
+#define undo_set(pointer,value) undo_set_proc((void **) &pointer,value)
 
 /** ========================================================================
 nil

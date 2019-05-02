@@ -4,19 +4,18 @@ typedef char * charptr;
 typedef void * voidptr;
 
 typedef struct pliststruct{
-  void * key;
-  struct expstruct * data;
+  struct expstruct * key;
+  void * value;
   struct pliststruct * rest;
 }pliststruct,*plist;
 
-typedef struct expstruct{
-  plist data;
+typedef struct expstruct{ //in undo memory
+  plist plist;
   void * internal;
   char constructor;
   struct expstruct * arg1;
   struct expstruct * arg2;
 }expstruct,*expptr;
-
 
 /** ========================================================================
 push_memory_frame, pop_memory_frame, and stack_alloc
@@ -99,12 +98,15 @@ expptr gensym(char * s);
 properties
 ========================================================================**/
 
-expptr getprop(expptr e, expptr key, expptr defaultval);
-void setprop(expptr e, expptr key, void * val);
-void addprop(expptr e, expptr key, expptr val);
-
+void * getprop(expptr e, expptr key, void * defaultval);
+void perm_setprop(expptr e, expptr key, void * val);
+void perm_addprop(expptr e, expptr key, void * val);
 int getprop_int(expptr e, expptr key, int defaultval);
-void setprop_int(expptr e, expptr key, int x);
+void perm_setprop_int(expptr e, expptr key, int x);
+
+void undo_setprop(expptr e, expptr key, void * val);
+void undo_addprop(expptr e, expptr key, void * val);
+void undo_setprop_int(expptr e, expptr key, int x);
 
 
 /** ========================================================================

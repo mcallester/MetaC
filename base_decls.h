@@ -38,18 +38,12 @@ int catch_freeptr[1];
 jmp_buf catch_stack[CATCH_DIM];
 int error_flg[0];
 
-
-/** ========================================================================
-The state variables used in undo_set must be visible to dynamically linked code.
-======================================================================== **/
-
-int undo_trail_freeptr[1];
-undopair undo_trail[UNDO_TRAIL_DIM];
-
 /** ========================================================================
 interning (procedures called by the expansion of backquote)
 and destructuring pro
 ========================================================================**/
+
+void undo_set(void * * loc, void * val);
 
 expptr string_atom(char * s);
 
