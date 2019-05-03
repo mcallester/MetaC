@@ -597,7 +597,8 @@ expptr bquote_code(expptr e){
 
 expptr bquote_macro(expptr e){ //this is the non-recursive entry point (the macro procedure) for backquote
   if(parenp(cdr(e)))return bquote_code(paren_inside(cdr(e)));
-  return e;
+  berror("backquote of symbol is not supported");
+  return NULL;
 }
 
 /** ========================================================================
