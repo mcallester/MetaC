@@ -233,20 +233,27 @@ void init_undo_memory(){
   push_undo_frame();
 }
 
-void pop_undo_frame(){
-  if(undostack_freeptr == 0)berror("MetaC bug: attempt to pop base undo frame");
-  undostack_freeptr--;
-
-  int old_trail_freeptr = undo_stack[undostack_freeptr].undo_trail_freeptr;
+void clear_undo_frame(){
+  if(undostack_freeptr < 1)berror("MetaC bug: attempt to clear undo frame 0");
+  int old_trail_freeptr = undo_stack[undostack_freeptr-1].undo_trail_freeptr;
   while(undo_trail_freeptr != old_trail_freeptr){
     undo_trail_freeptr--;
     *(undo_trail[undo_trail_freeptr].location) = undo_trail[undo_trail_freeptr].oldval;}
+  undo_heap_freeptr = undo_stack[undostack_freeptr-1].undo_heap_freeptr;
+  undoexp_count = undo_stack[undostack_freeptr-1].undoexp_count;
+  undostring_count = undo_stack[undostack_freeptr-1].undostring_count;
+}
+  
+void pop_undo_frame(){
+  if(undostack_freeptr == 1)berror("attempt to pop base undo frame");
+  clear_undo_frame();
+  undostack_freeptr--;
+}
 
-  undo_heap_freeptr = undo_stack[undostack_freeptr].undo_heap_freeptr;
-  undoexp_count = undo_stack[undostack_freeptr].undoexp_count;
-  undostring_count = undo_stack[undostack_freeptr].undostring_count;
-
-  if(undostack_freeptr == 0)push_undo_frame();
+void restart_undo_frame(int n){
+  if(n >= undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
+  while(undostack_freeptr > n+1)pop_undo_frame();
+  clear_undo_frame();
 }
 
 /** ========================================================================

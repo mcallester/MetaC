@@ -137,13 +137,15 @@ int length(expptr l);
 undo frames
 ========================================================================**/
 
+voidptr undo_alloc(int size);
+
 void push_undo_frame();
-
 void pop_undo_frame();
-
+void clear_undo_frame();
+void restart_undo_frame(int n);
 expptr clean_undo_frame(expptr e);
 
-voidptr undo_alloc(int size);
+
 
 /** ========================================================================
 stack frames

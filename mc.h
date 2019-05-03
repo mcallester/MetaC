@@ -34,8 +34,9 @@ void undo_set_proc(void ** loc, void * val);
 void * undo_alloc(int size);
 
 void push_undo_frame();
-
 void pop_undo_frame();
+void clear_undo_frame();
+void restart_undo_frame(int n);
 
 expptr expptr_to_stack(expptr exp);
 expptr expptr_to_undo(expptr exp);
