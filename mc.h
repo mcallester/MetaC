@@ -99,14 +99,9 @@ properties
 ========================================================================**/
 
 void * getprop(expptr e, expptr key, void * defaultval);
-void perm_setprop(expptr e, expptr key, void * val);
-void perm_addprop(expptr e, expptr key, void * val);
 int getprop_int(expptr e, expptr key, int defaultval);
-void perm_setprop_int(expptr e, expptr key, int x);
-
-void undo_setprop(expptr e, expptr key, void * val);
-void undo_addprop(expptr e, expptr key, void * val);
-void undo_setprop_int(expptr e, expptr key, int x);
+void setprop(expptr e, expptr key, void * val);
+void setprop_int(expptr e, expptr key, int x);
 
 
 /** ========================================================================

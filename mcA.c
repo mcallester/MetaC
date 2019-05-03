@@ -1,206 +1,6 @@
 #include "mc.h"
 
 /** ========================================================================
-Permanent memory.  Permanent memory is not garbage collected.
-
-perm_alloc and intern_permexp
-
-See mc.h for the types expstruct and expptr
-======================================================================== **/
-
-#define PERMHEAP_DIM (1<<20)
-char permheap[PERMHEAP_DIM];
-int permheap_freeptr;
-
-void * perm_alloc(int size){
-  if(permheap_freeptr + size > PERMHEAP_DIM)berror("perm heap exhausted");
-  void * result = &permheap[permheap_freeptr];
-  permheap_freeptr += size;
-  return result;
-}
-
-#define PERMEXP_HASH_DIM  (1 << 15)
-expptr permexp_hash_table[PERMEXP_HASH_DIM];
-int permexp_count;
-
-expptr intern_permexp(char constr, expptr a1, expptr a2){
-  unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & PERMEXP_HASH_DIM-1;
-  for(int i = j;1;i++){
-    if(i == PERMEXP_HASH_DIM)i=0;
-    expptr oldexp = permexp_hash_table[i];
-    if(oldexp == NULL){
-      if(permexp_count >= (2*PERMEXP_HASH_DIM)/3)berror("permanent expression hash table exhausted");
-      permexp_count++;
-      expptr newexp = perm_alloc(sizeof(expstruct));
-      newexp->plist = NULL;
-      newexp->internal = NULL;
-      newexp->constructor = constr;
-      newexp->arg1 = a1;
-      newexp->arg2 = a2;
-      permexp_hash_table[i] = newexp;
-      return newexp;
-    }else{
-      if(oldexp -> constructor == constr && oldexp->arg1 == a1 && oldexp-> arg2 == a2)return oldexp;
-    }
-  }
-}
-
-
-/** ========================================================================
-permanent strings
-======================================================================== **/
-
-#define PERMSTRING_HASH_DIM 10000
-char * permstring_hash_table[PERMSTRING_HASH_DIM];
-int permstring_count;
-
-int permstring_key(char * s){
-  int i, key;
-
-  key=0;
-  for(i=0;s[i] != 0;i++){
-    key = (1458*key + s[i]);
-  }
-  key = key&(PERMSTRING_HASH_DIM-1);
-
-  while(permstring_hash_table[key] != NULL
-	&& strcmp(permstring_hash_table[key], s) != 0){
-    key++;
-    if(key==PERMSTRING_HASH_DIM)key=0;
-  }
-  return key;
-}
-
-char * string_to_perm(char * s){
-  int key = permstring_key(s);
-  if(permstring_hash_table[key]==NULL){
-    if(permstring_count >= (2*PERMSTRING_HASH_DIM)/3)berror("string hash table exhausted");
-    char * s2 = perm_alloc(strlen(s) + 1);
-    strcpy(s2,s);
-    permstring_hash_table[key] = s2;
-    permstring_count++;
-  }
-  return permstring_hash_table[key];
-}
-
-void init_perm_memory(){
-  permheap_freeptr = 0;
-  for(int i=0;i<PERMEXP_HASH_DIM;i++)permexp_hash_table[i] = NULL;
-  permexp_count = 0;
-  for(int i=0;i<PERMSTRING_HASH_DIM;i++)permstring_hash_table[i]=NULL;
-  permstring_count = 0;
-}
-
-/** ========================================================================
-permanent properties of permanent expressions
-========================================================================**/
-
-static inline plist exp_plist(expptr e){
-  if(e == NULL)berror("attempt to take plist of null expression");
-  return e -> plist;}
-
-plist getprop_cell(expptr e, expptr key){
-  for(plist p = exp_plist(e); p!= NULL; p=p->rest){
-    if(p->key == key) return p;}
-  return NULL;
-}
-
-void * getprop(expptr e, expptr key, void * defaultval){
-  if(e == NULL)berror("attempt to get a property of the null expression");
-  plist p = getprop_cell((expptr) e, key);
-  if(p == NULL)return defaultval;
-  return p -> value;
-}
-
-void perm_addprop(expptr e, expptr key, void * val){
-  if(e == NULL)berror("attempt to add a property of the null expression");
-  plist new = (plist) perm_alloc(sizeof(pliststruct));
-  new->key = key;
-  new->value = val;
-  new->rest = e->plist;
-  e-> plist = new;
-}
-
-void perm_setprop(expptr e, expptr key, void * val){
-  if(e == NULL)berror("attempt to set a property of the null expression");
-  plist cell = getprop_cell(e, key);
-  if(cell != NULL){
-    cell->value = val;
-    return;}
-  perm_addprop(e,key,val);
-}
-
-//the following procedures are designed to be robust with respect to the
-//representation of integers.  they avoids casting between integers and pointers.
-//instead casting is done only between different pointer types.
-
-int perm_getprop_int(expptr e, expptr key, int defaultval){
-  if(e == NULL)berror("attempt to get a property of the null expression");
-  plist p = getprop_cell(e, key);
-  if(p == NULL)return defaultval;
-  int * y = (int *) &(p -> value);
-  return *y;
-}
-
-void perm_setprop_int(expptr e, expptr key, int x){
-  char buffer[8]; //buffer is a pointer.
-  int * y = (int *) buffer;
-  *y = x;
-  perm_setprop(e,key, * (expptr *) buffer);
-}
-
-
-/** ========================================================================
-stack memory
-
-stack objects are not interned and stack expressions do not have properties
-========================================================================**/
-#define STACKHEAP_DIM (1<<19)
-char stackheap[STACKHEAP_DIM];
-int stackheap_freeptr;
-
-void * stack_alloc(int size){
-  if(stackheap_freeptr + size > STACKHEAP_DIM)berror("stack memory heap exhausted");
-  char * result = &stackheap[stackheap_freeptr];
-  stackheap_freeptr += size;
-  return result;
-}
-
-#define STACK_DIM  (1 << 10)
-int stackmem_stack[STACK_DIM];
-int stack_frame_freeptr;
-
-void init_stack_memory(){
-  stackheap_freeptr = 0;
-  stack_frame_freeptr = 0;
-}
-
-void push_memory_frame(){
-  if(stack_frame_freeptr >= STACK_DIM)berror("stack memory stack exhausted");
-  stackmem_stack[stack_frame_freeptr++] = stackheap_freeptr;
-}
-
-void pop_memory_frame(){
-  if(stack_frame_freeptr == 0)berror("attempt to pop base stack memory frame");
-  stackheap_freeptr = stackmem_stack[--stack_frame_freeptr];
-}
-
-char * string_to_stack(char * s){
-  char * s2 = stack_alloc(strlen(s) + 1);
-  strcpy(s2,s);
-  return s2;
-}
-
-expptr stack_exp(char constr, expptr a1, expptr a2){
-  if(constr == '\0')berror("bad constructuctor in stack_exp");
-  expptr newexp = stack_alloc(sizeof(expstruct));
-  newexp->constructor = constr;
-  newexp->arg1 = a1;
-  newexp->arg2 = a2;
-  return newexp;
-}
-
-/** ========================================================================
 undo memory
 
 premacros.h contains
@@ -301,7 +101,24 @@ char * string_to_undo(char * s){
 undo properties
 ======================================================================== **/
 
-void undo_addprop(expptr e, expptr key, void * val){
+static inline plist exp_plist(expptr e){
+  if(e == NULL)berror("attempt to take plist of null expression");
+  return e -> plist;}
+
+plist getprop_cell(expptr e, expptr key){
+  for(plist p = exp_plist(e); p!= NULL; p=p->rest){
+    if(p->key == key) return p;}
+  return NULL;
+}
+
+void * getprop(expptr e, expptr key, void * defaultval){
+  if(e == NULL)berror("attempt to get a property of the null expression");
+  plist p = getprop_cell((expptr) e, key);
+  if(p == NULL)return defaultval;
+  return p -> value;
+}
+
+void addprop(expptr e, expptr key, void * val){
   if(e == NULL)berror("attempt to add a property of the null expression");
   plist new = (plist) undo_alloc(sizeof(pliststruct));
   new->key = key;
@@ -310,18 +127,76 @@ void undo_addprop(expptr e, expptr key, void * val){
   undo_set(e-> plist,new);
 }
 
-void undo_setprop(expptr e, expptr key, void * val){
+void setprop(expptr e, expptr key, void * val){
   if(e == NULL)berror("attempt to set a property of the null expression");
   plist cell = getprop_cell(e, key);
   if(cell != NULL){undo_set(cell->value,val); return;}
-  undo_addprop(e,key,val);
+  addprop(e,key,val);
 }
 
-void undo_setprop_int(expptr e, expptr key, int x){
+int getprop_int(expptr e, expptr key, int defaultval){
+  if(e == NULL)berror("attempt to get a property of the null expression");
+  plist p = getprop_cell(e, key);
+  if(p == NULL)return defaultval;
+  int * y = (int *) &(p -> value);
+  return *y;
+}
+
+void setprop_int(expptr e, expptr key, int x){
   char buffer[8]; //buffer is a pointer.
   int * y = (int *) buffer;
   *y = x;
-  undo_setprop(e,key, * (expptr *) buffer);
+  setprop(e,key, * (expptr *) buffer);
+}
+
+/** ========================================================================
+stack memory
+
+stack objects are not interned and stack expressions do not have properties
+========================================================================**/
+#define STACKHEAP_DIM (1<<19)
+char stackheap[STACKHEAP_DIM];
+int stackheap_freeptr;
+
+void * stack_alloc(int size){
+  if(stackheap_freeptr + size > STACKHEAP_DIM)berror("stack memory heap exhausted");
+  char * result = &stackheap[stackheap_freeptr];
+  stackheap_freeptr += size;
+  return result;
+}
+
+#define STACK_DIM  (1 << 10)
+int stackmem_stack[STACK_DIM];
+int stack_frame_freeptr;
+
+void init_stack_memory(){
+  stackheap_freeptr = 0;
+  stack_frame_freeptr = 0;
+}
+
+void push_memory_frame(){
+  if(stack_frame_freeptr >= STACK_DIM)berror("stack memory stack exhausted");
+  stackmem_stack[stack_frame_freeptr++] = stackheap_freeptr;
+}
+
+void pop_memory_frame(){
+  if(stack_frame_freeptr == 0)berror("attempt to pop base stack memory frame");
+  stackheap_freeptr = stackmem_stack[--stack_frame_freeptr];
+}
+
+char * string_to_stack(char * s){
+  char * s2 = stack_alloc(strlen(s) + 1);
+  strcpy(s2,s);
+  return s2;
+}
+
+expptr stack_exp(char constr, expptr a1, expptr a2){
+  if(constr == '\0')berror("bad constructuctor in stack_exp");
+  expptr newexp = stack_alloc(sizeof(expstruct));
+  newexp->constructor = constr;
+  newexp->arg1 = a1;
+  newexp->arg2 = a2;
+  return newexp;
 }
 
 /** ========================================================================
@@ -375,19 +250,13 @@ void pop_undo_frame(){
 }
 
 /** ========================================================================
-clean undo frame and expptr_to_perm
+clean undo frame
 ======================================================================== **/
 
 expptr expptr_to_stack(expptr exp){
   if(!exp)return NULL;
   if (atomp(exp))return stack_exp('A', (expptr) string_to_stack((char *) exp->arg1), NULL);
   return stack_exp(exp->constructor,expptr_to_stack(exp->arg1),expptr_to_stack(exp->arg2));
-}
-
-expptr expptr_to_perm(expptr exp){
-  if(!exp)return NULL;
-  if (atomp(exp))return intern_permexp('A', (expptr) string_to_perm((char *) exp->arg1), NULL);
-  return stack_exp(exp->constructor,expptr_to_perm(exp->arg1),expptr_to_perm(exp->arg2));
 }
 
 expptr expptr_to_undo(expptr exp){
@@ -461,10 +330,6 @@ char * atom_string(expptr a){
 
 expptr string_atom(char * s){
   return intern_exp('A', (expptr) string_to_undo(s),NULL);
-}
-
-expptr string_permatom(char * s){
-  return intern_permexp('A', (expptr) string_to_perm(s),NULL);
 }
 
 expptr cons(expptr x, expptr y){
@@ -740,17 +605,7 @@ section: macroexpand
 ========================================================================**/
 
 void set_macro(expptr sym, expptr f(expptr)){
-  perm_setprop(expptr_to_perm(sym), macro, (expptr) f);
-}
-
-expptr macroexpand1(expptr);
-
-expptr macroexpand(expptr e){
-  if(atomp(e)) return e;
-  expptr e2 = macroexpand1(e);
-  if(e2 != e) return macroexpand(e2);
-  if(parenp(e)) return intern_paren(constructor(e),macroexpand(paren_inside(e)));
-  return intern_exp(constructor (e),macroexpand(car(e)),macroexpand(cdr(e)));
+  setprop(sym, macro, (expptr) f);
 }
 
 expptr top_atom(expptr e){
@@ -763,15 +618,23 @@ expptr top_atom(expptr e){
   if(atomp(cdr(half))) return cdr(half);
   return NULL;
 }
-  
 expptr macroexpand1(expptr e){
   expptr s = top_atom(e);
   if(s == NULL)return e;
   expptr (*f)(expptr);
-  f = (expptr (*)(expptr)) getprop(expptr_to_perm(s),macro,NULL);
+  f = (expptr (*)(expptr)) getprop(s,macro,NULL);
   if(f == NULL){return e;}
   return f(e);
 }
+
+expptr macroexpand(expptr e){
+  if(atomp(e)) return e;
+  expptr e2 = macroexpand1(e);
+  if(e2 != e) return macroexpand(e2);
+  if(parenp(e)) return intern_paren(constructor(e),macroexpand(paren_inside(e)));
+  return intern_exp(constructor (e),macroexpand(car(e)),macroexpand(cdr(e)));
+}
+  
 
 /** ========================================================================
 Preamble and init_forms can be added during macro expansion
@@ -825,7 +688,7 @@ int from_ide;
 
 char readchar;
 int next;
-int paren_level; // this is the paren_lever immediately after readchar.
+int paren_level; // this is the paren_level immediately after readchar.
 
 expptr mcread();;
 
@@ -1240,19 +1103,19 @@ void init_tags(){
 }
 
 void init_exp_constants(){
-  period = string_permatom(".");
-  comma = string_permatom(",");
-  colon = string_permatom(":");
-  semi = string_permatom(";");
-  backquote = string_permatom("`");
-  dollar = string_permatom("$");
-  backslash = string_permatom("\\");
-  exclam = string_permatom("!");
-  question = string_permatom("?");
-  any = cons(dollar,string_permatom("any"));
+  period = string_atom(".");
+  comma = string_atom(",");
+  colon = string_atom(":");
+  semi = string_atom(";");
+  backquote = string_atom("`");
+  dollar = string_atom("$");
+  backslash = string_atom("\\");
+  exclam = string_atom("!");
+  question = string_atom("?");
+  any = cons(dollar,string_atom("any"));
 
-  nil = string_permatom("");
-  macro = string_permatom("macro");
+  nil = string_atom("");
+  macro = string_atom("macro");
 }
 
 void mcA_init(){
@@ -1264,17 +1127,14 @@ void mcA_init(){
   error_flg = malloc(sizeof(int));
   error_flg[0] = 0;
 
+  init_undo_memory();
+  init_stack_memory();
+  init_exp_constants();
   init_source();
   init_tags();
-  init_perm_memory();
-  init_stack_memory();
-  init_undo_memory();
-  init_exp_constants();
   
   gensym_count = 1;
 
-  in_doit = 0; //this controlled in the IDE and not touched in the REPL or file_expressions.
-  
   set_macro(backquote, bquote_macro);
 
   MetaC_directory = "/Users/davidmcallester/MC/";}
