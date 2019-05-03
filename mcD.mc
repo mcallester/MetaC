@@ -67,9 +67,9 @@ umacro{exp_from_undo_frame($exp)}{
 	    push_undo_frame();
 	    expptr $expvar = $exp; //can throw an error
 	    push_memory_frame();
-	    expptr $stackexp = stack_copy_exp($expvar); //assumed safe
+	    expptr $stackexp = expptr_to_stack($expvar); //assumed safe
 	    pop_undo_frame();
-	    $newexp = intern_from_stack($stackexp); //assumed safe
+	    $newexp = expptr_to_undo($stackexp); //assumed safe
 	    pop_memory_frame();},
 	  {pop_undo_frame();});
 	$newexp;})};

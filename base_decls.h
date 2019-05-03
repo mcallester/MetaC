@@ -43,7 +43,7 @@ interning (procedures called by the expansion of backquote)
 and destructuring pro
 ========================================================================**/
 
-void undo_set(void * * loc, void * val);
+void undo_set_proc(void * * loc, void * val);
 
 expptr string_atom(char * s);
 
@@ -166,9 +166,9 @@ int in_ide_proc();
 
 void mcpprint(expptr e);
 
-expptr intern_from_stack(expptr stack_exp);
+expptr expptr_to_undo(expptr stack_exp);
 
-expptr stack_copy_exp(expptr exp);
+expptr expptr_to_stack(expptr exp);
 
 expptr add_init_form(expptr form);
 

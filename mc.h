@@ -29,17 +29,17 @@ void pop_memory_frame();
 undo
 ======================================================================== **/
 
+void undo_set_proc(void ** loc, void * val);
+
 void * undo_alloc(int size);
 
 void push_undo_frame();
 
 void pop_undo_frame();
 
-expptr exp_from_undo_frame(expptr exp);
+expptr expptr_to_stack(expptr exp);
+expptr expptr_to_undo(expptr exp);
 expptr clean_undo_frame(expptr exp);
-expptr stack_copy_memo_hits();
-expptr intern_memo_hits ();
-
 
 
 /** ========================================================================
@@ -224,6 +224,5 @@ void mcpprint(expptr);
 
 char * MetaC_directory;
 
-expptr intern_from_stack(expptr stack_exp);
 
-expptr stack_copy_exp(expptr exp);
+
