@@ -230,11 +230,10 @@ void init_undo_memory(){
   for(int i=0;i<UNDOSTRING_HASH_DIM;i++)undostring_hash_table[i]=NULL;
   undostring_count = 0;
   undostack_freeptr = 0;
-  push_undo_frame();
 }
 
 void clear_undo_frame(){
-  if(undostack_freeptr < 1)berror("MetaC bug: attempt to clear undo frame 0");
+  if(undostack_freeptr == 0)berror("MetaC bug: no undo frame to clear");
   int old_trail_freeptr = undo_stack[undostack_freeptr-1].undo_trail_freeptr;
   while(undo_trail_freeptr != old_trail_freeptr){
     undo_trail_freeptr--;
@@ -245,13 +244,14 @@ void clear_undo_frame(){
 }
   
 void pop_undo_frame(){
-  if(undostack_freeptr == 1)berror("attempt to pop base undo frame");
+  if(undostack_freeptr == 0)berror("attempt to pop base undo frame");
   clear_undo_frame();
   undostack_freeptr--;
 }
 
 void restart_undo_frame(int n){
-  if(n >= undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
+  if(n == undostack_freeptr){push_undo_frame();return;}
+  if(n > undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
   while(undostack_freeptr > n+1)pop_undo_frame();
   clear_undo_frame();
 }
@@ -276,8 +276,7 @@ expptr clean_undo_frame(expptr exp){
   //this is safe --- no user code.
   push_memory_frame();
   expptr stack_exp = expptr_to_stack(exp);
-  pop_undo_frame();
-  push_undo_frame();
+  clear_undo_frame();
   expptr result = expptr_to_undo(stack_exp);
   pop_memory_frame();
   return result;
