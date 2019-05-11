@@ -48,7 +48,9 @@ int *error_flg;
 undo_set
 ======================================================================== **/
 
-#define undo_set(pointer,value) undo_set_proc((void **) &pointer,value)
+#define undo_set(pointer,value) undo_set_proc((void **) &(pointer),value)
+
+#define undo_set_int(pointer,value) undo_set_int_proc((int *) &(pointer),value)
 
 /** ========================================================================
 nil

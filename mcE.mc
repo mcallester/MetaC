@@ -34,6 +34,7 @@ expptr new_arrays;
 expptr new_statements;
 
 int compilecount;
+int cellcount;
 int symbol_count;
 
 expptr args_variables(expptr args);
@@ -63,11 +64,17 @@ Becasue of REPL compile and load syncronization, install_base cannot be cleanly 
 
 void mcE_init1(){
   file_preamble = nil;
+  add_undone_pointer((void**) &file_preamble);
   arrays = nil;
+  add_undone_pointer((void**) &arrays);
   procedures = nil;
+  add_undone_pointer((void**) &procedures);
   symbol_count = 0;
+  add_undone_int(&symbol_count);
   install_base();  //all executables built on mcE (ExpandE, REPL and IDE) have the same indeces for base functions.
   compilecount = 0;
+  cellcount = 0;
+  add_undone_int(&cellcount);
 }
 
 umacro{insert_base()}{
@@ -152,7 +159,7 @@ void eval_exp(expptr exp){
 
 expptr load(expptr forms){ // forms must be fully macro expanded.
 
-  compilecount ++; //should not be inside sformat --- sformat duplicates.
+  compilecount++; //this needs to be here becasue sformat duplicates the second argument
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
   fprintf(fileout,"#include \"%spremacros.h\"\n", MetaC_directory);
@@ -200,7 +207,8 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   _mc_doit = dlsym(header,"_mc_doit");
 
   in_doit = 1;
-  return (*_mc_doit)(symbol_value);
+  expptr e = (*_mc_doit)(symbol_value);
+  return `{${int_exp(++cellcount)}: $e};
 }
 
 void install(expptr statement){
@@ -269,7 +277,7 @@ void install_proc(expptr type, expptr f, expptr args, expptr body){
 }
 
 int symbol_index(expptr sym){
-  int index = (int) getprop_int(sym, `{index}, -1);
+  int index = getprop_int(sym, `{index}, -1);
   if(index == -1){
     if(symbol_count == SYMBOL_DIM){berror("Mc symbol table exhausted");}
     index = symbol_count++;

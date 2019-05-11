@@ -4,13 +4,13 @@ typedef char * charptr;
 typedef void * voidptr;
 
 typedef struct pliststruct{
-  struct expstruct * key;
+  void * key;
   void * value;
   struct pliststruct * rest;
-}pliststruct,*plist;
+}pliststruct,*plistptr;
 
 typedef struct expstruct{ //in undo memory
-  plist plist;
+  plistptr plist;
   void * internal;
   char constructor;
   struct expstruct * arg1;
@@ -29,9 +29,11 @@ void pop_memory_frame();
 undo
 ======================================================================== **/
 
-void undo_set_proc(void ** loc, void * val);
-
 void * undo_alloc(int size);
+void undo_set_proc(void ** loc, void * val);
+void undo_set_int_proc(int * loc, int val);
+void add_undone_int(int * loc);
+void add_undone_pointer(void * * loc);
 
 void push_undo_frame();
 void pop_undo_frame();
@@ -99,10 +101,10 @@ expptr gensym(char * s);
 properties
 ========================================================================**/
 
-void * getprop(expptr e, expptr key, void * defaultval);
-int getprop_int(expptr e, expptr key, int defaultval);
-void setprop(expptr e, expptr key, void * val);
-void setprop_int(expptr e, expptr key, int x);
+void * getprop(expptr e, void * key, void * defaultval);
+int getprop_int(expptr e, void * key, int defaultval);
+void setprop(expptr e, void * key, void * val);
+void setprop_int(expptr e, void * key, int x);
 
 
 /** ========================================================================

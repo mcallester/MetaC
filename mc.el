@@ -146,8 +146,8 @@
       (insert "/**  **/")
       (backward-char 4)
 
-      (insert (format "%d: " *eval-count*))
-      (setq *eval-count* (+ *eval-count* 1))
+      ;;(insert (format "%d: " *eval-count*))
+      ;;(setq *eval-count* (+ *eval-count* 1))
       
       (process-send-string (mc-process) (format "%s\0\n" exp))
       ;; the above return seems needed to flush the buffer

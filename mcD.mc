@@ -4,6 +4,10 @@ umacro{push($x,$y)}{
   return `{$y = cons($x,$y);};
 }
 
+umacro{undo_push($x,$y)}{
+  return `{undo_set($y,cons($x,$y));};
+}
+
 umacro{dolist($x,$y){$body}}{
   //we need make "break" and "continue" work form inside iteration macros.
   expptr yval = gensym("yval");

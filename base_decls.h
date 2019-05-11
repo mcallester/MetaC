@@ -43,8 +43,6 @@ interning (procedures called by the expansion of backquote)
 and destructuring pro
 ========================================================================**/
 
-void undo_set_proc(void * * loc, void * val);
-
 expptr string_atom(char * s);
 
 int atomp(expptr e);
@@ -138,6 +136,10 @@ undo frames
 ========================================================================**/
 
 voidptr undo_alloc(int size);
+void undo_set_proc(void ** loc, void * val);
+void undo_set_int_proc(void ** loc, void * val);
+void add_undone_int(int * loc);
+void add_undone_pointer(void * * loc);
 
 void push_undo_frame();
 void pop_undo_frame();

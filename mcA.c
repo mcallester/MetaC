@@ -1,9 +1,10 @@
 #include "mc.h"
 
 /** ========================================================================
-undo memory
-
+undo_alloc, undo_set_int and undo_set
 premacros.h contains
+
+#define undo_set_int(pointer,value) undo_set_int_proc((int *) &pointer,value)
 
 #define undo_set(pointer,value) undo_set_proc((void **) &pointer,value)
 ========================================================================**/
@@ -19,6 +20,23 @@ void * undo_alloc(int size){
   return result;
 }
 
+
+typedef struct undopair_int{
+  int * location;
+  int oldval;
+}undopair_int;
+
+#define UNDO_TRAIL_INT_DIM  (1 << 14)
+undopair_int undo_trail_int[UNDO_TRAIL_INT_DIM];
+int undo_trail_int_freeptr;
+
+void undo_set_int_proc(int * loc, int val){
+  if(undo_trail_int_freeptr == UNDO_TRAIL_INT_DIM)berror("undo trail exhausted");
+  undo_trail_int[undo_trail_int_freeptr].location = loc;
+  undo_trail_int[undo_trail_int_freeptr++].oldval = *loc;
+  *loc = val;}
+
+
 typedef struct undopair{
   void * * location;
   void * oldval;
@@ -33,6 +51,103 @@ void undo_set_proc(void ** loc, void * val){
   undo_trail[undo_trail_freeptr].location = loc;
   undo_trail[undo_trail_freeptr++].oldval = *loc;
   *loc = val;}
+
+int * undone_integer[100];
+int undoneint_freeptr;
+
+void add_undone_int(int * loc){
+  if(undoneint_freeptr == 100)berror("too many undone integers");
+  undone_integer[undoneint_freeptr++] = loc;
+}
+
+void** undone_pointer[100];
+int undoneptr_freeptr;
+
+void add_undone_pointer(void * * loc){
+  if(undoneptr_freeptr == 100)berror("too many undone pointers");
+  undone_pointer[undoneptr_freeptr++] = loc;
+}
+
+typedef struct undo_frame{
+  int undo_trail_freeptr;
+  int undo_trail_int_freeptr;
+}undo_frame;
+
+#define UNDOSTACK_DIM (1<<10)
+undo_frame undo_stack[UNDOSTACK_DIM];
+int undostack_freeptr;
+
+void save_undones(){
+  for(int i = 0;i<undoneint_freeptr;i++){
+    undo_trail_int[undo_trail_int_freeptr].location = undone_integer[i];
+    undo_trail_int[undo_trail_int_freeptr++].oldval = *undone_integer[i];}
+  for(int i = 0;i<undoneptr_freeptr;i++){
+    undo_trail[undo_trail_freeptr].location = undone_pointer[i];
+    undo_trail[undo_trail_freeptr++].oldval = *undone_pointer[i];}
+}
+
+void push_undo_frame(){
+  if(undostack_freeptr == UNDOSTACK_DIM)berror("undo freeptr stack exhausted");
+  undo_stack[undostack_freeptr].undo_trail_int_freeptr = undo_trail_int_freeptr;
+  undo_stack[undostack_freeptr++].undo_trail_freeptr = undo_trail_freeptr;
+  save_undones();
+}
+
+void clear_undo_frame(){
+  if(undostack_freeptr == 0)berror("MetaC bug: no undo frame to clear");
+
+  int old_trail_int_freeptr = undo_stack[undostack_freeptr-1].undo_trail_int_freeptr;
+  while(undo_trail_int_freeptr != old_trail_int_freeptr){
+    undo_trail_int_freeptr--;
+    *(undo_trail_int[undo_trail_int_freeptr].location) = undo_trail_int[undo_trail_int_freeptr].oldval;}
+
+  int old_trail_freeptr = undo_stack[undostack_freeptr-1].undo_trail_freeptr;
+  while(undo_trail_freeptr != old_trail_freeptr){
+    undo_trail_freeptr--;
+    *(undo_trail[undo_trail_freeptr].location) = undo_trail[undo_trail_freeptr].oldval;}
+
+  save_undones();
+}
+  
+void pop_undo_frame(){
+  if(undostack_freeptr == 0)berror("attempt to pop base undo frame");
+  clear_undo_frame();
+  undostack_freeptr--;
+}
+
+void restart_undo_frame(int n){
+  if(n == undostack_freeptr){push_undo_frame();return;}
+  if(n > undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
+  while(undostack_freeptr > n+1)pop_undo_frame();
+  clear_undo_frame();
+}
+
+void init_undo1(){
+  undo_heap_freeptr = 0;
+  add_undone_int(&undo_heap_freeptr);
+  undo_trail_int_freeptr = 0;
+  undo_trail_freeptr = 0;
+  undoneint_freeptr = 0;
+  undoneptr_freeptr = 0;
+  undostack_freeptr = 0;
+
+}
+
+/** ========================================================================
+undo expression
+
+in mc.h:
+
+
+typedef struct expstruct{ //in undo memory
+  plist plistptr; //property list
+  void * internal; //application specific structure
+  char constructor;
+  struct expstruct * arg1;
+  struct expstruct * arg2;
+}expstruct,*expptr;
+
+======================================================================== **/
 
 #define UNDOEXP_HASH_DIM  (1 << 24)
 expptr undoexp_hash_table[UNDOEXP_HASH_DIM];
@@ -60,9 +175,6 @@ expptr intern_exp(char constr, expptr a1, expptr a2){
   }
 }
 
-/** ========================================================================
-undo strings
-======================================================================== **/
 
 #define UNDOSTRING_HASH_DIM 10000
 char * undostring_hash_table[UNDOSTRING_HASH_DIM];
@@ -97,56 +209,90 @@ char * string_to_undo(char * s){
   return undostring_hash_table[key];
 }
 
+void init_undo_memory(){
+  init_undo1();
+
+  for(int i=0;i<UNDOEXP_HASH_DIM;i++)undoexp_hash_table[i] = NULL;
+  undoexp_count = 0;
+  add_undone_int(&undoexp_count);
+
+  for(int i=0;i<UNDOSTRING_HASH_DIM;i++)undostring_hash_table[i]=NULL;
+  undostring_count = 0;
+  add_undone_int(&undostring_count);
+}
+
 /** ========================================================================
 undo properties
+
+in mc.h:
+
+typedef struct pliststruct{
+  void * key;
+  void * value;
+  struct pliststruct * rest;
+}*plistptr;
+
 ======================================================================== **/
 
-static inline plist exp_plist(expptr e){
+plistptr exp_plist(expptr e){
   if(e == NULL)berror("attempt to take plist of null expression");
   return e -> plist;}
 
-plist getprop_cell(expptr e, expptr key){
-  for(plist p = exp_plist(e); p!= NULL; p=p->rest){
+plistptr getprop_cell(expptr e, void * key){
+  for(plistptr p = exp_plist(e); p!= NULL; p=p->rest){
     if(p->key == key) return p;}
   return NULL;
 }
 
-void * getprop(expptr e, expptr key, void * defaultval){
+void * getprop(expptr e, void * key, void * defaultval){
   if(e == NULL)berror("attempt to get a property of the null expression");
-  plist p = getprop_cell((expptr) e, key);
+  plistptr p = getprop_cell((expptr) e, key);
   if(p == NULL)return defaultval;
   return p -> value;
 }
 
-void addprop(expptr e, expptr key, void * val){
+void addprop(expptr e, void * key, void * val){
   if(e == NULL)berror("attempt to add a property of the null expression");
-  plist new = (plist) undo_alloc(sizeof(pliststruct));
+  plistptr new = (plistptr) undo_alloc(sizeof(pliststruct));
   new->key = key;
   new->value = val;
   new->rest = e->plist;
   undo_set(e-> plist,new);
 }
 
-void setprop(expptr e, expptr key, void * val){
+void setprop(expptr e, void * key, void * val){
   if(e == NULL)berror("attempt to set a property of the null expression");
-  plist cell = getprop_cell(e, key);
+  plistptr cell = getprop_cell(e, key);
   if(cell != NULL){undo_set(cell->value,val); return;}
   addprop(e,key,val);
 }
 
-int getprop_int(expptr e, expptr key, int defaultval){
+int getprop_int(expptr e, void * key, int defaultval){
   if(e == NULL)berror("attempt to get a property of the null expression");
-  plist p = getprop_cell(e, key);
+  plistptr p = getprop_cell(e, key);
   if(p == NULL)return defaultval;
   int * y = (int *) &(p -> value);
   return *y;
 }
 
-void setprop_int(expptr e, expptr key, int x){
-  char buffer[8]; //buffer is a pointer.
-  int * y = (int *) buffer;
-  *y = x;
-  setprop(e,key, * (expptr *) buffer);
+void addprop_int(expptr e, void * key, int val){
+  if(e == NULL)berror("attempt to add a property of the null expression");
+  plistptr new = (plistptr) undo_alloc(sizeof(pliststruct));
+  new->key = key;
+  int * y = (int *) &(new->value);
+  * y = val;
+  new->rest = e->plist;
+  undo_set(e-> plist,new);
+}
+
+void setprop_int(expptr e, void * key, int val){
+  if(e == NULL)berror("attempt to set a property of the null expression");
+  plistptr cell = getprop_cell(e, key);
+  if(cell != NULL){
+    int * y = (int *) &(cell->value);
+      undo_set_int(y,val);
+      return;}
+  addprop_int(e,key,val);
 }
 
 /** ========================================================================
@@ -154,6 +300,7 @@ stack memory
 
 stack objects are not interned and stack expressions do not have properties
 ========================================================================**/
+
 #define STACKHEAP_DIM (1<<19)
 char stackheap[STACKHEAP_DIM];
 int stackheap_freeptr;
@@ -197,63 +344,6 @@ expptr stack_exp(char constr, expptr a1, expptr a2){
   newexp->arg1 = a1;
   newexp->arg2 = a2;
   return newexp;
-}
-
-/** ========================================================================
-undo stack frames and the undo stack
-======================================================================== **/
-
-typedef struct undo_frame{
-  int undo_trail_freeptr;
-  int undo_heap_freeptr;
-  int undoexp_count;
-  int undostring_count;
-}undo_frame;
-
-#define UNDOSTACK_DIM (1<<10)
-undo_frame undo_stack[UNDOSTACK_DIM];
-int undostack_freeptr;
-
-void push_undo_frame(){
-  if(undostack_freeptr == UNDOSTACK_DIM)berror("undo freeptr stack exhausted");
-  undo_stack[undostack_freeptr].undo_trail_freeptr = undo_trail_freeptr;
-  undo_stack[undostack_freeptr].undo_heap_freeptr = undo_heap_freeptr;
-  undo_stack[undostack_freeptr].undoexp_count = undoexp_count;
-  undo_stack[undostack_freeptr++].undostring_count = undostring_count;
-}
-
-void init_undo_memory(){
-  undo_heap_freeptr = 0;
-  undo_trail_freeptr = 0;
-  for(int i=0;i<UNDOEXP_HASH_DIM;i++)undoexp_hash_table[i] = NULL;
-  undoexp_count = 0;
-  for(int i=0;i<UNDOSTRING_HASH_DIM;i++)undostring_hash_table[i]=NULL;
-  undostring_count = 0;
-  undostack_freeptr = 0;
-}
-
-void clear_undo_frame(){
-  if(undostack_freeptr == 0)berror("MetaC bug: no undo frame to clear");
-  int old_trail_freeptr = undo_stack[undostack_freeptr-1].undo_trail_freeptr;
-  while(undo_trail_freeptr != old_trail_freeptr){
-    undo_trail_freeptr--;
-    *(undo_trail[undo_trail_freeptr].location) = undo_trail[undo_trail_freeptr].oldval;}
-  undo_heap_freeptr = undo_stack[undostack_freeptr-1].undo_heap_freeptr;
-  undoexp_count = undo_stack[undostack_freeptr-1].undoexp_count;
-  undostring_count = undo_stack[undostack_freeptr-1].undostring_count;
-}
-  
-void pop_undo_frame(){
-  if(undostack_freeptr == 0)berror("attempt to pop base undo frame");
-  clear_undo_frame();
-  undostack_freeptr--;
-}
-
-void restart_undo_frame(int n){
-  if(n == undostack_freeptr){push_undo_frame();return;}
-  if(n > undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
-  while(undostack_freeptr > n+1)pop_undo_frame();
-  clear_undo_frame();
 }
 
 /** ========================================================================
@@ -792,6 +882,8 @@ FILE * fileout;
 void process_def(expptr e);
 
 void mcexpand(char * source, char * destination){
+  preamble = nil;
+  init_forms = nil;
   expptr exps = file_expressions(source);
   fileout = fopen(destination, "w");
   if(fileout == NULL)berror("attempt to open output file failed");
