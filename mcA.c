@@ -1098,14 +1098,14 @@ int precedence(char c){
   if(terminatorp(c))return 0;
   if(c==';')return 1;
   if(c==',')return 2;
-  if(c=='|')return 3;
-  if(c =='&' || c == '!' || c == '?')return 5;
+  if(c == ':')return 4;
+  if(c=='|' || c =='&' || c == '!' || c == '?')return 5;
   if(c=='=' || c=='<' || c=='>' || c =='~') return 6;
   if(c=='+' || c=='-')return 7;
   if(c=='*' || c=='/')return 8;
-  if(c == '%' || c == '^' || c == '#')return 9;
-  if(c=='@' || c=='.' || c == ':')return 10;
-  return 4; //precedence of combining adjacent arguments.
+  if(c == '%' || c == '^' )return 9;
+  if(c=='@' || c=='.' || c == '#')return 10;
+  return 3; //precedence of combining adjacent arguments.
 }
 
 #define LEFT_THRESHOLD 10
