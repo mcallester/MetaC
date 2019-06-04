@@ -190,7 +190,7 @@ expression_constants
 ======================================================================== **/
 
 expptr period, comma, colon, semi, backquote, dollar, backslash, exclam, question, any, nil;
-expptr nil, macro;
+expptr nil, macro, intern_noticers;
 
 expptr bquote_code(expptr);
 expptr quote_code(expptr);
