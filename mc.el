@@ -17,6 +17,7 @@
 (define-key ctr-z-map "a" 'MC:beginning-of-def)
 (define-key ctr-z-map "p" 'MC:previous-def)
 (define-key ctr-z-map "n" 'MC:next-def)
+(define-key ctr-z-map "c" 'MC:goto-c)
 
 (define-key ctr-z-map "c" 'MC:clean-cells)
 
@@ -82,14 +83,15 @@
   (setq *source-buffer* (current-buffer))
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
+  (shell-command "rm /tmp/*")
+  (setq *starting* t)
+  (setq *compile-count* 1)
   (start-process "MetaC" (gdb-buffer) *gdb*)
   (with-current-buffer (gdb-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:filter))
   (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
   (process-send-string (mc-process) "break cbreak\n")
   (process-send-string (mc-process) "run\n")
-  (setq *eval-count* 1)
-  (setq *starting* t)
   (setq *mc-accumulator* nil)
   (setq *gdb-mode* nil)
   (print "kernel restarted"))
@@ -146,9 +148,6 @@
       (insert "/**  **/")
       (backward-char 4)
 
-      ;;(insert (format "%d: " *eval-count*))
-      ;;(setq *eval-count* (+ *eval-count* 1))
-      
       (process-send-string (mc-process) (format "%s\0\n" exp))
       ;; the above return seems needed to flush the buffer
     )))
@@ -181,6 +180,7 @@
   (cond ((string= tag "ignore"))
 
 	((string= tag "result")
+	 (setq *compile-count* (+ *compile-count* 1))
 	 (if (> (length value) 1)
 	     (MC:insert-in-segment (substring value 0 (- (length value) 1)))
 	   (insert "value prints as empty string"))
@@ -333,3 +333,12 @@
   (interactive)
   (MC:load-interval (point-min) (point-max)))
 
+(defun MC:goto-c ()
+  (interactive)
+  (find-file "/tmp")
+  (revert-buffer)
+  (end-of-buffer)
+  (search-backward ".c")
+  (backward-word)
+  (dired-find-file)
+  (end-of-buffer))

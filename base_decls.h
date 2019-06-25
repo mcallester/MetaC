@@ -14,7 +14,7 @@ typedef struct pliststruct{
 
 typedef struct expstruct{
   plist data;
-  void * internal;
+  void * extension;
   char constructor;
   struct expstruct * arg1;
   struct expstruct * arg2;
@@ -80,7 +80,7 @@ properties of expressions
 expptr getprop(expptr e, expptr key, expptr defaultval);
 void setprop(expptr e, expptr key, void * val);
 int getprop_int(expptr e, expptr key, int defaultval);
-void setprop_int (expptr e, expptr key, int val);
+void setprop_int (expptr e, void * key, int val);
 
 
 /** ========================================================================
@@ -108,11 +108,15 @@ void pprint(expptr e, FILEptr f, int i);
 macros
 ========================================================================**/
 
+expptr top_atom(expptr e);
+
 void set_macro(expptr sym, expptr f(expptr));
 
 expptr macroexpand(expptr e);
 
 expptr macroexpand1(expptr e);
+
+int symbolp(expptr e);
 
 /** ========================================================================
 cons and nil 
@@ -137,7 +141,7 @@ undo frames
 
 voidptr undo_alloc(int size);
 void undo_set_proc(void ** loc, void * val);
-void undo_set_int_proc(void ** loc, void * val);
+void undo_set_int_proc(int * loc, int val);
 void add_undone_int(int * loc);
 void add_undone_pointer(void * * loc);
 
@@ -174,6 +178,8 @@ expptr expptr_to_undo(expptr stack_exp);
 
 expptr expptr_to_stack(expptr exp);
 
-expptr add_init_form(expptr form);
+void add_init_form(expptr form);
 
-expptr add_preamble(expptr form);
+void add_preamble(expptr form);
+
+void add_form(expptr form);

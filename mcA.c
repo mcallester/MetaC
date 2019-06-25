@@ -4,7 +4,7 @@
 undo_alloc, undo_set_int and undo_set
 premacros.h contains
 
-#define undo_set_int(pointer,value) undo_set_int_proc((int *) &pointer,value)
+#define undo_set_int(pointer,value) undo_set_int_proc((int **) &pointer,value)
 
 #define undo_set(pointer,value) undo_set_proc((void **) &pointer,value)
 ========================================================================**/
@@ -153,8 +153,6 @@ typedef struct expstruct{ //in undo memory
 expptr undoexp_hash_table[UNDOEXP_HASH_DIM];
 int undoexp_count;
 
-void notice_intern(expptr);
-
 expptr intern_exp(char constr, expptr a1, expptr a2){
   if(constr == '\0')berror("bad constructuctor in intern_exp");
   unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & UNDOEXP_HASH_DIM-1;
@@ -170,7 +168,6 @@ expptr intern_exp(char constr, expptr a1, expptr a2){
       newexp->arg1 = a1;
       newexp->arg2 = a2;
       undo_set(undoexp_hash_table[i],newexp);
-      notice_intern(newexp);
       return newexp;
     }else{
       if(oldexp -> constructor == constr && oldexp->arg1 == a1 && oldexp-> arg2 == a2)return oldexp;
@@ -709,16 +706,13 @@ void set_macro(expptr sym, expptr f(expptr)){
   setprop(sym, macro, (expptr) f);
 }
 
-expptr top_atom(expptr e){
+ expptr top_atom(expptr e){
   if(!cellp(e))return NULL;
-  expptr f = car(e);
-  if(atomp(f))return f;
-  if(!cellp(f))return NULL;
-  expptr half = car(f);
-  if(!cellp(half))return NULL;
-  if(atomp(cdr(half))) return cdr(half);
+  expptr ae = car(e);
+  if(atomp(ae))return ae;
   return NULL;
 }
+
 expptr macroexpand1(expptr e){
   expptr s = top_atom(e);
   if(s == NULL)return e;
@@ -733,34 +727,9 @@ expptr macroexpand(expptr e){
   expptr e2 = macroexpand1(e);
   if(e2 != e) return macroexpand(e2);
   if(parenp(e)) return intern_paren(constructor(e),macroexpand(paren_inside(e)));
-  return intern_exp(constructor (e),macroexpand(car(e)),macroexpand(cdr(e)));
+  return intern_exp(constructor(e),macroexpand(car(e)),macroexpand(cdr(e)));
 }
   
-
-
-/** ========================================================================
-intern noticers
-======================================================================== **/
-
-void add_intern_noticer(expptr sym, expptr f(expptr)){
-  expptr rest = getprop(sym, intern_noticers, NULL);
-  if (rest)
-    setprop(sym, intern_noticers, cons((expptr) f,rest));
-  else
-    setprop(sym, intern_noticers, cons((expptr) f,nil));
-}
-
-void notice_intern(expptr e){
-  expptr s = top_atom(e);
-  if(s == NULL)return;
-  expptr noticers = getprop(s,intern_noticers,NULL);
-  if (noticers)
-    while(!atomp(noticers)){
-      expptr (*f)(expptr);
-      f = (expptr (*)(expptr)) car(noticers);
-      noticers = cdr(noticers);
-    }
-}
 
 /** ========================================================================
 Preamble and init_forms can be added during macro expansion
@@ -775,6 +744,9 @@ void add_preamble(expptr e){
   expptr e2 = macroexpand(e); //this macro expansion can add to the preamble first.
   preamble = append(preamble, cons(e2,nil));}
 
+//in the NIDE there is no difference between init_forms and preamles so we use the following
+
+void add_form(expptr e){add_preamble(e);}
 
 /** ========================================================================
 section: gensym
@@ -797,7 +769,7 @@ expptr gensym(char * s){
   while(1){
     int i = rand()%(3*gensym_count);
     gensym_count++;
-    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"_gen%s%d",s,i);
+    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"%s_%d",s,i);
     if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
     int key = undostring_key(ephemeral_buffer);
     if(undostring_hash_table[key]==NULL)break;}
@@ -1241,10 +1213,10 @@ void init_exp_constants(){
   exclam = string_atom("!");
   question = string_atom("?");
   any = cons(dollar,string_atom("any"));
+  dot = string_atom(".");
 
   nil = string_atom("");
   macro = string_atom("macro");
-  intern_noticers = string_atom("intern_noticers");
 }
 
 void mcA_init(){

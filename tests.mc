@@ -43,6 +43,7 @@ typedef struct myexpstruct{
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
+/** 2:done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -50,6 +51,7 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
+/** 4:done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
@@ -183,9 +185,25 @@ foobar()
 ======================================================================== **/
 
 expptr goo(expptr exp){returni exp;}
+/** compilation error **/
 
 goo(`{a})
+/** compilation error **/
 
+
+/** ========================================================================
+compilation error of type defintion should not leave trash in file_preamble
+======================================================================== **/
+
+typedef struct myexpstruct{
+  char * label;
+  myexp car;
+  struct myexpstruct * cdr;
+} myexpstruct, *myexp;
+/** compilation error **/
+
+`{a}
+/** 3:a **/
 
 /** ========================================================================
  procedure type declaration without procedure definition should result
@@ -333,3 +351,21 @@ void catch_test(){
 catch_test();
 
 
+/** ========================================================================
+commacase and spacecase
+======================================================================== **/
+
+commacase{`{a c,b};{$x,$y}:{return `{$x,$y};}}
+/** 1:a c,b **/
+
+commacase{`{a c};{$x,$y}:{return `{$x ${int_exp(y == NULL)}};}}
+/** 2:a c 1 **/
+
+spacecase{`{(a c) b};{($x $y) $z}:{return `{($x $y),$z};}}
+/** 1:(a c),b **/
+
+spacecase{`{(a b)};{($x $y) $z}:{return `{($x $y) ${int_exp(z == NULL)}};}}
+/** 2:(a b)1 **/
+
+macroexpand(`{defclass{just}})
+/** 2:typedef struct just_struct{int imp_index;}*just **/

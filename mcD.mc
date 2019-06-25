@@ -9,7 +9,7 @@ umacro{undo_push($x,$y)}{
 }
 
 umacro{dolist($x,$y){$body}}{
-  //we need make "break" and "continue" work form inside iteration macros.
+  //we need make "break" and "continue" work from inside iteration macros.
   expptr yval = gensym("yval");
   return `{{
       expptr $x;
@@ -77,6 +77,11 @@ umacro{exp_from_undo_frame($exp)}{
 	    pop_memory_frame();},
 	  {pop_undo_frame();});
 	$newexp;})};
+}
+
+
+umacro{orcase{$valexp;{$firstpattern}{$secondpattern}:{$body}}}{
+  return `{ucase{$valexp;{$firstpattern}:{$body} {$secondpattern}:{$body}}};
 }
 
 init_fun(mcD_init)

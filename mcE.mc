@@ -32,6 +32,7 @@ expptr new_procedures;
 expptr new_sig_procedures;
 expptr new_arrays;
 expptr new_statements;
+expptr new_preambles;
 
 int compilecount;
 int cellcount;
@@ -144,7 +145,7 @@ expptr simple_eval(expptr exp){
     {$any} : {return load(append(preamble,append(init_forms,cons(e,nil))));}}
 }
 
-void simple_eval_noval(expptr e){
+void simple_eval_noval(expptr e){ //this can be used with mapc
   simple_eval(e);
 }
 
@@ -168,9 +169,11 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   new_sig_procedures = nil;
   new_arrays = nil;
   new_statements = nil;
+  new_preambles = nil;
   
   mapc(install,forms);
   mapc(print_preamble,reverse(file_preamble));
+  mapc(print_preamble,reverse(new_preambles));
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
 
@@ -208,13 +211,14 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
 
   in_doit = 1;
   expptr e = (*_mc_doit)(symbol_value);
+  mapc(install_preamble,reverse(new_preambles));
   return `{${int_exp(++cellcount)}: $e};
 }
 
 void install(expptr statement){
   ucase{statement;
-    {typedef $def;}:{install_preamble(statement);}
-    {typedef $def1,$def2;}:{install_preamble(statement);}
+    {typedef $def;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);}
+    {typedef $def1,$def2;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);}
     {#include <$any>}:{install_preamble(statement);}
     {return $e;}:{push(statement,new_statements);}
     {$type $X[0];}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1});}

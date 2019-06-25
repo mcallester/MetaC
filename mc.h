@@ -11,7 +11,7 @@ typedef struct pliststruct{
 
 typedef struct expstruct{ //in undo memory
   plistptr plist;
-  void * internal;
+  void * extension;
   char constructor;
   struct expstruct * arg1;
   struct expstruct * arg2;
@@ -90,6 +90,7 @@ static inline char constructor(expptr e){
 expptr int_exp(int i);
 int exp_int(expptr s);
 
+expptr atom_quote_code(expptr a);
 
 /** ========================================================================
 gensym
@@ -145,6 +146,8 @@ void add_preamble(expptr e);
 expptr init_forms;
 void add_init_form(expptr e);
 
+void add_form(expptr e);
+
 expptr args_variables(expptr args);
 
 void match_failure(expptr,expptr);
@@ -189,7 +192,7 @@ int rep_column;
 expression_constants
 ======================================================================== **/
 
-expptr period, comma, colon, semi, backquote, dollar, backslash, exclam, question, any, nil;
+expptr period, comma, colon, semi, backquote, dollar, backslash, exclam, question, any, nil, dot;
 expptr nil, macro, intern_noticers;
 
 expptr bquote_code(expptr);

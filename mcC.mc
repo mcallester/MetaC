@@ -8,7 +8,7 @@ expptr init_form_macro(expptr e){
 expptr umacro_macro(expptr e){
   ucase{e;
 	 {umacro{$pattern}{$body}}:{
-	   expptr name = top_atom(pattern); //name can be a connective.
+	   expptr name = top_atom(pattern);
 	   if(name == NULL)berror("illegal pattern in umacro");
 	   char * s = atom_string(name);
 	   expptr fname = symbolp(name) ? gensym(s) : gensym("connective");
