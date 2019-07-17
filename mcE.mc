@@ -24,26 +24,43 @@ MetaC is designed to create new languages.  The implementation of a new language
 better code analysis of the new langauge.
 ======================================================================== **/
 
-expptr file_preamble;
+expptr preamble;
 expptr procedures;
 expptr arrays;
 
-expptr new_procedures;
+expptr new_body_procedures;
 expptr new_sig_procedures;
 expptr new_arrays;
-expptr new_statements;
+expptr doit_statements;
 expptr new_preambles;
+
+void install_preamble(expptr e){
+  if(!getprop_int(e,`{installed},0)){
+    push(e,preamble);
+    setprop_int(e,`{installed},1);}
+}
+
+void install_array(expptr e){
+  if(!getprop_int(e,`{installed},0)){
+    push(e,arrays);
+    setprop_int(e,`{installed},1);}
+}
+
+void install_procedure(expptr e){
+  if(!getprop_int(e,`{installed},0)){
+    push(e,procedures);
+    setprop_int(e,`{installed},1);}
+}
 
 int compilecount;
 int cellcount;
 int symbol_count;
 
 expptr args_variables(expptr args);
-void install(expptr sig);
+void preinstall(expptr sig);
 voidptr compile_load_file(charptr fstring);
-void install_preamble(expptr);
-void install_var(expptr,expptr,expptr);
-void install_proc(expptr,expptr,expptr,expptr);
+void preinstall_array(expptr,expptr,expptr);
+void preinstall_proc(expptr,expptr,expptr,expptr);
 void install_proc_def(expptr f);
 void install_link_def(expptr f);
 int symbol_index(expptr);
@@ -64,15 +81,15 @@ Becasue of REPL compile and load syncronization, install_base cannot be cleanly 
 ======================================================================== **/
 
 void mcE_init1(){
-  file_preamble = nil;
-  add_undone_pointer((void**) &file_preamble);
+  preamble = nil;
+  add_undone_pointer((void**) &preamble);
   arrays = nil;
   add_undone_pointer((void**) &arrays);
   procedures = nil;
   add_undone_pointer((void**) &procedures);
   symbol_count = 0;
   add_undone_int(&symbol_count);
-  install_base();  //all executables built on mcE (ExpandE, REPL and IDE) have the same indeces for base functions.
+  install_base();  //ExpandE and NIDE should have the same indeces for base functions.
   compilecount = 0;
   cellcount = 0;
   add_undone_int(&cellcount);
@@ -98,11 +115,11 @@ void install_base(){
         push(f,procedures);
 	setprop(f,`{signature},sig);
       }
-      {$type $x[$dim];}:{
+      {$type $x[$dim];}.(symbolp(type) && symbolp(x)):{
 	symbol_index(x);  //establish the index
 	push(x,arrays);
 	setprop(x,`{signature},sig);}
-      {$e}:{push(e,file_preamble);} //typedefs
+      {$e}:{push(e,preamble);} //typedefs
     }}
 }
 
@@ -132,109 +149,115 @@ expptr array_extraction (expptr x){
 ======================================================================== **/
 
 expptr simple_eval(expptr exp){
-  preamble= nil;
+  new_preambles = nil;
   init_forms = nil;
   in_doit = 0;
   expptr e = macroexpand(exp);
+  return load(append(preamble,append(init_forms,cons(e,nil))));
+}
+
+void eval_from_load(expptr e){
   ucase{e;
-    {load($sym)}.(atomp(sym)) : {
-      fprintf(stdout,"recursive load is not supported in MetaC relase 1.0");
+    {restart_undo_frame($any);}:{
+      fprintf(stdout,"loaded file contains an undo restart");
       if(in_ide)send_emacs_tag(comp_error_tag);
       if(in_repl)fprintf(stdout,"\n evaluation aborted");
       throw_error();}
-    {$any} : {return load(append(preamble,append(init_forms,cons(e,nil))));}}
-}
-
-void simple_eval_noval(expptr e){ //this can be used with mapc
-  simple_eval(e);
+    {load($sym)}.(atomp(sym)) : {
+      fprintf(stdout,"recursive load is not yet supported");
+      if(in_ide)send_emacs_tag(comp_error_tag);
+      if(in_repl)fprintf(stdout,"\n evaluation aborted");
+      throw_error();}
+    {$any} : {simple_eval(e);}}
 }
 
 void eval_exp(expptr exp){
   ucase{exp;
-    {load($sym)}.(atomp(sym)) : {
+    {load($sym);}.(atomp(sym)) : {
       char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
-      mapc(simple_eval_noval,file_expressions(require_file));
-      fprintf(stdout,"%s Provided\n",require_file); }
+      mapc(eval_from_load,file_expressions(require_file));
+      pprint(`{${int_exp(cellcount)}: $sym provided},stdout,0);}
     {$any} : {pprint(simple_eval(exp),stdout,0);}}
 }
 
+void write_signature(expptr sym){
+  expptr sig =getprop(sym,`{signature},NULL);
+  if(!sig)berror(sformat("MCbug: %s has no signature", atom_string(sym)));
+  ucase{sig;
+    {$type $x[$dim];}:{pprint(`{${type} * ${x};},fileout,0);}
+    {$any}:{pprint(sig,fileout,0);}}
+}
+    
 expptr load(expptr forms){ // forms must be fully macro expanded.
-
   compilecount++; //this needs to be here becasue sformat duplicates the second argument
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
   fprintf(fileout,"#include \"%spremacros.h\"\n", MetaC_directory);
 
-  new_procedures = nil;
+  new_body_procedures = nil;
   new_sig_procedures = nil;
   new_arrays = nil;
-  new_statements = nil;
+  doit_statements = nil;
   new_preambles = nil;
-  
-  mapc(install,forms);
-  mapc(print_preamble,reverse(file_preamble));
+
+  mapc(preinstall,forms);
+
+  mapc(print_preamble,reverse(preamble));
   mapc(print_preamble,reverse(new_preambles));
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
 
-  //variable declarations
-  dolist(f,procedures){
-    expptr sig =getprop(f,`{signature},NULL);
-    if(sig){pprint(sig,fileout,0);}
-  }
-  dolist(x,arrays){
-    ucase{getprop(x,`{signature},NULL);
-      {$type $x[$dim];}:{pprint(`{$type * $x;},fileout,0);}
-      {$any}:{}}}
+  mapc(write_signature, procedures);
+  mapc(write_signature, new_sig_procedures);
+  mapc(write_signature, arrays);
+  mapc(write_signature, new_arrays);
 
   //procedure value extractions.  array extractions are done in doit.
 
   mapc(install_link_def,procedures);
-  mapc(install_proc_def,new_procedures);
+  mapc(install_link_def,new_sig_procedures);
+  mapc(install_proc_def,new_body_procedures);
 
   pprint(`{
       expptr _mc_doit(voidptr * symbol_value){
 	symbol_value_copy = symbol_value;
-	${mapcar(new_procedure_insertion, new_procedures)}
+	${mapcar(new_procedure_insertion, new_body_procedures)}
 	${mapcar(new_array_insertion, new_arrays)}
 	${mapcar(array_extraction, arrays)} // procedure extractions are done by install_link_def above
-	${reverse(new_statements)}
+	${reverse(doit_statements)}
 	return string_atom("done");}},
     fileout,0);
   fclose(fileout);
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
 
-  if(in_ide){send_emacs_tag(ignore_tag);}
-   expptr (* _mc_doit)(voidptr *);
+  if(in_ide){send_emacs_tag(ignore_tag);} //ignore output from successful compilation
+  expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
 
   in_doit = 1;
   expptr e = (*_mc_doit)(symbol_value);
+  
   mapc(install_preamble,reverse(new_preambles));
+  mapc(install_array,reverse(new_arrays));
+  mapc(install_procedure,reverse(new_sig_procedures));
   return `{${int_exp(++cellcount)}: $e};
 }
 
-void install(expptr statement){
+void preinstall(expptr statement){
   ucase{statement;
     {typedef $def;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);}
     {typedef $def1,$def2;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);}
-    {#include <$any>}:{install_preamble(statement);}
-    {return $e;}:{push(statement,new_statements);}
-    {$type $X[0];}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1});}
-    {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{install_var(type,X,`{1}); push(`{$X[0] = $e;},new_statements);}
-    {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{install_var(type,X,dim);}
-    {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, body);}
-    {$type $f($args);}.(symbolp(type) && symbolp(f)):{install_proc(type, f, args, NULL);}
-    {$e;}:{push(statement,new_statements)}
-    {{$e}}:{push(statement,new_statements)}
-    {$any}:{push(`{return $statement;},new_statements)}}
-}
-
-void install_preamble(expptr e){
-  if(!getprop(e,`{installed},NULL)){
-    push(e,file_preamble);
-    setprop(e,`{installed},`{true});}
+    {#include <$any>}:{push(statement, new_preambles);}
+    {return $e;}:{push(statement,doit_statements);}
+    {$type $X[0];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1});}
+    {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1}); push(`{$X[0] = $e;},doit_statements);}
+    {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,dim);}
+    {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, body);}
+    {$type $f($args);}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, NULL);}
+    {$e;}:{push(statement,doit_statements)}
+    {{$e}}:{push(statement,doit_statements)}
+    {$any}:{push(`{return $statement;},doit_statements)}}
 }
 
 void print_preamble(expptr e){
@@ -243,38 +266,34 @@ void print_preamble(expptr e){
     {$any}:{pprint(e,fileout,rep_column);}}
 }
 
-void install_var(expptr type, expptr X, expptr dim){
-  expptr oldsig = getprop(X,`{signature}, NULL);
-  expptr newsig = `{$type $X[$dim];};
-  if(!getprop(X,`{on_arrays},NULL)){
-    push(X,arrays);
-    setprop(X,`{on_arrays},`{true});}
-  if(oldsig != NULL && newsig != oldsig){
-    berror(sformat("attempt to change signature from\n %s\n to\n %s\n",
+void check_signature(expptr sym, expptr sig){
+  expptr oldsig = getprop(sym,`{signature},NULL);
+  if(sig != oldsig){
+    berror(sformat("attempt to change signature of %s from\n %s\n to\n %s\n",
+		   atom_string(sym),
 		   exp_string(oldsig),
-		   exp_string(newsig)));
-  }
-  if(oldsig == NULL){
-    setprop(X,`{signature},newsig);
-    push(X,new_arrays);}
+		   exp_string(sig)));}
 }
 
-void install_proc(expptr type, expptr f, expptr args, expptr body){
-  expptr oldsig = getprop(f,`{signature}, NULL);
-  expptr newsig = `{$type $f($args);};
-  if(!getprop(f,`{on_procedures},NULL)){
-    push(f,procedures);
-    setprop(f,`{on_procedures},`{true});}
-  if(!oldsig){
-    push(f,new_sig_procedures);
-    setprop(f,`{signature},newsig);}    
-  if(oldsig && newsig != oldsig){
-    berror(sformat("attempt to change signature from\n %s\n to\n %s\n",
-		   exp_string(oldsig),
-		   exp_string(newsig)));}
+void preinstall_array(expptr type, expptr X, expptr dim){
+  expptr sig = `{$type $X[$dim];};
+  if(getprop_int(X,`{installed},0) == 0){
+    setprop(X,`{signature},sig);
+    push(X,new_arrays);}
+  else
+    check_signature(X, sig);
+}
+
+void preinstall_proc(expptr type,  expptr f, expptr args, expptr body){
+  expptr sig = `{$type $f($args);};
+  if(getprop_int(f,`{installed},0) == 0){
+    setprop(f,`{signature},sig);
+    push(f,new_sig_procedures);}
+  else{
+    check_signature(f, sig);}
   if(body){
     if (getprop(f,`{base},NULL))berror(sformat("attempt to change base function %s",atom_string(f)));
-    push(f, new_procedures);
+    push(f, new_body_procedures);
     setprop(f,`{gensym_name},gensym(atom_string(f)));
     setprop(f,`{body},body);
   }
@@ -324,8 +343,6 @@ void install_proc_def(expptr f){
 
 void comp_error(){
   fflush(stderr);
-  dolist(f,new_sig_procedures){setprop(f,`{signature},NULL);}
-  dolist(x,new_arrays){setprop(x,`{signature},NULL);}
   if(in_ide)send_emacs_tag(comp_error_tag);
   else fprintf(stdout,"\n evaluation aborted\n\n");
   throw_error();
@@ -360,4 +377,9 @@ char *strip_quotes(char *input){
     return buffer; 
   }
   else return input;
+}
+
+void NIDE(){
+  send_emacs_tag(continue_from_gdb_tag);
+  throw_error();
 }

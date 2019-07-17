@@ -1100,12 +1100,13 @@ int precedence(char c){
   if(c==';')return 1;
   if(c==',')return 2;
   if(c == ':')return 4;
-  if(c=='|' || c =='&' || c == '!' || c == '?')return 5;
-  if(c=='=' || c=='<' || c=='>' || c =='~') return 6;
-  if(c=='+' || c=='-')return 7;
-  if(c=='*' || c=='/')return 8;
-  if(c == '%' || c == '^' )return 9;
-  if(c=='@' || c=='.' || c == '#')return 10;
+  if(c=='@')return 5;
+  if(c=='|' || c =='&' || c == '!' || c == '?')return 6;
+  if(c=='=' || c=='<' || c=='>' || c =='~') return 7;
+  if(c=='+' || c=='-')return 8;
+  if(c=='*' || c=='/')return 9;
+  if(c == '%' || c == '^' )return 10;
+  if(c=='.' || c == '#')return 11;
   return 3; //precedence of combining adjacent arguments.
 }
 
@@ -1151,17 +1152,12 @@ void send_print_tag(){send_emacs_tag(print_tag);}
 
 int in_ide_proc(){return in_ide;}
 
-void NIDE(){
-  throw_error();
-}
-
 void breakpt(char *s){
-  fprintf(stdout,"breakpt: %s\n",s);
-  if(!in_ide)cbreak();
-  else {
+  if(in_ide){
+    fprintf(stdout,"breakpt: %s\n",s);
     send_emacs_tag(breakpoint_tag);
     cbreak();
-    send_emacs_tag(request_input_tag);
+    send_emacs_tag(continue_from_gdb_tag);
   }
 }
 
@@ -1171,6 +1167,7 @@ void berror(char *s){
     if(in_doit) send_emacs_tag(exec_error_tag);
     else send_emacs_tag(expansion_error_tag);}
   cbreak();
+  send_emacs_tag(continue_from_gdb_tag);
   throw_error();
 }
 
@@ -1198,7 +1195,7 @@ void init_tags(){
   comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";
   exec_error_tag = "*#*#dsflsadk#*#*exec-error*#*#dsflsadk#*#*";
   breakpoint_tag = "*#*#dsflsadk#*#*breakpoint*#*#dsflsadk#*#*";
-  request_input_tag = "*#*#dsflsadk#*#*IDE*#*#dsflsadk#*#*";
+  continue_from_gdb_tag = "*#*#dsflsadk#*#*continue-from-gdb*#*#dsflsadk#*#*";
   print_tag = "*#*#dsflsadk#*#*print*#*#dsflsadk#*#*";
 }
 

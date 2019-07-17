@@ -40,7 +40,9 @@ expptr args_variables(expptr args){
     {$type1 $var($type2), $rest}:{return cons(cons(var,comma), args_variables(rest));}
     {$type1 $var($type2)}:{return cons(var, nil);}
     {$type $var, $rest}:{return cons(cons(var,comma), args_variables(rest));}
-    {$type $var}:{return cons(var, nil);}}
+    {$type $var}:{return cons(var, nil);}
+    {$any}:{berror("illegal function signature --variable names must be provided");}}
+  
   return nil;
 }
 

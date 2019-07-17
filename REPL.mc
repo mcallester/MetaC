@@ -41,7 +41,7 @@ int main(int argc, char **argv){
   in_repl = 1;
   
   catch_error(insert_base())
-  if(error_flg != 0)return error_flg;
+  if(error_flg[0] != 0)return error_flg[0];
 
   read_eval_print();
   return 0;

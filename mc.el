@@ -11,14 +11,10 @@
 (define-key ctr-z-map "s" 'MC:start-metac)
 (define-key ctr-z-map "x" 'MC:execute-cell)
 (define-key ctr-z-map "r" 'MC:load-region)
-(define-key ctr-z-map "B" 'MC:load-buffer-to-point)
-(define-key ctr-z-map "b" 'MC:load-buffer)
 
 (define-key ctr-z-map "a" 'MC:beginning-of-def)
 (define-key ctr-z-map "p" 'MC:previous-def)
 (define-key ctr-z-map "n" 'MC:next-def)
-(define-key ctr-z-map "c" 'MC:goto-c)
-
 (define-key ctr-z-map "c" 'MC:clean-cells)
 
 (setq *seperator* "*#*#dsflsadk#*#*")
@@ -80,27 +76,24 @@
 
 (defun MC:start-metac ()
   (interactive)
-  (setq *source-buffer* (current-buffer))
+  (setq *starting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
+  (setq *gdb-mode* nil)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
   (shell-command "rm /tmp/*")
-  (setq *starting* t)
-  (setq *compile-count* 1)
   (start-process "MetaC" (gdb-buffer) *gdb*)
   (with-current-buffer (gdb-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:filter))
   (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
   (process-send-string (mc-process) "break cbreak\n")
   (process-send-string (mc-process) "run\n")
-  (setq *mc-accumulator* nil)
-  (setq *gdb-mode* nil)
   (print "kernel restarted"))
 
 (defun MC:execute-cell ()
   (interactive)
+  (setq *starting* nil) ;;this cannot be done in MC:start-metac due to asynchronous process communication
   (setq *source-buffer* (current-buffer))
   (setq *load-count* 1)
-  (setq *beep-when-done* nil)
   (MC:execute-cell-internal))
 
 (defun MC:load-region ()
@@ -108,15 +101,14 @@
   (setq *source-buffer* (current-buffer))
   (let ((top (region-beginning)))
     (setq *load-count* (MC:num-cells-region))
-    (setq *beep-when-done* t)
     (goto-char top)
     (if (zerop *load-count*)
         (message "Region contains no cell beginning")
       (MC:execute-cell-internal))))
 
 (defun MC:execute-cell-internal ()
-  (delete-other-windows)
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
+  (delete-other-windows)
   (setq buffer-file-coding-system 'utf-8-unix)
   (move-end-of-line nil)
   (MC:beginning-of-def)
@@ -176,63 +168,10 @@
 (defun MC:insert-in-segment (value)
   (insert (replace-regexp-in-string "\n" "\n  " value)))
 
-(defun MC:dotag (tag value)
-  (cond ((string= tag "ignore"))
-
-	((string= tag "result")
-	 (setq *compile-count* (+ *compile-count* 1))
-	 (if (> (length value) 1)
-	     (MC:insert-in-segment (substring value 0 (- (length value) 1)))
-	   (insert "value prints as empty string"))
-	 (MC:next-def)
-	 (setq *load-count* (- *load-count* 1))  ;;for load-region
-	 (if (> *load-count* 0)
-             (MC:execute-cell-internal)
-           (when *beep-when-done* (beep))))
-
-	;;the following two tags print
-	((string= tag "print")
-	 (print value))
-	((string= tag "comp-error")
-         (beep)
-	 (MC:insert-in-segment "compilation error")
-	 ;;(print value))
-	 (with-current-buffer (message-buffer)
-	   (erase-buffer) (MC:insert-in-segment value))
-	 (display-buffer (message-buffer) 'display-buffer-pop-up-window))
-	((string= tag "reader-error")
-         (beep)
-	 (MC:insert-in-segment "reader error")
-	 ;;(print value))
-	 (with-current-buffer (message-buffer)
-	   (erase-buffer) (MC:insert-in-segment value))
-	 (display-buffer (message-buffer) 'display-buffer-pop-up-window))
-
-	;;the following three tags enter gdb mode
-	((string= tag "exec-error")
-         (beep)
-	 (MC:insert-in-segment "dynamic-check execution error")
-	 (MC:goto-gdb value))
-	((string= tag "gdb-exec-error")
-         (beep)
-	 (MC:insert-in-segment "gdb-trapped execution error")
-	 (MC:goto-gdb value))
-	((string= tag "expansion-error")
-         (beep)
-	 (MC:insert-in-segment "macro expansion error")
-	 (MC:goto-gdb value))
-	((string= tag "breakpoint")
-         (beep)
-	 (MC:goto-gdb value))
-
-	;;the tag IDE returns from from gdb mode
-	((string= tag "IDE")
-	 (pop-to-buffer *source-buffer*)
-	 (when *gdb-mode* (delete-other-windows))
-	 (setq *gdb-mode* nil)
-	 (setq *starting* nil))
-
-	(t (error (format "unrecognized tag %s" tag)))))
+(defun MC:display-abort-message (msg)
+  (with-current-buffer (message-buffer)
+    (erase-buffer) (MC:insert-in-segment msg))
+  (display-buffer (message-buffer) 'display-buffer-pop-up-window))
 
 (defun MC:goto-gdb (value)
   (pop-to-buffer (gdb-buffer))
@@ -240,6 +179,57 @@
   (MC:insert-in-segment value)
   (set-marker (process-mark (mc-process)) (point))
   (setq *gdb-mode* t))
+
+(defun MC:continue-from-gdb ()
+  (delete-windows-on (gdb-buffer))
+  (pop-to-buffer *source-buffer*)
+  (setq *gdb-mode* nil))
+
+(defun MC:dotag (tag value)
+  (cond ((string= tag "reader-error")
+         (beep)
+	 (MC:insert-in-segment "reader error")
+	 (MC:display-abort-message value))
+
+	((string= tag "expansion-error")
+         (beep)
+	 (MC:insert-in-segment "mc to c dynamic-check error")
+	 (MC:goto-gdb value))
+
+	((string= tag "comp-error")
+         (beep)
+	 (MC:insert-in-segment "c compilation error")
+	 (MC:display-abort-message value))
+
+	((string= tag "exec-error")
+         (beep)
+	 (MC:insert-in-segment "dynamic-check error")
+	 (MC:goto-gdb value))
+	
+	((string= tag "gdb-exec-error")
+         (beep)
+	 (MC:insert-in-segment "segment fault --- to resume type p NIDE()")
+	 (MC:goto-gdb value))
+
+	((string= tag "breakpoint")
+         (beep)
+	 (MC:goto-gdb value))
+
+	((string= tag "continue-from-gdb")
+	 (MC:continue-from-gdb))
+
+	((string= tag "result")
+	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
+	 (MC:next-def)
+	 (setq *load-count* (- *load-count* 1))  ;;for load-region
+	 (when (> *load-count* 0) (MC:execute-cell-internal)))
+
+	((string= tag "ignore"))
+
+	((string= tag "print")
+	 (print value))
+	
+	(t (error (format "unrecognized tag %s" tag)))))
 
 (defun MC:clean-string (string)
   ;;removes carriage return chacters
@@ -320,25 +310,5 @@
             (kill-region (mark) (point))))
       (error nil))))
 
-(defun MC:load-interval (start end)
-  (set-mark start)
-  (goto-char end)
-  (MC:load-region))
 
-(defun MC:load-buffer-to-point ()
-  (interactive)
-  (MC:load-interval (point-min) (point)))
 
-(defun MC:load-buffer ()
-  (interactive)
-  (MC:load-interval (point-min) (point-max)))
-
-(defun MC:goto-c ()
-  (interactive)
-  (find-file "/tmp")
-  (revert-buffer)
-  (end-of-buffer)
-  (search-backward ".c")
-  (backward-word)
-  (dired-find-file)
-  (end-of-buffer))

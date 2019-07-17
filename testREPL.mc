@@ -12,6 +12,8 @@
 #include <string.h>
 #include "mc.h"
 
+voidptr symbol_value[SYMBOL_DIM];
+
 expptr load(expptr forms);
 
 void MC_doit(expptr e){
@@ -44,7 +46,7 @@ int main(int argc, char **argv){
   rep_column = -3;
   
   catch_error(insert_base())
-  if(error_flg != 0)return error_flg;
+  if(error_flg[0] != 0)return error_flg[0];
 
   read_eval_print();
   return 0;

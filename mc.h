@@ -218,7 +218,7 @@ char *  expansion_error_tag;
 char *  comp_error_tag;
 char *  exec_error_tag;
 char *  breakpoint_tag;
-char *  request_input_tag;
+char *  continue_from_gdb_tag;
 char * print_tag;
 
 void send_emacs_tag(char *);
