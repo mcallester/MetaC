@@ -157,6 +157,8 @@ expptr clean_undo_frame(expptr e);
 stack frames
 ========================================================================**/
 
+voidptrptr stack;
+
 void push_memory_frame();
 void pop_memory_frame();
 
