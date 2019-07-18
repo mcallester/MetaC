@@ -72,12 +72,15 @@
 (defun mc-process ()
     (get-buffer-process (gdb-buffer)))
 
-(defun MC:null-filter (proc string) nil)
+;;The gdb process initialization printout sometmes arrives after MC:start-metac exits.
+;;We must wait for the start-up process to finish to avoid the start-up
+;;printout from interfearing with inter-process communication.
 
 (defun MC:start-metac ()
   (interactive)
   (setq *starting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
   (setq *gdb-mode* nil)
+  (setq *mc-accumulator* nil)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
   (shell-command "rm /tmp/*")
@@ -86,12 +89,21 @@
   (set-process-filter (mc-process) (function MC:filter))
   (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
   (process-send-string (mc-process) "break cbreak\n")
-  (process-send-string (mc-process) "run\n")
-  (print "kernel restarted"))
+  (process-send-string (mc-process) "run\n"))
+
+(defun MC:filter (proc string)
+  (let ((clean  (MC:clean-string string)))
+    ;;(print (list '*starting* *starting* 'filter-receiving clean))
+    (setq *mc-accumulator* (concat *mc-accumulator* clean))
+    (if *starting*
+	(when (eq t (compare-strings "..... done" nil nil *mc-accumulator* -11 -1))
+	  (setq *mc-accumulator* nil)
+	  (print '(kernel restarted))
+	  (setq *starting* nil))
+      (MC:process-output))))
 
 (defun MC:execute-cell ()
   (interactive)
-  (setq *starting* nil) ;;this cannot be done in MC:start-metac due to asynchronous process communication
   (setq *source-buffer* (current-buffer))
   (setq *load-count* 1)
   (MC:execute-cell-internal))
@@ -108,6 +120,10 @@
 
 (defun MC:execute-cell-internal ()
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
+  (while *starting*
+    (print '(wating for process)) 
+    (sleep 1))
+
   (delete-other-windows)
   (setq buffer-file-coding-system 'utf-8-unix)
   (move-end-of-line nil)
@@ -120,8 +136,8 @@
       (error (end-of-buffer)))
     (re-search-backward "[^ \n\t]")
     (forward-char)
-
     (when (= top (point)) (error "there is no cell"))
+
     (let ((exp (buffer-substring top (point))))
       (if (= (buffer-end 1) (point))
 	  (insert "\n")
@@ -143,12 +159,6 @@
       (process-send-string (mc-process) (format "%s\0\n" exp))
       ;; the above return seems needed to flush the buffer
     )))
-
-(defun MC:filter (proc string)
-  (let ((clean  (MC:clean-string string)))
-    ;;(print (list 'filter-receiving clean))
-    (setq *mc-accumulator* (concat *mc-accumulator* clean))
-    (MC:process-output)))
 
 (defun MC:process-output ()
   (when (> (length *mc-accumulator*) 0)

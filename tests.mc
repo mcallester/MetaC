@@ -1,15 +1,9 @@
-//
-//
-//
-//
-//
 
 /** ========================================================================
  Hello world
 ======================================================================== **/
 
 `{a}
-/**  **/
 
 
 /** ========================================================================
@@ -28,12 +22,18 @@ int x[10];
 
 for(int i = 0; i < 10; i++)x[i] = i;
 
-for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
-
 int_exp(x[5])
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
 
+
+/** ========================================================================
+  printing
+======================================================================== **/
+
+mcpprint(`{a});
+
+for(int i = 0; i < 10; i++)mcprint("%d",x[i]);
 
 /** ========================================================================
  C data types
@@ -44,7 +44,6 @@ typedef struct myexpstruct{
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** 2:done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -52,7 +51,6 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
-/** 4:done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
@@ -162,10 +160,20 @@ int value(expptr e){
 
 int_exp(value(`{5+2*10}))
 
+
+/** ========================================================================
+ the following errors are intentional
+======================================================================== **/
 int_exp(value(`foo))
+/** mc to c dynamic-check error **/
 
 int_exp(value(`{foo}))
+/** dynamic-check error **/
 
+
+/** ========================================================================
+ breakpoints 
+======================================================================== **/
 expptr barf(){
   breakpt("bar break");
   return `{a};
@@ -186,10 +194,10 @@ foobar()
 ======================================================================== **/
 
 expptr goo(expptr exp){returni exp;}
-/** compilation error **/
+/** c compilation error **/
 
 goo(`{a})
-/** compilation error **/
+/** c compilation error **/
 
 
 /** ========================================================================
@@ -201,10 +209,9 @@ typedef struct myexpstruct{
   myexp car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** compilation error **/
+/** c compilation error **/
 
 `{a}
-/** 3:a **/
 
 /** ========================================================================
  procedure type declaration without procedure definition should result
@@ -214,6 +221,7 @@ typedef struct myexpstruct{
 expptr goop(expptr exp);
 
 goop(`{a})
+/** dynamic-check error **/
 
 /** ========================================================================
  strange
@@ -252,12 +260,13 @@ expptr e[0];
 e[0] = NULL;
 
 e[0]->arg1
+/** segment fault --- to resume type p NIDE() **/
 
 
 /** ========================================================================
  load
 ======================================================================== **/
-load("include_test")
+load("include_test");
 
 included(`{a})
 
@@ -267,6 +276,7 @@ included(`{a})
 ======================================================================== **/
 
 dolist{}{}
+/** mc to c dynamic-check error **/
 
 
 /** ========================================================================
@@ -281,6 +291,7 @@ exp_from_undo_frame(`{foo(a)})
 ======================================================================== **/
 
 notype bad(int x){return x;}
+/** c compilation error **/
 
 int bad(int x){return x;}
 
@@ -292,8 +303,10 @@ reader errors
 ======================================================================== **/
 
 foo(lkj)))`{foo bar}
+/** reader error **/
 
 expptr friend[0] = ‘{Bob Givan};
+/** reader error **/
 
 
 /** ========================================================================
@@ -303,13 +316,14 @@ some version of the system failed to recover from this expansion error
 umacro{test()}{return file_expressions("nonexistent_file");}
 
 test()
+/** mc to c dynamic-check error **/
 
 
 /** ========================================================================
-This example failed to behave in some version.
+ This example failed to behave in some version.
 
-compilation error expected for foo() because of intexp rather than int_exp
-bar() has the bug fixed.
+ compilation error expected for foo() because of intexp rather than int_exp
+ bar() has the bug fixed.
 ======================================================================== **/
 
 umacro{foo()}{
@@ -317,6 +331,7 @@ umacro{foo()}{
   return `{intexp(z[0])};}
 
 foo()
+/** c compilation error **/
 
 umacro{bar()}{
   add_preamble(`{int z[0]=0;});
@@ -331,8 +346,6 @@ NULL values
 0
 
 `{}
-
-`{value prints as empty string}
 
 nil()
 
@@ -351,22 +364,3 @@ void catch_test(){
 
 catch_test();
 
-
-/** ========================================================================
-commacase and spacecase
-======================================================================== **/
-
-commacase{`{a c,b};{$x,$y}:{return `{$x,$y};}}
-/** 1:a c,b **/
-
-commacase{`{a c};{$x,$y}:{return `{$x ${int_exp(y == NULL)}};}}
-/** 2:a c 1 **/
-
-spacecase{`{(a c) b};{($x $y) $z}:{return `{($x $y),$z};}}
-/** 1:(a c),b **/
-
-spacecase{`{(a b)};{($x $y) $z}:{return `{($x $y) ${int_exp(z == NULL)}};}}
-/** 2:(a b)1 **/
-
-macroexpand(`{defclass{just}})
-/** 2:typedef struct just_struct{int imp_index;}*just **/

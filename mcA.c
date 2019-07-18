@@ -1143,9 +1143,10 @@ cbreak, berror
 void cbreak(){};
 
 void send_emacs_tag(char * tag){
-  fflush(stderr);
+  if(!in_ide)berror("sending to emacs from REPL");
+  fflush(stderr); //this is needed for the ignore tag to operate on stderr.
   fprintf(stdout,"%s",tag);
-  fflush(stdout);
+  fflush(stdout); //without this stderr can later add to the input of the tag.
 }
 
 void send_print_tag(){send_emacs_tag(print_tag);}

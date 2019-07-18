@@ -24,7 +24,7 @@ MetaC is designed to create new languages.  The implementation of a new language
 better code analysis of the new langauge.
 ======================================================================== **/
 
-expptr preamble;
+expptr file_preamble; // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
 expptr procedures;
 expptr arrays;
 
@@ -36,7 +36,7 @@ expptr new_preambles;
 
 void install_preamble(expptr e){
   if(!getprop_int(e,`{installed},0)){
-    push(e,preamble);
+    push(e,file_preamble);
     setprop_int(e,`{installed},1);}
 }
 
@@ -67,7 +67,7 @@ int symbol_index(expptr);
 expptr symbol_index_exp(expptr);
 void install_base();
 char * strip_quotes(char *);
-expptr load(expptr);
+expptr eval_internal(expptr);
 void print_preamble(expptr);
 
 /** ========================================================================
@@ -81,15 +81,15 @@ Becasue of REPL compile and load syncronization, install_base cannot be cleanly 
 ======================================================================== **/
 
 void mcE_init1(){
-  preamble = nil;
-  add_undone_pointer((void**) &preamble);
+  file_preamble = nil;  // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
+  add_undone_pointer((void**) &file_preamble);
   arrays = nil;
   add_undone_pointer((void**) &arrays);
   procedures = nil;
   add_undone_pointer((void**) &procedures);
   symbol_count = 0;
   add_undone_int(&symbol_count);
-  install_base();  //ExpandE and NIDE should have the same indeces for base functions.
+  install_base();  //ExpandE and NIDE need to have the same indeces for base functions.
   compilecount = 0;
   cellcount = 0;
   add_undone_int(&cellcount);
@@ -119,13 +119,20 @@ void install_base(){
 	symbol_index(x);  //establish the index
 	push(x,arrays);
 	setprop(x,`{signature},sig);}
-      {$e}:{push(e,preamble);} //typedefs
+      {$e}:{push(e,file_preamble);} //typedefs
     }}
 }
 
 /** ========================================================================
-insertion and extraction from the linking table.  Procedure extraction is
-done by defining the procedure in the DLL to go through the linking table.
+insertion is the process of filling values in the symbol_value array.
+extraction is the process of extracting values from the symbol_value array.
+
+arrays are allocated once and never re-allocated.  Hence extraction can be done
+by a simple assignment to the local dll array variable.
+
+procedures can be redefined which changes their memory location.  For dynamic linking to work
+procedure extraction must be done at procedure call time which is done by defining the local
+dll procedure to do the exprtaction at call time.
 ======================================================================== **/
 
 expptr new_procedure_insertion (expptr f){
@@ -140,8 +147,25 @@ expptr new_array_insertion (expptr x){
 }
 
 expptr array_extraction (expptr x){
-  if(getprop(x,`{signature},NULL)) return `{$x = symbol_value[${symbol_index_exp(x)}];};
-  else return `{{}};
+  return `{$x = symbol_value[${symbol_index_exp(x)}];};
+}
+
+void install_link_def(expptr f){
+  ucase{getprop(f,`{signature},NULL);
+    {$type $f($args);}:{
+      pprint(
+	     `{$type $f($args){
+		 $type (* _mc_f)($args);
+		 _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
+		 
+		 if(!_mc_f){berror("call to undefined procedure");}
+		 
+		 ${(type == `{void} ?
+		    `{(* _mc_f)(${args_variables(args)});}
+		    : `{return (* _mc_f)(${args_variables(args)});})}}},
+	     fileout,
+	     0);}
+    {$any}:{}}
 }
 
 /** ========================================================================
@@ -149,11 +173,11 @@ expptr array_extraction (expptr x){
 ======================================================================== **/
 
 expptr simple_eval(expptr exp){
-  new_preambles = nil;
+  preamble = nil;  //this is the preamble of add_premble in mcA.c
   init_forms = nil;
   in_doit = 0;
   expptr e = macroexpand(exp);
-  return load(append(preamble,append(init_forms,cons(e,nil))));
+  return eval_internal(append(preamble,append(init_forms,cons(e,nil))));
 }
 
 void eval_from_load(expptr e){
@@ -171,13 +195,14 @@ void eval_from_load(expptr e){
     {$any} : {simple_eval(e);}}
 }
 
-void eval_exp(expptr exp){
+expptr eval_exp(expptr exp){
   ucase{exp;
     {load($sym);}.(atomp(sym)) : {
       char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
       mapc(eval_from_load,file_expressions(require_file));
-      pprint(`{${int_exp(cellcount)}: $sym provided},stdout,0);}
-    {$any} : {pprint(simple_eval(exp),stdout,0);}}
+      return `{${int_exp(cellcount)}: $sym provided};}
+    {$any}:{
+      return simple_eval(exp);}}
 }
 
 void write_signature(expptr sym){
@@ -188,7 +213,7 @@ void write_signature(expptr sym){
     {$any}:{pprint(sig,fileout,0);}}
 }
     
-expptr load(expptr forms){ // forms must be fully macro expanded.
+expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
   compilecount++; //this needs to be here becasue sformat duplicates the second argument
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
@@ -201,8 +226,8 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   new_preambles = nil;
 
   mapc(preinstall,forms);
-
-  mapc(print_preamble,reverse(preamble));
+  
+  mapc(print_preamble,reverse(file_preamble));
   mapc(print_preamble,reverse(new_preambles));
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
@@ -224,6 +249,7 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
 	${mapcar(new_procedure_insertion, new_body_procedures)}
 	${mapcar(new_array_insertion, new_arrays)}
 	${mapcar(array_extraction, arrays)} // procedure extractions are done by install_link_def above
+	${mapcar(array_extraction, new_arrays)} // procedure extractions are done by install_link_def above
 	${reverse(doit_statements)}
 	return string_atom("done");}},
     fileout,0);
@@ -231,16 +257,18 @@ expptr load(expptr forms){ // forms must be fully macro expanded.
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
 
-  if(in_ide){send_emacs_tag(ignore_tag);} //ignore output from successful compilation
   expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
 
+  if(in_ide)send_emacs_tag(ignore_tag); // this cleans output from call to dlsym.
+  
   in_doit = 1;
   expptr e = (*_mc_doit)(symbol_value);
   
   mapc(install_preamble,reverse(new_preambles));
   mapc(install_array,reverse(new_arrays));
   mapc(install_procedure,reverse(new_sig_procedures));
+  if(!e)e = `{};
   return `{${int_exp(++cellcount)}: $e};
 }
 
@@ -313,23 +341,6 @@ expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));
 }
 
-void install_link_def(expptr f){
-  ucase{getprop(f,`{signature},NULL);
-    {$type $f($args);}:{
-      pprint(
-	     `{$type $f($args){
-		 $type (* _mc_f)($args);
-		 _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
-		 
-		 if(!_mc_f){berror("call to undefined procedure");}
-		 
-		 ${(type == `{void} ?
-		    `{(* _mc_f)(${args_variables(args)});}
-		    : `{return (* _mc_f)(${args_variables(args)});})}}},
-	     fileout,
-	     0);}
-    {$any}:{}}
-}
 
 void install_proc_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
@@ -342,9 +353,10 @@ void install_proc_def(expptr f){
 }
 
 void comp_error(){
-  fflush(stderr);
-  if(in_ide)send_emacs_tag(comp_error_tag);
-  else fprintf(stdout,"\n evaluation aborted\n\n");
+  if(in_ide)
+    send_emacs_tag(comp_error_tag);
+  else
+    fprintf(stdout,"\n evaluation aborted\n\n");
   throw_error();
 }
 
