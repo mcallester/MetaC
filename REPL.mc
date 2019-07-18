@@ -14,7 +14,7 @@
 
 voidptr symbol_value[SYMBOL_DIM];
 
-void eval_exp(expptr);
+expptr eval_exp(expptr);
 
 void read_eval_print(){
   while(1){
@@ -22,11 +22,13 @@ void read_eval_print(){
     fprintf(stdout, "MC>");
     catch_error({
 	expptr e = read_from_repl();
+	expptr value = NULL;
 	if(!e || e == nil)continue;
 	ucase{e;
 	  {quit}:{break;}
-	  {$any}:{eval_exp(e);}
-	}});
+	  {$any}:{value = eval_exp(e);}}
+	pprint(value,stdout,0);
+      });
     pop_memory_frame();
   }
 }
