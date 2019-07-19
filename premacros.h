@@ -27,14 +27,14 @@ int *catch_freeptr;
 jmp_buf *catch_stack;
 int *error_flg;
 
-#define throw_check() {if(catch_freeptr[0] == 0){fprintf(stderr,"\n throw without a catch\n"); exit(1);}}
+#define throw_check() {if(catch_freeptr[0] == 0){fprintf(stderr,"\n uncaught throw --- C process fatal\n"); cbreak(); exit(1);}}
 #define catch_check() {if(catch_freeptr[0] == CATCH_DIM){berror("catch stack exhausted");}}
 
 #define throw_error() {throw_check(); error_flg[0]=1; longjmp(catch_stack[catch_freeptr[0]-1], 1);}
 #define catch_error(body) {catch_check(); error_flg[0]=0; if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){ \
   body; catch_freeptr[0]--;\
   } else{\
-  catch_freeptr[0]--;if(!error_flg[0])fprintf(stderr, "uncaught throw\n");}}
+      catch_freeptr[0]--;if(!error_flg[0])fprintf(stderr, "uncaught throw caught as error\n"); cbreak();}}
 
 #define throw() {throw_check(); error_flg[0]=0; longjmp(catch_stack[catch_freeptr[0]-1], 1);}
   
