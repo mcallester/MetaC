@@ -34,7 +34,7 @@ int *error_flg;
 #define catch_error(body) {catch_check(); error_flg[0]=0; if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){ \
   body; catch_freeptr[0]--;\
   } else{\
-      catch_freeptr[0]--;if(!error_flg[0])fprintf(stderr, "uncaught throw caught as error\n"); cbreak();}}
+    catch_freeptr[0]--;if(!error_flg[0]){fprintf(stderr, "uncaught throw caught as error\n"); cbreak();}}}
 
 #define throw() {throw_check(); error_flg[0]=0; longjmp(catch_stack[catch_freeptr[0]-1], 1);}
   

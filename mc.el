@@ -1,27 +1,24 @@
-(setq *gdb* "/opt/local/bin/gdb-apple")
+(setq *gdb* "/opt/local/bin/gdb-apple")	;
 (setq *MetaC* "/Users/davidmcallester/MC/")
 
 (require 'shell)
 
-(define-prefix-command 'ctr-z-command 'ctr-z-map)
-
-(add-hookm c-mode-hook
-  (define-key c-mode-map "\C-z" 'ctr-z-command))
-
-(define-key ctr-z-map "s" 'MC:start-metac)
-(define-key ctr-z-map "x" 'MC:execute-cell)
-(define-key ctr-z-map "r" 'MC:load-region)
-
-(define-key ctr-z-map "a" 'MC:beginning-of-def)
-(define-key ctr-z-map "p" 'MC:previous-def)
-(define-key ctr-z-map "n" 'MC:next-def)
-(define-key ctr-z-map "c" 'MC:clean-cells)
+(define-derived-mode mc-mode
+  c-mode "mc-mode"
+  "Major mode for meta-c"
+  (define-key mc-mode-map "\C-\M-s" 'MC:start-metac)
+  (define-key mc-mode-map "\C-\M-x" 'MC:execute-cell)
+  (define-key mc-mode-map "\C-\M-r" 'MC:load-region)
+  (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-def)
+  (define-key mc-mode-map "\C-\M-p" 'MC:previous-def)
+  (define-key mc-mode-map "\C-\M-n" 'MC:next-def)
+  (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells))
 
 (setq *seperator* "*#*#dsflsadk#*#*")
 
 (setq auto-mode-alist
       (append
-       (list (cons "\\.mc$"     'c-mode))
+       (list (cons "\\.mc$" 'mc-mode))
        auto-mode-alist))
 
 (defun MC:beginning-of-def ()

@@ -234,10 +234,8 @@ umacro{defimp{$class $implementation($ivars){$methods}}}{
 ======================================================================== **/
 
 expptr exception[0] = NULL;
-/** 1:done **/
 
 expptr exception_value[0];
-/** 2:done **/
 
 umacro{catch_excep{$exception}{$body}{$handler}}{
   return `{
@@ -248,15 +246,15 @@ umacro{catch_excep{$exception}{$body}{$handler}}{
 	  expception[0] = NULL;}
 	else continue_throw();}};
 }
-/** 3:done **/
 
-umacro{throw_excep{$exception}{$value}}{
+`{a}
+
+umacro{throw_excep{$exception;$value}}{
   return `{
     expcetion[0] = `{$exception};
     exception_value[0] = $value;
     throw();};
 }
-/** 4:done **/
 
 
 /** ========================================================================
@@ -265,7 +263,4 @@ umacro{throw_excep{$exception}{$value}}{
 
 umacro{mention($x)}{
   return `{if($x ? $x : $x){}};}
-
-
-      
 
