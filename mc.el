@@ -6,7 +6,7 @@
 (define-derived-mode mc-mode
   c-mode "mc-mode"
   "Major mode for meta-c"
-  (define-key mc-mode-map "\C-xc" 'make-sectiion)
+  (define-key mc-mode-map "\C-xc" 'make-section)
   (define-key mc-mode-map "\M-\C-u" 'MC:beginning-of-sec)
   (define-key mc-mode-map "\M-\C-d" 'MC:end-of-sec)
   

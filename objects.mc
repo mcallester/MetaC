@@ -263,4 +263,3 @@ umacro{throw_excep{$exception;$value}}{
 
 umacro{mention($x)}{
   return `{if($x ? $x : $x){}};}
-
