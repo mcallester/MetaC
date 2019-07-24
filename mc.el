@@ -6,24 +6,44 @@
 (define-derived-mode mc-mode
   c-mode "mc-mode"
   "Major mode for meta-c"
+  (define-key mc-mode-map "\C-xc" 'make-sectiion)
+  (define-key mc-mode-map "\M-\C-u" 'MC:beginning-of-sec)
+  (define-key mc-mode-map "\M-\C-d" 'MC:end-of-sec)
+  
   (define-key mc-mode-map "\C-\M-s" 'MC:start-metac)
   (define-key mc-mode-map "\C-\M-x" 'MC:execute-cell)
   (define-key mc-mode-map "\C-\M-r" 'MC:load-region)
-  (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-def)
-  (define-key mc-mode-map "\C-\M-p" 'MC:previous-def)
-  (define-key mc-mode-map "\C-\M-n" 'MC:next-def)
-  (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells))
-
-(setq *seperator* "*#*#dsflsadk#*#*")
+  (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
+  (define-key mc-mode-map "\C-\M-e" 'MC:end-of-cell)
+  (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells)
+  (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell))
 
 (setq auto-mode-alist
       (append
        (list (cons "\\.mc$" 'mc-mode))
        auto-mode-alist))
 
-(defun MC:beginning-of-def ()
+
+(defun make-section ()
   (interactive)
-  (move-end-of-line nil)
+  (end-of-line)
+  (newline)
+  (insert "/** ========================================================================")
+  (newline)
+  (insert "========================================================================**/")
+  (previous-line 1)
+  (end-of-line)
+  (newline)
+  (insert "  "))
+
+(defun MC:beginning-of-sec () (interactive) (previous-line)
+  (search-backward "/** =") (previous-line) (recenter 0))
+
+(defun MC:end-of-sec () (interactive) (next-line) (next-line)
+  (search-forward "/** =") (previous-line) (recenter 0))
+
+(defun MC:beginning-of-cell ()
+  (interactive)
   (condition-case nil
       (progn (re-search-backward "\n[^] \n\t})/=]")
 	     (forward-char))
@@ -31,15 +51,9 @@
      (beginning-of-buffer)
      (let ((c (char-after)))
        (when (or  (= c 32) (= c 47) (= c ?\t) (= c ?\n))
-	 (MC:next-def))))))
+	 (MC:next-cell))))))
 
-(defun MC:previous-def ()
-  (interactive)
-  (MC:beginning-of-def)
-  (backward-char)
-  (MC:beginning-of-def))
-
-(defun MC:next-def ()
+(defun MC:end-of-cell ()
   (interactive)
   (condition-case nil
       (progn (move-end-of-line nil)
@@ -47,13 +61,13 @@
 	     (move-beginning-of-line nil))
     (error (end-of-buffer))))
 
-(defun MC:indent-def ()
+(defun MC:indent-cell ()
   (interactive)
   (move-beginning-of-line nil)
   (let ((line (1+ (count-lines 1 (point)))))
-    (MC:beginning-of-def)
+    (MC:beginning-of-cell)
     (let ((begining (point)))
-      (MC:next-def)
+      (MC:next-cell)
       (let ((end (point)))
 	(goto-char begining)
 	(while (< (point) (- end 1))
@@ -124,7 +138,7 @@
   (delete-other-windows)
   (setq buffer-file-coding-system 'utf-8-unix)
   (move-end-of-line nil)
-  (MC:beginning-of-def)
+  (MC:beginning-of-cell)
   (let ((top (point)))
     (condition-case nil
 	(progn (move-end-of-line nil)
@@ -227,7 +241,7 @@
 
 	((string= tag "result")
 	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
-	 (MC:next-def)
+	 (MC:next-cell)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when (> *load-count* 0) (MC:execute-cell-internal)))
 
@@ -246,6 +260,8 @@
 	(aset string i (aref string j))
 	(setq i (+ i 1))))
     (substring string 0 i)))
+
+(setq *seperator* "*#*#dsflsadk#*#*")
 
 (defun MC:sep-pos (s i)
   (let ((s-length (length s))
@@ -292,9 +308,9 @@
     (let ((end (region-end))
           (beg (region-beginning)))
       (goto-char beg)
-      (MC:beginning-of-def)
+      (MC:beginning-of-cell)
       (while (< (point) beg)
-        (MC:next-def))
+        (MC:next-cell))
       (let ((count 0))
 	(while (< (point) end)
 	  (setq count (+ count 1))
