@@ -49,6 +49,8 @@ int atomp(expptr e);
 
 charptr atom_string(expptr a);
 
+charptr exp_string(expptr e);
+
 expptr cons(expptr x, expptr y);
 
 int cellp(expptr e);

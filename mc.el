@@ -67,11 +67,11 @@
   (let ((line (1+ (count-lines 1 (point)))))
     (MC:beginning-of-cell)
     (let ((begining (point)))
-      (MC:next-cell)
+      (MC:end-of-cell)
       (let ((end (point)))
 	(goto-char begining)
 	(while (< (point) (- end 1))
-	  (c-indent-line)
+	  (when (not (= (char-after) ?\=))  (c-indent-line))
 	  (next-line)
 	  (move-beginning-of-line nil))
 	(goto-line line)
@@ -133,7 +133,7 @@
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
   (while *starting*
     (print '(wating for process)) 
-    (sleep 1))
+    (sleep-for 1))
 
   (delete-other-windows)
   (setq buffer-file-coding-system 'utf-8-unix)
@@ -166,7 +166,6 @@
 
       (insert "/**  **/")
       (backward-char 4)
-
       (process-send-string (mc-process) (format "%s\0\n" exp))
       ;; the above return seems needed to flush the buffer
     )))
@@ -177,7 +176,8 @@
       (if cell
 	(let ((tag (car cell))
 	      (value (cdr cell)))
-	  ;;(print '(**** doing) )  (print value)  (print tag)
+	  ;;(print (list '**** 'doing tag))
+	  ;;(print value)
 	  (MC:dotag tag value)
 	  ;;(print '(**** done))
 	  (MC:process-output))
