@@ -246,9 +246,9 @@ expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
   pprint(`{
       expptr _mc_doit(voidptr * symbol_value){
 	symbol_value_copy = symbol_value;
+	${mapcar(array_extraction, arrays)} // procedure extractions are done by install_link_def above
 	${mapcar(new_procedure_insertion, new_body_procedures)}
 	${mapcar(new_array_insertion, new_arrays)}
-	${mapcar(array_extraction, arrays)} // procedure extractions are done by install_link_def above
 	${mapcar(array_extraction, new_arrays)} // procedure extractions are done by install_link_def above
 	${reverse(doit_statements)}
 	return string_atom("done");}},

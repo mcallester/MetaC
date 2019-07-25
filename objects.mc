@@ -114,7 +114,7 @@ void declare_class(expptr superclass, expptr class, expptr ivars){
     add_form(`{typedef struct $structname{${semi_append(complete_ivars(superclass),ivars)}} $structname, * $class;});
     define_lists(class);}
 }
-/** 26:done **/
+/** 5:done **/
 
 umacro{defclass{$superclass $class($ivars)}}{
   declare_class(superclass, class, ivars);
@@ -181,7 +181,7 @@ void add_imp_constructor(expptr superclass, expptr class, expptr ivars){
 	    return ($superclass) self;}
 	});}}
 }
-/** 29:done **/
+/** 12:done **/
 
 umacro{defimp{$superclass$class($ivars)}}{
   declare_class(superclass, class, ivars);
@@ -338,31 +338,31 @@ umacro{mention($x)}{
 
 
 defclass{object foo(expptr x;)};
-/** 27:done **/
+/** 26:done **/
 
 void f(foo x);
-/** 28:done **/
+/** 27:done **/
 
 defimp{foo bar(expptr y;)};
-/** 30:done **/
+/** 28:done **/
 
 foo foovar[0] = new_bar(`{a},`{b});
-/** 31:done **/
+/** 29:done **/
 
 int_exp(foovar[0]->implementation_index)
-/** 33:0 **/
+/** 30:0 **/
 
 foovar[0]->x
-/** 32:a **/
+/** 31:a **/
 
 defimp{foo baz(expptr y;)};
-/** 34:done **/
+/** 32:done **/
 
 foo foovar2[0] = new_baz(`{a},`{b});
-/** 35:done **/
+/** 33:done **/
 
 int_exp(foovar2[0]->implementation_index)
-/** 36:1 **/
+/** 34:1 **/
 
 defmethod{expptr gety(bar self){return y;}};
 /** segment fault --- to resume type p NIDE() **/
