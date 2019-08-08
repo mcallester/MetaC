@@ -858,20 +858,17 @@ The nonterminal $E_\infty$ includes an epsilon production allowing null argument
   P & ::= & (E_p) \;|\; \{E_p\} \;|\; [E_p] \\
   E_p & ::= & \fopen  E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal R}, \;\ell > p, \; r \geq p \\
   E_p & ::= & \fopen E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p \\
-  E_4 & ::= & \fopen E_\ell \;E_r\fclose \;\;\;\ell > 4,\;r \geq 4\\
+  E_3 & ::= & \fopen E_\ell \;E_r\fclose \;\;\;\ell > 3,\;r \geq 3\\
   P^* & ::= &  \epsilon  \;|\; \fopen P\;P^* \fclose \\
-  E_\infty & ::= & \quot \;|\; \fopen S \; \;P^* \fclose \;|\; \fopen `\;P\fclose \;|\; P \;|\; \epsilon \;|\; \mathrm{JUNK}\\
-  S & ::= & \;\sym \;|\; \var \\
-  \var & ::= & \fopen \$\;\sym\fclose \;|\; \fopen \$\;P\fclose \;|\; \fopen \backslash \; \var \fclose\\
-  \mathrm{JUNK} & ::= & ` \;|\; \mathrm{SJUNK} \\
-  \mathrm{SJUNK} & :: = & \$ \;|\;  \backslash \;|\; \fopen \backslash\;\mathrm{SJUNK} \fclose\\
+  E_\infty & ::= & \fopen S\;P^* \fclose \\
+  S & ::= & \;\sym \;|\;\quot \;|\; \mathrm{SPECIAL} \;|\;\fopen \mathrm{SPECIAL}\;S\fclose
 \end{eqnarray*}
 
 \caption{{\bf The grammar defining the MetaC reader.} The input string is assumed to be of the form $(s)$ so that endpoints are explicitly labeled.
 The nonterminal $\sym$ generates non-empty alpha-numeric strings; $\conn_p$ generates non-empty connective
-strings of precedence $p$; and $\quot$ generates string quotations.  ${\cal R}$ is a set of right-associative precedence levels and ${\cal L}$ is a set of left-associative levels.
-Only the largest finite precedence level is left-associative. MetaC classifies all printable ASCII characters as being either alpha-numeric, connective, string quotations, parenthesis characters or one of the three special characters
-{\tt `}, $\$$ or $\backslash$.
+strings of precedence $p$; and $\quot$ generates string quotations.  The nonterminal $\mathrm{SPECIAL}$ generates atoms for the three special characters
+{\tt `}, $\$$ or $\backslash$.  ${\cal R}$ is the set of right-associative precedence levels and ${\cal L}$ is the set of left-associative levels.
+Only the largest finite precedence level is left-associative. MetaC classifies all printable ASCII characters as being either alpha-numeric, connective, string quotations, parenthesis characters or one of three special characters.
 The reader will accept any parenthesis-balanced string. $\epsilon$ denotes the empty string. Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$.
 Although the grammar is ambiguous, the reader is deterministic as specified by the constraints that
 $E_\infty$ expressions must be maximal and that the use of the $\epsilon$ production for $E_\infty$ must be minimized.  The reader is implemented as a deterministic shift-reduce process.
