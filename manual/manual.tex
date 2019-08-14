@@ -817,7 +817,7 @@ The MetaC lexer preserves all non-white characters.  For the MetaC lexer each at
   Grouped by precedence, the connective characters are
   
   \medskip
-  \centerline{~\;\;\;\;\;\;\{\mtt{;}\} \{\mtt{,}\} \{$\epsilon$\}  \{\mtt{:}\} \{\mtt{@}\}
+  \centerline{~\;\;\;\;\;\;\{\mtt{;}\} \{\mtt{,}\} \{\mtt{:}\} \{\mtt{@}\}
   \{{\tt |}, {\tt \&}, {\tt ?}, {\tt !}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\}
   \{{\tt *}, {\tt /}\} \{{\tt \%}, $\hat{~}$\} \{{\tt .}, {\tt \#}\}.}
   
@@ -841,83 +841,29 @@ Two strings will be called whitespace-equivalent if they lexicalize to the same 
 
 
 The reader is specified by the grammar shown in figure~\ref{fig:grammar}.
-To simplify the specification of the reader we enclose the given string in parentheses so that, without loss of generality, the input is assumed to be of the form
-$\{s\}$ where $s$ is the lexical sequence to be read.  The grammar has a nonterminal $P$ for parenthesis expression which we take as the top level nonterminal.
-The nonterminals $\sym$ and $\quot$ range over alpha-numeric string atoms and quoted string atoms respectively.
-For each positive integer $p$ we have a nonterminal $\conn_p$ ranging over connective atoms of precedence $p$.
-We have a nonterminal $E_p$ for expressions formed with connectives
-of precedence $p$.  We also have a nonterminal $E_\infty$ for expressions that are formed at higher precedence than any connective expression.
-The precedence levels are divided into a set ${\cal L}$ of left-associative precedence levels and a set ${\cal R}$ of right associative precedence levels.
-There is a special precedence level 4 for combining expressions with the ``null connective''. The null connective is left-associative.
-The null connective is higher precedence than semicolon and comma but lower precedence than all other connectives.
-The nonterminal $E_\infty$ includes an epsilon production allowing null arguments.
 
 \begin{figure}
   
 \begin{eqnarray*}
-  P & ::= & (E_p) \;|\; \{E_p\} \;|\; [E_p] \\
+  E & ::= & E_\infty \;|\; E_p \\
+  E_\infty & ::= & A \;|\; \fopen A \; E_\infty \fclose \\
+  A & ::= & \quot \;|\; \sym \;|\; P  \;|\; \fopen \; \mathrm{SPECIAL}\;A\fclose \;|\;\epsilon \\
+  P & ::= & (E) \;|\; \{E\} \;|\; [E] \\
   E_p & ::= & \fopen  E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal R}, \;\ell > p, \; r \geq p \\
-  E_p & ::= & \fopen E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p \\
-  E_3 & ::= & \fopen E_\ell \;E_r\fclose \;\;\;\ell > 3,\;r \geq 3\\
-  P^* & ::= &  \epsilon  \;|\; \fopen P\;P^* \fclose \\
-  E_\infty & ::= & \fopen S\;P^* \fclose \\
-  S & ::= & \;\sym \;|\;\quot \;|\; \mathrm{SPECIAL} \;|\;\fopen \mathrm{SPECIAL}\;S\fclose
+  E_p & ::= & \fopen E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p
 \end{eqnarray*}
 
-\caption{{\bf The grammar defining the MetaC reader.} The input string is assumed to be of the form $(s)$ so that endpoints are explicitly labeled.
-The nonterminal $\sym$ generates non-empty alpha-numeric strings; $\conn_p$ generates non-empty connective
-strings of precedence $p$; and $\quot$ generates string quotations.  The nonterminal $\mathrm{SPECIAL}$ generates atoms for the three special characters
-{\tt `}, $\$$ or $\backslash$.  ${\cal R}$ is the set of right-associative precedence levels and ${\cal L}$ is the set of left-associative levels.
-Only the largest finite precedence level is left-associative. MetaC classifies all printable ASCII characters as being either alpha-numeric, connective, string quotations, parenthesis characters or one of three special characters.
-The reader will accept any parenthesis-balanced string. $\epsilon$ denotes the empty string. Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$.
-Although the grammar is ambiguous, the reader is deterministic as specified by the constraints that
-$E_\infty$ expressions must be maximal and that the use of the $\epsilon$ production for $E_\infty$ must be minimized.  The reader is implemented as a deterministic shift-reduce process.
-See the text for details.
-  }
+\caption{{\bf The grammar defining the MetaC reader.}
+The nonterminal $\sym$ generates symbol atoms; $\conn_p$ generates connective atoms of precedence $p$; $\quot$ generates string quotation atoms; and $\mathrm{SPECIAL}$ generates the three atoms for the three special characters.
+Although the grammar is ambiguous, the reader is defined by a deterministic left-to-right shift-reduce parser
+in which the $\epsilon$-production for $A$ is selected only when no other option is available.
+The nonterminal $E_\infty$ generates ``arguments'' --- expressions not containing connectives outside of parentheses.
+The nonterminal $E_p$ generates expressions containing connectives where the lowest priority connective has priority $p$.
+${\cal R}$ is the set of right-associative precedence levels and ${\cal L}$ is the set of left-associative levels.
+Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$.
+}
 \label{fig:grammar}
 \end{figure}
-
-The nonterminal $S$ ranges over symbols or variables where $\var$ ranges over variables.  Variables are handled specially in pattern matching ({\tt ucase}) and pattern instantiation (backquote).
-Expression of the form $\fopen S\;P^*\fclose$ include {\tt foo}, {\tt foo(x)}, {\tt foo(int x)\{return x;\}},
-{\tt \$x}, {\tt \$f(x)}, and {\tt \$\{f(x)\}}.
-
-
-The grammar is ambiguous.  For example the string {\tt \{foo (a) (b)\}} can be parsed as either the left-branching structure $\{\fopen\fopen\sym\;P^*\fclose\;P\fclose\}$
-or the  right-branching structure $\{\fopen\sym\;P^*\fclose\}$.
-The reader is of course deterministic --- {\tt \{foo (a) (b)\}} is read as right-branching.  While a deterministic grammar for the reader can be given, it is simpler
-to specify a deterministic parsing process for the above ambiguous grammar.
-The implementation runs a deterministic left-to-right shift-reduce process.
-However, the parser is easier to specify as operating in global stages.  In the first stage one identifies all maximal $E_\infty$ substrings.
-The maximal requirement implies that {\tt \{foo (a) (b)\}} is parsed as the single (right-branching)
-$E_\infty$ expression $\fopen${\tt foo (a) (b)}$\fclose$. The maximil requirement also implies that the string {\tt \{$\$$\;foo\;(a)\;(b)\}} is read as the single $E_\infty$
-expression $\fopen \fopen \mathtt{\$~foo}\fclose\ \mathtt{(a)~(b)} \fclose$.
-
-After identifying maximal $E_\infty$ expressions we are left with a sequence of arguments (the $E_\infty$ expressions) and connectives.
-However, it is possible that this sequence contains multiple consecutive connectives or multiple consecutive arguments.  We then place an argument between any two consecutive
-connectives using the $\epsilon$ production for $E_\infty$ and also add an $\epsilon$ term at the beginning of the sequence if the sequence starts with a connective and an
-epsilon argument at the end if the sequence ends in a connective.  We now have a sequence of arguments and connectives starting and ending with arguments and where there
-are no two consecutive connectives.  Next set $k$ to be the largest precedence of any connective and form all the $E_k$ substrings. We then repeatedly decrement $k$ and identify all the $E_k$ substrings
-until we have identifies all $E_p$ substrings for all $p$.  At this point the entire string must be parsed as $E_p$ where $p$ is the smallest precedence of the connectives
-where we think of adjacent arguments as having an implicit precedence 4 connective between them.
-
-\noindent This process can parse any parenthesis-balanced string.
-
-The above specification of the reader can result in cells of the form $\fopen e\;\epsilon \fclose$ or $\fopen \epsilon \;e\fclose$.   The implementation avoids producing such cells
-and the reader can be viewed as replacing $\fopen e\;\epsilon \fclose$ or $\fopen \epsilon \;e\fclose$ by $e$ so that
-all cells are of the form $\fopen e_1\;e_2\fclose$ where $e_1$ and $e_2$ are expressions representing non-empty strings.  An empty parenthesis string {\tt ()}
-is read as a parenthesis expression containing an atom for the empty string.
-
-
-\noindent The precedence of a binary connective is determined by its first character.  The
-characters have low to high (outer to inner) precedence in the order given with symbols in the same
-group having the same precedence.  Here $\epsilon$ represents the null connective at precedence
-level 4.  The precedence can be summarized in outer to inner order as semicolon, comma, bar, the
-null connective, Boolean connectives, binary predicates, three levels of binary functions, and
-innermost connectives which can be viewed as providing a way of building structured atoms.  The
-universal syntax precedence conventions have
-various divergences with C syntax.  However, when writing a macro package in MetaC one can simply
-adopt the MetaC precedence conventions for the source code and use parentheses where necessary in
-the generated C code.
 
 \subsection{Backquote and Pattern Matching Revisited}
 

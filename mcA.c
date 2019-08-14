@@ -409,6 +409,8 @@ int endp(char c){return c == EOF || c == '\0';}
 
 int terminatorp(char c){return closep(c) || endp(c);}
 
+int specialp(char c){return c == '`' || c == '$' || c == '\\';}
+
 //the characters \, $ and ` are treated explicitly in the grammar.
 
 /** ========================================================================
@@ -654,7 +656,7 @@ expptr atom_quote_code(expptr a){
   return app_code("string_atom",string_atom(ephemeral_buffer));
 }
 
-expptr constructor_code(char c){  //this is only used for the three open paren characters
+expptr constructor_code(char c){
   sprintf(ephemeral_buffer,"'%c'",c);
   return string_atom(ephemeral_buffer);
 }
@@ -666,35 +668,24 @@ expptr quote_code(expptr e){
   return app_code2("cons",quote_code(car(e)),quote_code(cdr(e)));
 }
 
-expptr bquote_code(expptr);
-
-int Vp(expptr e){
-  return (cellp(e)
-	  && ( (car(e) == dollar)
-	       || ((car(e) == backslash)
-		   && Vp(cdr(e)))));
-}
-
-expptr backslash_code(expptr e){ //we have Vp(e).
-  if(car(e) == dollar){
-    return app_code2("cons",atom_quote_code(dollar), bquote_code(cdr(e)));}
-  return  app_code2("cons", atom_quote_code(backslash), backslash_code(cdr(e)));
-}
-
 expptr bquote_code(expptr e){
   if(atomp(e))return atom_quote_code(e);
   if(parenp(e))return app_code2("intern_paren",constructor_code(constructor(e)),bquote_code(paren_inside(e)));
+  if(specialp(constructor(cdr(e))))berror("illegal use of special character in backquote");
   if(car(e) == dollar){
     if(parenp(cdr(e))){return paren_inside(cdr(e));}
-    if(symbolp(cdr(e)))return cdr(e);}
-  if(car(e) == backslash && Vp(e)){
-    return backslash_code(cdr(e));}
+    if(symbolp(cdr(e)))return cdr(e);
+    berror("illegal use of dollar sign in backquote");}
+  if(car(e) == backslash){
+    if(parenp(cdr(e)))return quote_code(paren_inside(cdr(e)));
+    return quote_code(cdr(e));}
   return app_code2("cons",bquote_code(car(e)),bquote_code(cdr(e)));
 }
 
 expptr bquote_macro(expptr e){ //this is the non-recursive entry point (the macro procedure) for backquote
   if(parenp(cdr(e)))return bquote_code(paren_inside(cdr(e)));
-  berror("backquote of symbol is not supported");
+  if(symbolp(cdr(e)))return atom_quote_code(cdr(e));
+  berror("illegal backquote syntax");
   return NULL;
 }
 
@@ -951,12 +942,12 @@ void advance_past_white(){
 }
 
 /** ========================================================================
-Symbols, Connectives and Strings
+The lexer --- Symbols, Connectives and Strings
 
 mcread_symbol and mcread_connective are white-space sensitive and use
 advance_readchar rather than advance_past_white.
 
-mcread_string must avoid readchar modifications of advance_readchar
+mcread_quote must avoid readchar modifications of advance_readchar
 and uses simple_advance directly.
 
 All three of these procedures advance past white before returning.
@@ -984,7 +975,7 @@ expptr mcread_connective(){
   return e;
 }
 
-expptr mcread_string(){
+expptr mcread_quote(){
   if(!string_quotep(readchar))return NULL;
   //we must prevent an unterminated string from swalling all further input.
   //we solve this by not allowing return characters in strings.
@@ -1008,20 +999,32 @@ expptr mcread_string(){
   return e;
 }
 
+expptr mcread_special(){
+  if(!specialp(readchar))return NULL;
+  ephemeral_freeptr = 0;
+  ephemeral_putc(readchar);
+  ephemeral_putc('\0');
+  expptr e = string_atom(ephemeral_buffer);
+  advance_past_white();
+  return e;
+}
+
+
 /** ========================================================================
-parens
-======================================================================== **/
+  The reader
+========================================================================**/
+// parens
 
 void declare_unmatched(char, expptr, char);
 
-expptr mcread_E(int);
+expptr mcread_Ep(int);
 
 expptr mcread_open(){
   if(!openp(readchar))return NULL;
   char c = readchar;
   char cl = close_for(c);
   advance_past_white();
-  expptr e = mcread_E(0);
+  expptr e = mcread_Ep(0);
   if(readchar != cl)declare_unmatched(c,e,readchar);
   advance_past_white();
   return intern_paren(c,e ? e : nil);
@@ -1033,105 +1036,68 @@ void declare_unmatched(char openchar, expptr e, char closechar){
   reader_error();
 }
 
-/** ========================================================================
-mcread_arg
-======================================================================== **/
+// mcread_Einf
 
 expptr pcons(expptr x, expptr y){return x? (y? cons(x,y) : x) : y;}
 
-expptr mcread_parenstar(){
-  expptr p = mcread_open();
-  if(p)return pcons(p,mcread_parenstar());
-  return NULL;
-}
-
-int junkp(expptr x){
-  return
-    x == backslash
-    || x == dollar
-    || (cellp(x) && junkp(cdr(x)));
-}
-
-expptr mcread_V();
-
-expptr mcread_S(){
-  expptr s = mcread_symbol();
+expptr mcread_A(){
+  expptr s = mcread_open();
   if(s)return s;
-  return mcread_V();
-}
-
-expptr mcread_V(){
-  if(readchar == '$'){
-    advance_past_white();
-    expptr s = mcread_symbol();
-    if(s) return cons(dollar,s);
-    expptr p = mcread_open();
-    if(p) return cons(dollar,p);
-    return dollar; //junk
-  }
-  if(readchar == '\\'){
-    advance_past_white();
-    return pcons(backslash,mcread_V());}
+  s = mcread_quote();
+  if(s)return s;
+  s = mcread_symbol();
+  if(s)return s;
+  s = mcread_special();
+  if(s)return pcons(s, mcread_A());
   return NULL;
 }
 
-expptr mcread_arg(){
-  expptr s = mcread_string(); //quoted string
-  if(s) return s;
-  expptr S = mcread_S();
-  if(S){
-    if(junkp(S)) return S;
-    return pcons(S,mcread_parenstar());}
-  if(readchar == '`'){
-    advance_past_white();
-    return pcons(backquote, mcread_open());}
-  expptr p = mcread_open();
-  if(p) return p;
+expptr mcread_Einf(){
+  expptr s = mcread_A();
+  if(s)return pcons(s,mcread_Einf());
   return NULL;
 }
 
-
-/** ========================================================================
-mcread
-======================================================================== **/
+// mcread
 
 int precedence(char c){
   if(terminatorp(c))return 0;
   if(c==';')return 1;
   if(c==',')return 2;
-  if(c == ':')return 4;
-  if(c=='@')return 5;
-  if(c=='|' || c =='&' || c == '!' || c == '?')return 6;
-  if(c=='=' || c=='<' || c=='>' || c =='~') return 7;
-  if(c=='+' || c=='-')return 8;
-  if(c=='*' || c=='/')return 9;
-  if(c == '%' || c == '^' )return 10;
-  if(c=='.' || c == '#')return 11;
-  return 3; //precedence of combining adjacent arguments.
+  if(c == ':')return 3;
+  if(c=='@')return 4;
+  if(c=='|' || c =='&' || c == '!' || c == '?')return 5;
+  if(c=='=' || c=='<' || c=='>' || c =='~') return 6;
+  if(c=='+' || c=='-')return 7;
+  if(c=='*' || c=='/')return 8;
+  if(c == '%' || c == '^' )return 9;
+  if(c=='.' || c == '#')return 10;
+  berror("undefined precedence");
+  return 11; //prevents compiler warning
 }
 
-#define LEFT_THRESHOLD 10
+#define LEFT_THRESHOLD 9
 
-expptr mcread_E(int p_left){
+expptr mcread_Ep(int p_left){
   //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
   //This returns a (possibly phantom) general expression (category E) to be consumed by the stack.
-  if(terminatorp(readchar)) return NULL;
-  expptr arg = mcread_arg();
+  expptr arg = mcread_Einf();
+  //readchar must now be a connective or a terminator.
   int p_right = precedence(readchar);
   while(!terminatorp(readchar)
 	&& (p_left < p_right
 	    || (p_left == p_right
 		&& p_left < LEFT_THRESHOLD))){
     expptr op = mcread_connective();
-    //at least one of arg and op must be non-null
-    arg = pcons(pcons(arg,op),mcread_E(p_right));
+    // op must be non-null
+    arg = pcons(pcons(arg,op),mcread_Ep(p_right));
     p_right = precedence(readchar);}
   return arg;
 }
 
 expptr mcread(){//this is called from top level read functions only
   advance_past_white();
-  expptr arg = mcread_E(0);
+  expptr arg = mcread_Ep(0);
   if(closep(readchar))declare_unmatched('-',arg,readchar);
   return arg ? arg : nil;
 }
@@ -1168,7 +1134,7 @@ void berror(char *s){
     if(in_doit) send_emacs_tag(exec_error_tag);
     else send_emacs_tag(expansion_error_tag);}
   cbreak();
-  send_emacs_tag(continue_from_gdb_tag);
+  if(in_ide)send_emacs_tag(continue_from_gdb_tag);
   throw_error();
 }
 

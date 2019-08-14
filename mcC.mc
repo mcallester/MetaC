@@ -1,7 +1,7 @@
 #include "mc.h"
 
 expptr init_form_macro(expptr e){
-  ucase{e; {init_form($form)}:{add_init_form(form); return NULL;}}
+  ucase{e; {init_form($form)}:{add_init_form(form); return NULL;}};
   return NULL;
 }
 
@@ -13,13 +13,16 @@ expptr umacro_macro(expptr e){
 	   char * s = atom_string(name);
 	   expptr fname = symbolp(name) ? gensym(s) : gensym("connective");
 	   add_init_form(`{set_macro(`{$name},$fname);});
-	   return `{expptr $fname(expptr e){ucase{e;{$pattern}:{$body}} return NULL;}};}}
+	   return `{
+	     expptr $fname(expptr e){
+	       ucase{e;{$pattern}:{$body}};
+	       return NULL;}};}};
   return NULL;
 }
 
 expptr init_fun_macro(expptr e){
   ucase{e; {init_fun($fname)}:{
-      return `{void $fname(){$init_forms}};}}
+      return `{void $fname(){$init_forms}};}};
   return nil;}
 
 void mcC_init(){

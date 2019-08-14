@@ -1,6 +1,64 @@
+
 /** ========================================================================
-  define_lists defines list types and list operations over a given c type.
+general utilities
 ========================================================================**/
+
+//  pushprop assumes the property value is a list of pointers
+
+deflists(voidptr);
+/** 7:done **/
+
+umacro{pushprop($val, getprop($x, $prop))}{
+  expptr xval = gensym("xval");
+  expptr propval = gensym("prop");
+  return `{{
+      voidptr $xval = $x;
+      voidptr $propval = $prop;
+      setprop($xval, $propval, voidptr_cons($val, (voidptr_list) getprop($xval, $propval, NULL)));}};
+}
+/** 10:done **/
+
+// macroexpand1(`{pushprop(v,getprop(x,`{foo}))})
+
+// pushprop(`{a}, getprop(`{b}, `{foo}));
+
+// (expptr) (((voidptr_list) getprop(`{b},`{foo},NULL))->first)
+
+int occurs_in(expptr symbol, expptr exp){
+  if(atomp(exp))return (symbol == exp);
+  if(cellp(exp))return (occurs_in(symbol,car(exp)) || occurs_in(symbol,cdr(exp)));
+  return occurs_in(symbol,paren_inside(exp));
+}
+
+//    general exceptions
+
+expptr exception[0] = NULL;
+
+expptr exception_value[0];
+
+umacro{catch_excep{$exception}{$body}{$handler}}{
+  return `{
+    catch({$body})
+      if(exception[0]){
+	if(exception[0] == `{$exception}){
+	  $handler
+	  expception[0] = NULL;}
+	else continue_throw();}};
+}
+
+umacro{throw_excep{$exception;$value}}{
+  return `{
+    expcetion[0] = `{$exception};
+    exception_value[0] = $value;
+    throw();};
+}
+
+//   a macro to prevent "unmentioned variable" compiler errors
+
+umacro{mention($x)}{
+  return `{if($x ? $x : $x){}};}
+
+// define_lists defines list types and list operations over a given c type.
 
 void define_lists(expptr class){
   char * cstring = atom_string(class);
@@ -62,28 +120,15 @@ void define_lists(expptr class){
 	  {\$any}:{return `{$consfun(\$x,NULL)};}}}
     });
 }
+/** 1:done **/
 
 umacro{deflists($type)}{ //for use with non-class types
   define_lists(type);
   return `{{}};
 }
+/** 2:done **/
 
-/** ========================================================================
-  abstract classes (classes which are inhereted from but not instantiated)
-
-  subclass{superclass; foo{<var1> <type1>; ... <varn> <typen>;}} defines foo as a pointer
-  to a structure type with an index slot added at the front.  Instances of this type
-  will typically have additional fields and the index identifies the implementation
-  class.
-
-  currently instance variables are inhereted but methods are not.  In fact, Methods cannot be defined
-  on abstract classes. However, concrete class methods can call independently defined superclass procedures.
-
-  Methods inheretance is not difficult to implement and may be implemented at some future point.
-
-  The reader seems to be misbehaving on \$$x.  This is blocking successful compilartion of
-  semi_map.
-========================================================================**/
+//list operations on C statement lists (semicolon lists).
 
 expptr semi_append(expptr x, expptr y){
   ucase{x;
@@ -91,6 +136,7 @@ expptr semi_append(expptr x, expptr y){
     {$last ;}:{return `{$last ; $y};}}
   return NULL;
 }
+/** 3:done **/
 
 expptr semi_reverse(expptr x){
   expptr result = NULL;
@@ -103,97 +149,36 @@ expptr semi_reverse(expptr x){
       {$last ;}:{return `{$last ; $result};}
       {$first ; $rest}:{result = `{$first ; $result}; x = rest;}}}
 }
+/** 4:done **/
 
 
-/** ========================================================================
-  semi_reverse(`{a; b; c;})  
-========================================================================**/
+//  semi_reverse(`{a; b; c;})  
 
 umacro{semi_map($x,$y)($expression)}{
   //intuitively map((lambda x expression) y)
   //except map_semi reverses the list
   expptr yval = gensym("yval");
   expptr result = gensym("result");
+  expptr rest = gensym("rest");
   return `{({
 	expptr $yval = $y;
 	expptr $result = NULL;
 	ucase{$yval;
-	  {\$$x ; \$rest}:{$result = `{\${($expression)} ;}; $yval = \$rest;}
+	  {\$$x ; \$$rest}:{$result = `{\${($expression)} ;}; $yval = $rest;}
 	  {\$$x ;}:      {$result = `{\${($expression)} ;}; $yval = NULL;}}
 	while($yval){
 	  ucase{$yval;
-	    {\$$x ; \$rest}:{$result = `{\${($expression)} ; \$$result}; $yval = \$rest;}
+	    {\$$x ; \$$rest}:{$result = `{\${($expression)} ; \$$result}; $yval = $rest;}
 	    {\$$x ;}:      {$result = `{\${($expression)} ; \$$result}; $yval = NULL;}}}
 	$result;})};
 }
+/** 5:done **/
 
 
-/** ========================================================================
-  reader misbehaving.
+//  macroexpand1(`{semi_map(z,`{a;b;c})(`{(d,\$z)})})
 
-expptr x[0] = file_expressions("test.mc");  //this contains the single line \$$x
+//  semi_map(z,`{a;b;c;})(`{(d,$z)})
 
-car(x[0]) //the first list element \$$x
-
-car(car(x[0])) //this seems wrong
-
-========================================================================**/
-
-expptr fix_typedef_recursion(expptr pointertype, expprt structtype, expptr ivars){
-  return semi_reverse(semi_map(e,ivars)({
-	expprt result = NULL;
-	ucase{e;
-	  {$type $var}:{
-	    if(type = pointertype){
-	      result = `{$structtype * $var};
-	    }
-	    else {
-	      result = e;}}}
-	result;}));
-}
-
-expptr complete_ivars(expptr class){
-  if(class == `{object})
-    return `{int implementation_index;};
-  else
-    return semi_append(complete_ivars(getprop(class,`{superclass},NULL)),
-		       getprop(class,`{class_ivars},NULL));
-}
-
-void declare_class(expptr superclass, expptr class, expptr ivars){
-  if( superclass != `{object} && !getprop(superclass,`{class_ivars},NULL)){
-    berror(sformat("illegal superclass %s",atom_string(superclass)));}
-  expptr old_superclass = getprop(class,`{superclass},NULL);
-  expptr old_ivars = getprop(class,`{class_ivars},NULL);
-  if(old_ivars && (ivars != old_ivars || superclass != old_superclass)){
-    berror(sformat("attempt to change definition of class %s", atom_string(class)));}
-  if(!old_ivars){
-    add_form(`{setprop(`{$class},`{class_ivars}, `{$ivars});});
-    add_form(`{setprop(`{$class},`{superclass}, `{$superclass});});
-    expptr structname = string_atom(sformat("%s_struct",atom_string(class)));
-    add_form(`{typedef struct $structname{${semi_append(complete_ivars(superclass),ivars)}} $structname, * $class;});
-    define_lists(class);}
-}
-
-umacro{subclass{$superclass; $class{$ivars}}}{
-  declare_class(superclass, class, ivars);
-  return `{};
-}
-
-/** ========================================================================
-  Concrete classes
-
-  the constructor for a concrete class takes an argument for all instance variables
-  (including inherited variables) other than the implementation index.  The return
-  type of the constructor is the immediate superclass.
-========================================================================**/
-
-expptr init_ivars(expptr ivars){
-  ucase{ivars;
-    {$any $var ; $rest}:{return `{self->$var = $var; ${init_ivars(rest)}};}
-    {$any $var;}:{return `{self->$var = $var;};}}
-  return NULL;
-}
 
 expptr semi_to_comma(expptr e){
   ucase{e;
@@ -201,66 +186,274 @@ expptr semi_to_comma(expptr e){
     {$last ;}:{return last;}
     {$any}:{return e;}}
 }
+/** 14:done **/
 
+// semi_to_comma(`{a; b;})
 
-int implement_counter[0] = 0;
+/** ========================================================================
+  classes
 
-int implementation_dim[0] = 100;
+  the class hierarchy must be a tree with each class having a unique superclass rooted at `object.
 
-int implementation_index(expptr implementation){
-  int index = getprop_int(implementation,`{index},-1);
-  if(index >= 0)return index;
-  index = implement_counter[0];
-  if(index == implementation_dim[0]){
-    berror(sformat("attempt to create more than %d implementations", implementation_dim[0]));}
-  add_form(`{implement_counter[0]++ ;});
-  add_form(`{setprop_int(`{$implementation},`{index}, ${int_exp(index)});});
-  return index;
+  after doing
+
+  defclass{object, foo(expptr x;)}
+
+  the declaration
+
+  defclass{foo; bar{foo y; bar z;}} generates
+
+ typedef struct bar_struct{
+  int class_index;
+  expptr x;
+  foo y;
+  bar_struct * z;} bar_struct, *bar;
+
+ bar new_bar(expptr x, foo y, bar z;){
+  bar bar_37 = (bar) undo_alloc(sizeof (bar_struct));
+  bar_37->class_index = 2;
+  bar_37->x = s;
+  bar_37->y = y;
+  bar_37->z = z;
+  return bar_37;
+ }
+
+ Any class foo in the class hierarchy can be instantiated by calling new_foo.
+========================================================================**/
+
+expptr fix_typedef_recursion(expptr pointertype, expptr structtype, expptr ivars){
+  return semi_reverse(semi_map(e,ivars)({
+	expptr result = NULL;
+	ucase{e;
+	  {$type $var}:{
+	    if(type == pointertype){
+	      result = `{$structtype * $var};
+	    }
+	    else {
+	      result = e;}}}
+	result;}));
 }
+/** 20:done **/
 
-void add_imp_constructor(expptr superclass, expptr class, expptr ivars){
-  int index = implementation_index(class);
+// fix_typedef_recursion(`{foo}, `{bar}, `{int x; foo y; int z;})
+
+expptr complete_ivars(expptr ivars, expptr superclass){
+  if(class == `{object})
+    return `{int class_index;};
+  else
+    return semi_append(complete_ivars((expptr) getprop(superclass, `{ivars}, NULL),
+				      (expptr) getprop(superclass,`{superclass},NULL)),
+		       ivars);
+}
+/** 16:done **/
+
+expptr init_ivars(expptr ivars){
+  ucase{ivars;
+    {$any $var ; $rest}:{return `{self->$var = $var; ${init_ivars(rest)}};}
+    {$any $var;}:{return `{self->$var = $var;};}}
+  return NULL;
+}
+/** 17:done **/
+
+void add_class_constructor(expptr superclass, expptr class, expptr complete_ivars){
+  int index = class_index(class);
   expptr constructor = string_atom(sformat("new_%s",atom_string(class)));
-  expptr structname = string_atom(sformat("%s_struct",atom_string(class)));
-  expptr all_ivars = semi_append(complete_ivars(superclass), ivars);
-  ucase{all_ivars;
-    {$any;}:{berror(sformat("implementation class %s has no instance variables",atom_string(class)));}
+  expptr complete_ivars = complete_ivars(ivars, superclass);
+  ucase{complete_ivars;
+    {$any;}:{berror(sformat("class %s has no instance variables",atom_string(class)));}
     {$any;$rest_ivars}:{
       add_form(`{
-	  $superclass $constructor(${semi_to_comma(rest_ivars)}){
+	  $class $constructor(${semi_to_comma(rest_ivars)}){
 	    $class self = ($class) undo_alloc(sizeof($structname));
-	    self->implementation_index = ${int_exp(index)};
+	    self->class_index = ${int_exp(index)};
 	    ${init_ivars(rest_ivars)}
-	    return ($superclass) self;}
+	    return self;}
 	});}}
 }
 
-umacro{defimp{$superclass; $class{$ivars}}}{
-  declare_class(superclass, class, ivars);
-  add_imp_constructor(superclass, class, ivars);
+void declare_class(expptr superclass, expptr class, exptr ivars){
+  setprop(class, `{ivars} `{$ivars});
+  setprop(class,`{superclass}, superclass);
+  pushprop(class, getprop(superclass, `{subclasses}));
+  copy_methods(superclass,class);
+}
+
+int class_counter[0] = 0;
+/** c compilation error **/
+
+ucase{`{int foobar[0] = 0;}; {$any$any[0]=$any;}:{}}
+/** dynamic-check error **/
+
+car(car(file_expressions("test.mc")))
+/** 2:$type$x[0]=$any **/
+// _5
+
+cdr(car(car(file_expressions("test.mc"))))
+/** 3:$x[0]=$any **/
+// _10
+
+cdr(cdr(car(car(file_expressions("test.mc")))))
+/** 1:[0]=$any **/
+// _8
+
+{{expptr top_1=cons
+      (cons
+        (string_atom("int"),
+        cons
+          (cons
+            (cons(string_atom("foobar"),intern_paren('[',string_atom("0"))),
+            string_atom("=")),
+          string_atom("0"))),
+      string_atom(";"));
+    expptr _5=top_1;
+    if(cellp(_5))
+      {expptr _10=car(_5);
+      if(cellp(_10))
+        {expptr _24=car(_10);
+        
+          {expptr type=_24;
+          expptr _8=cdr(_10);
+          if(cellp(_8))
+            {expptr _17=car(_8);
+            
+              {expptr X=_17;
+              expptr _9=cdr(_8);
+              if(cellp(_9))
+                {expptr _14=car(_9);
+                if(cellp(_14))
+                  {expptr _19=car(_14);
+                  if(parenp(_19)&&constructor(_19)=='[')
+                    {expptr _6=paren_inside(_19);
+                    if(_6==string_atom("0"))
+                      {expptr _26=cdr(_14);
+                      if(_26==string_atom("="))
+                        {expptr _2=cdr(_5);
+                        if(_2==string_atom(";")){if(symbolp(type)&&symbolp(X)){goto done_1;}}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    match_failure
+      (top_1,
+      cons
+        (cons
+          (cons
+            (intern_paren
+              ('{',
+              cons
+                (cons
+                  (cons(string_atom("$"),string_atom("type")),
+                  cons
+                    (cons(string_atom("$"),string_atom("X")),
+                    cons
+                      (cons(intern_paren('[',string_atom("0")),string_atom("=")),
+                      cons(string_atom("$"),string_atom("any"))))),
+                string_atom(";"))),
+            string_atom(".")),
+          intern_paren
+            ('(',
+            cons
+              (cons
+                (cons
+                  (string_atom("symbolp"),
+                  intern_paren('(',string_atom("type"))),
+                string_atom("&&")),
+              cons(string_atom("symbolp"),intern_paren('(',string_atom("X")))))),
+        string_atom("")));
+    done_1: ;
+    }
+  return string_atom("done");
+  }
+/** dynamic-check error **/
+
+
+expptr foobar[0] = `{a};
+/** **/
+
+int class_dim[0] = 100;
+/** c compilation error **/
+
+expptr class_name[100];
+/** 18:done **/
+
+{for(int i = 0; i<100; i++){class_name[i] = NULL;}}
+/** 19:done **/
+
+int class_index(expptr class){
+  int index = getprop_int(implementation,`{index},-1);
+  if(index < 0)berror(sformat("no class index for %s",atom_string(class)));
+  return index;
+}
+
+void add_class_index_forms(class){
+  index = implement_counter[0];
+  if(index == class_dim[0]){
+    berror(sformat("attempt to create more than %d implementations", class_dim[0]));}
+  add_form(`{implement_counter[0]++ ;});
+  add_form(`{setprop_int(`{$implementation},`{index}, ${int_exp(index)});});
+}
+
+void add_class_forms(expptr superclass, expptr class, expptr ivars){
+  if( superclass != `{object} && !getprop(superclass,`{superclass},NULL)){
+    berror(sformat("illegal superclass %s",atom_string(superclass)));}
+  expptr old_superclass = getprop(class,`{superclass},NULL);
+  expptr old_ivars = getprop(class,`{class_ivars},NULL);
+  if(old_superclass && (ivars != old_ivars || superclass != old_superclass)){
+    berror(sformat("attempt to change definition of class %s", atom_string(class)));}
+  if(!old_superclass){
+    expptr structname = string_atom(sformat("%s_struct",atom_string(class)));
+    complete_ivars = complete_ivars(fix_typedef_recursion(class, structname, superclass), superclass);
+    add_form(`{typedef struct $structname{$complete_ivars} $structname, * $class;})
+    add_form(`{define_lists(`{$class});});
+    add_form(`{install_class(`{$superclass}, `{$class});});
+}
+
+
+umacro{defclass{$superclass; $class{$ivars}}}{
+  add_class_forms(superclass, class, ivars);
   return `{};
 }
 
-
 /** ========================================================================
-  methods are macros that expand to an aref to retrieve the method particular to the
-  given object.
+
+ if, for some class foo, we do
+
+ defmethod{expptr bar.g(foo self; expptr x;){return x;}}
+
+ then g is declared by expptr g(expptr x);
+
+ For g(z) to be defined the class of z must be a subclass (inclusive) of foo.
+
+The code that gets fun for g(z) depends on the subtype of foo to which g is applied.
+
+ If g is a declared method then g(z) macro-expands to an appropriately typed version of M[z->class_index](z)
+ where M is the statically determined method table for g.
 
   all instance variables, including inherited instance variables, get bound to local
-  variables of the same name.
+  variables of the same name.  There is also a local self variable.
 ========================================================================**/
 
+ 
 expptr method_table(expptr f){
   expptr table = getprop(f,`{method_table},NULL);
-  if(table)return table;
-  table = gensym("method_table");
-  add_form(`{voidptr $table[implementation_dim[0]];});
-  add_form(`{for(int i = 0;i<implementation_dim[0];i++){$table[i] = NULL;};});
-  add_form(`{setprop(`{$f},`{method_table},`{$table});});
+  if(!table)berror(sformat("no method table for %s",atom_string(f)));
   return table;
 }
 
-void declare_method(expptr outtype, expptr f, expptr argvars){
+void add_method_table_forms(expptr f){
+  table = gensym("method_table");
+  add_form(`{voidptr $table[class_dim[0]];});
+  add_form(`{for(int i = 0;i<class_dim[0];i++){$table[i] = NULL;};});
+  add_form(`{setprop(`{$f},`{method_table},`{$table});});
+}
+
+void add_method_forms(expptr outtype, expptr f, expptr argvars){
   expptr oldtype = getprop(f,`{type},NULL);
   if(oldtype){
     ucase{oldtype;{$outtype2($argvars2)}:{
@@ -279,7 +472,6 @@ expptr method_type(expptr f){
 
 expptr method_expansion(expptr e){
   expptr f_imp = gensym("f_imp");
-  expptr selfvar = gensym("selfvar");
   expptr y = gensym("y");
   ucase{e;
     {$f($argexps)}:{
@@ -290,7 +482,7 @@ expptr method_expansion(expptr e){
 		  return `{
 		    ({$selftype $selfvar = $selfexp;
 		      $outtype (* $f_imp)($argvars);
-		      $f_imp = ${method_table(f)}[$selfvar -> implementation_index];
+		      $f_imp = ${method_table(f)}[$selfvar -> class_index];
 		      if(!$f_imp)berror(sformat("method %s not defined on given object",atom_string(`{$f})));
 		      $outtype $y = $f_imp(${restexps ? `{$selfvar, $restexps} : selfexp});
 		      $y;})};
@@ -298,11 +490,6 @@ expptr method_expansion(expptr e){
   return NULL;
 }
 
-int occurs_in(expptr symbol, expptr exp){
-  if(atomp(exp))return (symbol == exp);
-  if(cellp(exp))return (occurs_in(symbol,car(exp)) || occurs_in(symbol,cdr(exp)));
-  return occurs_in(symbol,paren_inside(exp));
-}
 
 expptr localize_ivars(expptr ivars, expptr body){
   ucase{ivars;
@@ -344,37 +531,6 @@ umacro{defmethod{$outtype $impclass.$f($argvars){$body}}}{
   return `{};
 }
 
-/** ========================================================================
-    general exceptions
-======================================================================== **/
-
-expptr exception[0] = NULL;
-
-expptr exception_value[0];
-
-umacro{catch_excep{$exception}{$body}{$handler}}{
-  return `{
-    catch({$body})
-      if(exception[0]){
-	if(exception[0] == `{$exception}){
-	  $handler
-	  expception[0] = NULL;}
-	else continue_throw();}};
-}
-
-umacro{throw_excep{$exception;$value}}{
-  return `{
-    expcetion[0] = `{$exception};
-    exception_value[0] = $value;
-    throw();};
-}
-
-/** ========================================================================
-  a macro to prevent "unmentioned variable" compiler errors
-======================================================================== **/
-
-umacro{mention($x)}{
-  return `{if($x ? $x : $x){}};}
 
 
 /** ========================================================================
@@ -388,7 +544,7 @@ defimp{foo; bar{expptr y;}};
 
 foo foovar[0] = new_bar(`{a},`{b});
 
-int_exp(foovar[0]->implementation_index)
+int_exp(foovar[0]->class_index)
 
 foovar[0]->x
 
@@ -396,7 +552,7 @@ defimp{foo; baz{expptr y;}};
 
 foo foovar2[0] = new_baz(`{a},`{b});
 
-int_exp(foovar2[0]->implementation_index)
+int_exp(foovar2[0]->class_index)
 
 defmethod{expptr bar.msg(foo self){return y;}};
 

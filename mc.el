@@ -51,7 +51,7 @@
      (beginning-of-buffer)
      (let ((c (char-after)))
        (when (or  (= c 32) (= c 47) (= c ?\t) (= c ?\n))
-	 (MC:next-cell))))))
+	 (MC:end-of-cell))))))
 
 (defun MC:end-of-cell ()
   (interactive)
@@ -241,7 +241,7 @@
 
 	((string= tag "result")
 	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
-	 (MC:next-cell)
+	 (MC:end-of-cell)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when (> *load-count* 0) (MC:execute-cell-internal)))
 
@@ -310,7 +310,7 @@
       (goto-char beg)
       (MC:beginning-of-cell)
       (while (< (point) beg)
-        (MC:next-cell))
+        (MC:end-of-cell))
       (let ((count 0))
 	(while (< (point) end)
 	  (setq count (+ count 1))

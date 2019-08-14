@@ -20,8 +20,11 @@ to x as opposed to assignments to x[i]. To support assignment to x (as opposed t
 we need to be able to identify the FREE occurances of x in the code. This implementation
 does not support that level of analysis of the C code.
 
-MetaC is designed to create new languages.  The implementation of a new language will support
-better code analysis of the new langauge.
+An important design convention is that evaluation of a NIDE cell not have any
+effect in the event of any error prior to the execution of the compiled do_it procedure.
+In particular errors during macro expansion or compilation should block all effects.
+This can be achieved by performing all effects with the add_form construct so that
+the effect is done from inside do_it.
 ======================================================================== **/
 
 expptr file_preamble; // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
@@ -98,9 +101,9 @@ void mcE_init1(){
 umacro{insert_base()}{
   expptr result = nil;
   dolist(f,procedures){
-    push(`{symbol_value[${symbol_index_exp(f)}] = $f;}, result);}
+    push(`{symbol_value[${symbol_index_exp(f)}] = $f;}, result);};
   dolist(X,arrays){
-    push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);}
+    push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);};
   return result;
 }
 
@@ -114,11 +117,11 @@ void install_base(){
         setprop(f,`{base},`{true});
         push(f,procedures);
 	setprop(f,`{signature},sig);
-      }
+      };
       {$type $x[$dim];}.(symbolp(type) && symbolp(x)):{
 	symbol_index(x);  //establish the index
 	push(x,arrays);
-	setprop(x,`{signature},sig);}
+	setprop(x,`{signature},sig);};
       {$e}:{push(e,file_preamble);} //typedefs
     }}
 }
@@ -142,7 +145,7 @@ expptr new_procedure_insertion (expptr f){
 
 expptr new_array_insertion (expptr x){
   ucase{getprop(x,`{signature},nil);
-    {$type $x[$dim];}:{return `{symbol_value[${symbol_index_exp(x)}] = malloc($dim*sizeof($type));};}}
+    {$type $x[$dim];}:{return `{symbol_value[${symbol_index_exp(x)}] = malloc($dim*sizeof($type));};}};
   return nil; //avoids compiler warning
 }
 
@@ -164,7 +167,7 @@ void install_link_def(expptr f){
 		    `{(* _mc_f)(${args_variables(args)});}
 		    : `{return (* _mc_f)(${args_variables(args)});})}}},
 	     fileout,
-	     0);}
+	     0);};
     {$any}:{}}
 }
 
@@ -186,12 +189,12 @@ void eval_from_load(expptr e){
       fprintf(stdout,"loaded file contains an undo restart");
       if(in_ide)send_emacs_tag(comp_error_tag);
       if(in_repl)fprintf(stdout,"\n evaluation aborted");
-      throw_error();}
+      throw_error();};
     {load($sym)}.(atomp(sym)) : {
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
       if(in_repl)fprintf(stdout,"\n evaluation aborted");
-      throw_error();}
+      throw_error();};
     {$any} : {simple_eval(e);}}
 }
 
@@ -200,7 +203,7 @@ expptr eval_exp(expptr exp){
     {load($sym);}.(atomp(sym)) : {
       char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
       mapc(eval_from_load,file_expressions(require_file));
-      return `{${int_exp(cellcount)}: $sym provided};}
+      return `{${int_exp(cellcount)}: $sym provided};};
     {$any}:{
       return simple_eval(exp);}}
 }
@@ -209,7 +212,7 @@ void write_signature(expptr sym){
   expptr sig =getprop(sym,`{signature},NULL);
   if(!sig)berror(sformat("MCbug: %s has no signature", atom_string(sym)));
   ucase{sig;
-    {$type $x[$dim];}:{pprint(`{${type} * ${x};},fileout,0);}
+    {$type $x[$dim];}:{pprint(`{${type} * ${x};},fileout,0);};
     {$any}:{pprint(sig,fileout,0);}}
 }
     
@@ -274,23 +277,23 @@ expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
 
 void preinstall(expptr statement){
   ucase{statement;
-    {typedef $def;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);}
-    {typedef $def1,$def2;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);}
-    {#include <$any>}:{push(statement, new_preambles);}
-    {return $e;}:{push(statement,doit_statements);}
-    {$type $X[0];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1});}
-    {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1}); push(`{$X[0] = $e;},doit_statements);}
-    {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,dim);}
-    {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, body);}
-    {$type $f($args);}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, NULL);}
-    {$e;}:{push(statement,doit_statements)}
-    {{$e}}:{push(statement,doit_statements)}
+    {typedef $def;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);};
+    {typedef $def1,$def2;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);};
+    {#include <$any>}:{push(statement, new_preambles);};
+    {return $e;}:{push(statement,doit_statements);};
+    {$type $X[0];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1});};
+    {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1}); push(`{$X[0] = $e;},doit_statements);};
+    {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,dim);};
+    {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, body);};
+    {$type $f($args);}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, NULL);};
+    {$e;}:{push(statement,doit_statements)};
+    {{$e}}:{push(statement,doit_statements)};
     {$any}:{push(`{return $statement;},doit_statements)}}
 }
 
 void print_preamble(expptr e){
   ucase{e;
-    {#include <$f>}:{fprintf(fileout,"#include <%s>\n", exp_string(f));}
+    {#include <$f>}:{fprintf(fileout,"#include <%s>\n", exp_string(f));};
     {$any}:{pprint(e,fileout,rep_column);}}
 }
 
@@ -348,7 +351,7 @@ void install_proc_def(expptr f){
       pprint(
 	     `{$type ${getprop(f,`{gensym_name},NULL)}($args){
 		 ${getprop(f,`{body},NULL)}}},
-	     fileout, 0);}
+	     fileout, 0);};
     {$e}:{}}
 }
 
