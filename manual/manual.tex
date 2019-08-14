@@ -858,7 +858,7 @@ The nonterminal $\sym$ generates symbol atoms; $\conn_p$ generates connective at
 Although the grammar is ambiguous, the reader is defined by a deterministic left-to-right shift-reduce parser
 in which the $\epsilon$-production for $A$ is selected only when no other option is available.
 The nonterminal $E_\infty$ generates ``arguments'' --- expressions not containing connectives outside of parentheses.
-The nonterminal $E_p$ generates expressions containing connectives where the lowest priority connective has priority $p$.
+The nonterminal $E_p$ generates expressions whose root connective has priority $p$ (and whose internal connectives have priority at least $p$).
 ${\cal R}$ is the set of right-associative precedence levels and ${\cal L}$ is the set of left-associative levels.
 Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$.
 }
