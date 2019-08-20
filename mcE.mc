@@ -275,20 +275,27 @@ expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
   return `{${int_exp(++cellcount)}: $e};
 }
 
+expptr left_atom(expptr e){
+  if(atomp(e)) return e;
+  if(cellp(e)) return left_atom(car(e));
+  return NULL;}
+
 void preinstall(expptr statement){
-  ucase{statement;
-    {typedef $def;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);};
-    {typedef $def1,$def2;}:{if(!getprop(statement,`{installed},NULL)) push(statement, new_preambles);};
-    {#include <$any>}:{push(statement, new_preambles);};
-    {return $e;}:{push(statement,doit_statements);};
-    {$type $X[0];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1});};
-    {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1}); push(`{$X[0] = $e;},doit_statements);};
-    {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,dim);};
-    {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, body);};
-    {$type $f($args);}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, NULL);};
-    {$e;}:{push(statement,doit_statements)};
-    {{$e}}:{push(statement,doit_statements)};
-    {$any}:{push(`{return $statement;},doit_statements)}}
+  if(left_atom(statement) == `typedef){
+    {if(!getprop(statement,`installed,NULL)) push(statement, new_preambles);};}
+  else
+    ucase{statement;
+      {}:{};
+      {#include <$any>}:{push(statement, new_preambles);};
+      {return $e;}:{push(statement,doit_statements);};
+      {$type $X[0];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1});};
+      {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1}); push(`{$X[0] = $e;},doit_statements);};
+      {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,dim);};
+      {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, body);};
+      {$type $f($args);}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, NULL);};
+      {$e;}:{push(statement,doit_statements)};
+      {{$e}}:{push(statement,doit_statements)};
+      {$any}:{push(`{return $statement;},doit_statements)}}
 }
 
 void print_preamble(expptr e){

@@ -1040,6 +1040,13 @@ void declare_unmatched(char openchar, expptr e, char closechar){
 
 expptr pcons(expptr x, expptr y){return x? (y? cons(x,y) : x) : y;}
 
+expptr mcread_B(){
+  if(readchar == '$')return mcread_special();
+  if(readchar == '\\'){
+    expptr s = mcread_special();
+    return pcons(s,mcread_B());}
+  return NULL;}
+
 expptr mcread_A(){
   expptr s = mcread_open();
   if(s)return s;
@@ -1047,8 +1054,12 @@ expptr mcread_A(){
   if(s)return s;
   s = mcread_symbol();
   if(s)return s;
-  s = mcread_special();
-  if(s)return pcons(s, mcread_A());
+  if(readchar == '$' || readchar == '`'){
+    s = mcread_special();
+    return pcons(s, mcread_A());}
+  if(readchar == '\\'){
+    s = mcread_B();
+    return pcons(s,mcread_A());}
   return NULL;
 }
 
