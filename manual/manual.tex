@@ -847,16 +847,17 @@ The reader is specified by the grammar shown in figure~\ref{fig:grammar}.
 \begin{eqnarray*}
   E & ::= & E_\infty \;|\; E_p \\
   E_\infty & ::= & A \;|\; \fopen A \; E_\infty \fclose \\
-  A & ::= & \quot \;|\; \sym \;|\; P  \;|\; \fopen \; \mathrm{SPECIAL}\;A\fclose \;|\;\epsilon \\
+  A & ::= & \quot \;|\; \sym \;|\; P  \;|\; \fopen \; `\;A\fclose \;|\; \fopen \; \$\;A\fclose \;|\;\fopen\fopen\backslash\; B \fclose\;A \fclose \;|\; \epsilon \\
+  B & ::= & \$ \;|\; \fopen \backslash\;B \fclose \;|\; \epsilon \\
   P & ::= & (E) \;|\; \{E\} \;|\; [E] \\
-  E_p & ::= & \fopen  E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal R}, \;\ell > p, \; r \geq p \\
-  E_p & ::= & \fopen E_\ell\;\conn_p \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p
+  E_p & ::= & \fopen \fopen  E_\ell\;\conn_p \fclose \;E_r\fclose\;\;\;\;p \in {\cal R}, \;\ell > p, \; r \geq p \\
+  E_p & ::= & \fopen \fopen E_\ell\;\conn_p \fclose \;E_r\fclose\;\;\;\;p \in {\cal L}, \; \ell \geq p,\; r > p
 \end{eqnarray*}
 
 \caption{{\bf The grammar defining the MetaC reader.}
-The nonterminal $\sym$ generates symbol atoms; $\conn_p$ generates connective atoms of precedence $p$; $\quot$ generates string quotation atoms; and $\mathrm{SPECIAL}$ generates the three atoms for the three special characters.
-Although the grammar is ambiguous, the reader is defined by a deterministic left-to-right shift-reduce parser
-in which the $\epsilon$-production for $A$ is selected only when no other option is available.
+The nonterminal $\sym$ generates symbol atoms; $\conn_p$ generates connective atoms of precedence $p$; and $\quot$ generates string quotation atoms.
+The reader is defined by a deterministic left-to-right shift-reduce parser
+in which the $\epsilon$-productions for $A$ and $B$ are selected only when no other option is available.
 The nonterminal $E_\infty$ generates ``arguments'' --- expressions not containing connectives outside of parentheses.
 The nonterminal $E_p$ generates expressions whose root connective has priority $p$ (and whose internal connectives have priority at least $p$).
 ${\cal R}$ is the set of right-associative precedence levels and ${\cal L}$ is the set of left-associative levels.

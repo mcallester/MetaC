@@ -79,7 +79,7 @@ void match_failure(expptr topexp, expptr patterns);
 properties of expressions
 ========================================================================**/
 
-expptr getprop(expptr e, expptr key, expptr defaultval);
+voidptr getprop(expptr e, expptr key, expptr defaultval);
 void setprop(expptr e, expptr key, void * val);
 int getprop_int(expptr e, expptr key, int defaultval);
 void setprop_int (expptr e, void * key, int val);

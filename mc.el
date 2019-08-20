@@ -16,7 +16,9 @@
   (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
   (define-key mc-mode-map "\C-\M-e" 'MC:end-of-cell)
   (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells)
-  (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell))
+  (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell)
+
+  (define-key mc-mode-map "\C-x`" 'MC:display-error)))
 
 (setq auto-mode-alist
       (append
@@ -89,6 +91,7 @@
 
 (defun MC:start-metac ()
   (interactive)
+  (MC:clean-cells)
   (setq *starting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
   (setq *gdb-mode* nil)
   (setq *mc-accumulator* nil)
@@ -190,9 +193,22 @@
   (insert (replace-regexp-in-string "\n" "\n  " value)))
 
 (defun MC:display-abort-message (msg)
-  (with-current-buffer (message-buffer)
-    (erase-buffer) (MC:insert-in-segment msg))
-  (display-buffer (message-buffer) 'display-buffer-pop-up-window))
+  (if (get-buffer "*MC compilation*")
+      (kill-buffer "*MC compilation*"))
+  (let ((buffer (get-buffer-create "*MC compilation*")))
+    (with-current-buffer buffer
+      (erase-buffer)
+      (insert "  ")
+      (MC:insert-in-segment msg)
+      (beginning-of-buffer)
+      (compilation-mode))
+    (display-buffer buffer 'display-buffer-pop-up-window)))
+
+(defun MC:display-error ()
+  (interactive)
+  (with-current-buffer (get-buffer-create "*MC compilation*")
+    (compilation-display-error)))
+
 
 (defun MC:goto-gdb (value)
   (pop-to-buffer (gdb-buffer))
@@ -301,7 +317,7 @@
       (cons "gdb-exec-error" value))))
 
 (defun message-buffer ()
-  (get-buffer-create "*MC Compiler Errors*"))
+  (get-buffer-create "*MC compilation*"))
 
 (defun MC:num-cells-region ()
   (save-excursion
