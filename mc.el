@@ -1,4 +1,4 @@
-(setq *gdb* "/opt/local/bin/gdb-apple")	;
+(setq *gdb* "/opt/local/bin/gdb-apple")
 (setq *MetaC* "/Users/davidmcallester/MC/")
 
 (require 'shell)
@@ -18,7 +18,7 @@
   (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells)
   (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell)
 
-  (define-key mc-mode-map "\C-x`" 'MC:display-error)))
+  (define-key mc-mode-map "\C-x`" 'MC:display-error))
 
 (setq auto-mode-alist
       (append

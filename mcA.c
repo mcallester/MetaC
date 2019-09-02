@@ -705,8 +705,10 @@ void set_macro(expptr sym, expptr f(expptr)){
 }
 
 expptr macroexpand1(expptr e){
-  expptr s = top_atom(e);
-  if(s == NULL)return e;
+  if(!cellp(e))return e;
+  expptr s = car(e);
+  if(!atomp(s))return e;
+  if(!(symbolp(cdr(e)) || parenp(cdr(e)) || (cellp(cdr(e)) && parenp(car(cdr(e))))))return e;
   expptr (*f)(expptr);
   f = (expptr (*)(expptr)) getprop(s,macro,NULL);
   if(f == NULL){return e;}

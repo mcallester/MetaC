@@ -12,7 +12,7 @@ void add_list_forms(expptr type){
   expptr structtype = string_atom(sformat("%s_list_struct",cstring));
   expptr consfun = string_atom(sformat("%s_cons",cstring));
   expptr iterator = string_atom(sformat("%s_iter",cstring));
-  expptr pusher = string_atom(sformat("%s_push",cstring));
+  expptr pusher = string_atom(sformat("push_%s",cstring));
   expptr listfun = string_atom(sformat("%s_listfun",cstring));
   expptr append = string_atom(sformat("%s_append",cstring));
   expptr nth = string_atom(sformat("%s_nth",cstring));
@@ -132,6 +132,7 @@ umacro{mention($x)}{
 //list operations on C statement lists (semicolon lists).
 
 expptr semi_append(expptr x, expptr y){
+  if(!y)return x;
   ucase{x;
     {$first ; $rest}:{return `{$first;${semi_append(rest,y)}};};
     {$last ;}:{return `{$last ; $y};}};
@@ -193,11 +194,11 @@ expptr semi_to_comma(expptr e){
 
   after doing
 
-  defclass{object, foo(expptr x;)}
+  defclass{foo{object; expptr x;}}
 
   the declaration
 
-  defclass{foo; bar{foo y; bar z;}} generates
+  defclass{bar{foo; foo y; bar z;}} generates
 
  typedef struct bar_struct{
   int class_index;
@@ -205,25 +206,16 @@ expptr semi_to_comma(expptr e){
   foo y;
   bar_struct * z;} bar_struct, *bar;
 
- bar new_bar(expptr x, foo y, bar z;){
-  bar bar_37 = (bar) undo_alloc(sizeof (bar_struct));
-  bar_37->class_index = 2;
-  bar_37->x = s;
-  bar_37->y = y;
-  bar_37->z = z;
-  return bar_37;
- }
-
- Any class foo in the class hierarchy can be instantiated by calling new_foo.
+ Any class foo in the class hierarchy can be allocated with the macro new(foo).
 ========================================================================**/
-
-restart_undo_frame(0);
 
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars);
 
-umacro{defclass{$superclass; $class{$added_ivars}}}{
-  add_class_forms(superclass, class, added_ivars);
-  return `{};
+umacro{defclass{$class{$ivars}}}{
+    ucase{ivars;
+      {$superclass;$rest_ivars}:{add_class_forms(superclass, class, rest_ivars);};
+      {$superclass;}:{add_class_forms(superclass, class, NULL);}};
+    return `{};
 }
 
 typedef struct object_struct{int class_index;} * object;
@@ -265,7 +257,6 @@ void add_class_forms(expptr superclass, expptr class, expptr added_ivars){
     expptr structname = string_atom(sformat("%s_struct",atom_string(class)));
     add_form(`{typedef struct $structname{${fix_typedef_recursion(class, structname, complete_ivars)}} $structname, * $class;});
     add_list_forms(class);
-    add_class_constructor(class, complete_ivars);
     add_form(`{install_class(`$superclass, `$class, `{$complete_ivars});});}
 }
 
@@ -294,6 +285,14 @@ class_name[0] = `object;
 
 for(int i = 1; i<class_dim(); i++){class_name[i] = NULL;};
 
+expptr classof(voidptr x){
+  int index = ((object) x)->class_index;
+  if(index < 0 || index >= class_dim())berror("attempt to determine the class of non-object");
+  expptr class = class_name[index];
+  if(!class)berror("attempt to deterine the class of a non-object");
+  return class;
+}
+
 void copy_methods(expptr superclass, expptr new_class);
 
 void install_class(expptr superclass, expptr class, expptr complete_ivars){
@@ -316,46 +315,45 @@ expptr init_ivars(expptr ivars){
   return NULL;
 }
 
-void add_class_constructor(expptr class, expptr ivars){
-  expptr constructor = string_atom(sformat("new_%s",atom_string(class)));
-  expptr structname = string_atom(sformat("%s_struct",atom_string(class)));
-  ucase{ivars;
-    {$any;}:{berror(sformat("class %s has no instance variables",atom_string(class)));};
-    {$any;$rest_ivars}:{
-      add_form(`{
-	  $class $constructor(${semi_to_comma(rest_ivars)}){
-	    $class self = ($class) undo_alloc(sizeof($structname));
-	    self->class_index = class_index(`$class);
-	    ${init_ivars(rest_ivars)}
-	    return self;}
-	});}}
+umacro{new($class)}{
+  expptr object = gensym("object");
+  expptr struct_type = string_atom(sformat("%s_struct",atom_string(class)));
+  return `{({
+	$class $object = ($class) undo_alloc(sizeof($struct_type));
+	$object->class_index = class_index(`$class);
+	$object;})};
 }
 
 /** ========================================================================
-  
- if, for some class foo, we do
+ The folling defines a method g on a class foo.
 
- defmethod{expptr bar.g(foo self; expptr x;){return x;}}
+ defmethod{expptr g(foo self; expptr x;){return x;}}
 
- then g is declared by expptr g(foo self, expptr x);
+ this creates a foo-specific definition of g "expptr g_52(voidptr self_37, expptr x);"
 
- For g(s,z) to be defined the class of s must be a subclass (inclusive) of foo.
-
- The code that gets fun for g(s,z) depends on the subtype of foo to which g is applied.
+ this allows the self argument to be a proper subclass of foo in which case the method is inhereted.
 
  If g is a declared method then g(s,z) macro-expands to an appropriately typed version of M_g[s->class_index](s,z)
  where M_g is the statically determined method table for g.
 
  all instance variables, including inherited instance variables, get bound to local
- variables of the same name.  There is also a local self variable.
+ variables of the same name.  There is also a local self variable of type foo (in the above example)
+ even if the self argument is actually a proper subtype of foo.
+
+ Warning: do not use "x=v;" for instance variable x --- do "self->x = v;" instead.
 
 ========================================================================**/
 
-restart_undo_frame(1);
-
 void add_method_forms(expptr outtype, expptr f_name, expptr argvars, expptr body);
 
+void add_method_name_forms(expptr outtype, expptr f_name, expptr argvars);
+
 void install_method_ptr(expptr f_name, expptr class, voidptrptr f_table, voidptr f_method);
+
+umacro{declare_method{$outtype $f($argvars)}}{
+  add_method_name_forms(outtype, f, argvars);
+  return `{};
+}
 
 umacro{defmethod{$outtype $f($argvars){$body}}}{
   add_method_forms(outtype, f, argvars, body);
@@ -368,25 +366,29 @@ expptr method_table_name(expptr f){
 
 expptr localize_ivars(expptr ivars, expptr body);
 
-void add_method_forms(expptr outtype, expptr f_name, expptr argvars, expptr body){
+void add_method_name_forms(expptr outtype, expptr f_name, expptr argvars){
   expptr f_table_name = method_table_name(f_name);
-  expptr f_type = `{$outtype($argvars)};
-  expptr selfvar = gensym("self");
-  expptr restargvars = NULL;
   expptr old_type = getprop(f_name,`method_type,NULL);
-  orcase{argvars; {$class self, $restargvars}{$class self}:{
+  expptr restargvars = `{};
+  orcase{argvars; {$any self, $restargvars}{$any self}:{
+      expptr f_type = `{$outtype($restargvars)};
       if(!old_type){
 	add_form(`{voidptr $f_table_name[class_dim()];});
 	add_form(`{install_method_name(`$f_name, $f_table_name, `{$f_type});});}
       else if(f_type != old_type){
-	berror(sformat("attempt to change the signature of method %s",atom_string(f_name)));}
+	berror(sformat("attempt to change the signature of method %s",atom_string(f_name)));}}}
+}
+
+void add_method_forms(expptr outtype, expptr f_name, expptr argvars, expptr body){
+  add_method_name_forms(outtype,f_name,argvars);
+  expptr f_table_name = method_table_name(f_name);
+  orcase{argvars; {$class self, $any}{$class self}:{
       expptr ivars = class_ivars(class);
       expptr f_ptr_name = string_atom(sformat("%s_at_%s", atom_string(f_name), atom_string(class)));
-      ucase{ivars;
-	{$any ; $rest_ivars}:{
+      expptr rest_ivars = NULL;
+      orcase{ivars; {$any ; $rest_ivars}{$any}:{
 	  add_form(`{
-	      $outtype $f_ptr_name(${restargvars ? `{voidptr $selfvar, $restargvars} : `{voidptr $selfvar}}){
-		$class self = $selfvar;
+	      $outtype $f_ptr_name($argvars){
 		${localize_ivars(rest_ivars,body)}
 		$body}});}};
       add_form(`{install_method_ptr(`$f_name,`$class,$f_table_name,$f_ptr_name);});}}
@@ -441,69 +443,75 @@ expptr method_type(expptr f_name){
   return type;
 }
 
-
 expptr method_expansion(expptr e){
   expptr f_ptr = gensym("f_ptr");
   expptr y = gensym("y");
   expptr selfvar = gensym("self");
   expptr index = gensym("index");
-  ucase{e;
-    {$f($argexps)}:{
-      expptr restexps = NULL;
-      orcase{argexps;{$selfexp, $restexps}{$selfexp}:{
-	  ucase{method_type(f); {$outtype($argvars)}:{
-	      if(outtype == `void){
-		return `{
-		  {voidptr $selfvar = $selfexp;
-		    $outtype (* $f_ptr)($argvars); //declares the variable f_ptr
-		    int $index = ((object) $selfvar) -> class_index;
-		    if($index < 0 || $index >= class_dim())berror("illegal self object in method call");
-		    $f_ptr = ${method_table_name(f)}[$index];
-		    if(!$f_ptr)berror(sformat("method %s not defined on class %s",
-					      atom_string(`$f),
-					      atom_string(class_name[$index])));
-		    
-		    $f_ptr(${restexps ? `{$selfvar, $restexps} : selfvar});}};}
-	      else{
-		return `{
-		  ({voidptr $selfvar = $selfexp;
-		    $outtype (* $f_ptr)($argvars); //declares the variable f_ptr
-		    int $index = ((object) $selfvar) -> class_index;
-		    if($index < 0 || $index >= class_dim())berror("illegal self object in method call");
-		    $f_ptr = ${method_table_name(f)}[$index];
-		    if(!$f_ptr)berror(sformat("method %s not defined on class %s",
-					      atom_string(`$f),
-					      atom_string(class_name[$index])));
-		    $outtype $y = $f_ptr(${restexps ? `{$selfvar, $restexps} : selfvar});
-		    $y;})};
-	      }}}}}}};
+  expptr restexps = NULL;
+  orcase{e;{$f($selfexp,$restexps)}{$f($selfexp)}:{
+      ucase{method_type(f); {$outtype($restargvars)}:{
+	  if(outtype == `void){
+	    return `{
+	      {voidptr $selfvar = $selfexp;
+		$outtype (* $f_ptr)(${restexps ? `{voidptr self, $restargvars} : `{voidptr self}}); //declares the variable f_ptr
+		int $index = ((object) $selfvar) -> class_index;
+		if($index < 0 || $index >= class_dim())berror("illegal self object in method call");
+		$f_ptr = ${method_table_name(f)}[$index];
+		if(!$f_ptr)berror(sformat("method %s not defined on class %s",
+					  atom_string(`$f),
+					  atom_string(class_name[$index])));
+		$f_ptr(${restexps ? `{$selfvar, $restexps} : selfvar});}};}
+	  else{
+	    return `{
+	      ({voidptr $selfvar = $selfexp;
+		$outtype (* $f_ptr)(${restexps ? `{voidptr self, $restargvars} : `{voidptr self}}); //declares the variable f_ptr
+		int $index = ((object) $selfvar) -> class_index;
+		if($index < 0 || $index >= class_dim())berror("illegal self object in method call");
+		$f_ptr = ${method_table_name(f)}[$index];
+		if(!$f_ptr)berror(sformat("method %s not defined on class %s",
+					  atom_string(`$f),
+					  atom_string(class_name[$index])));
+		$outtype $y = $f_ptr(${restexps ? `{selfvar, $restexps} : selfvar});
+		$y;})};
+	  }}}}};
   return NULL;
 }
 
+//the following is a static safety check on a cast between object types
 
+umacro{check_cast($class,$superclass)}{
+  for(expptr c = class;c;c = getprop(c,`superclass,NULL)){
+    if(c == superclass)return `{};}
+  berror("unsafe cast from %s to %s");
+  return `{};
+}
+  
 /** ========================================================================
-  test cases
+  test cases --- these are obsolete --- "new_foo" no longer take arguments
 ========================================================================**/
 
-// restart_undo_frame(2);
+// restart_undo_frame(1);
 
-// defclass{object;foo{expptr name;foo y;}}
+// defclass{foo{object; expptr name;foo y;}};
 
-// foo fred[0] = new_foo(`fred,NULL);
+// foo fred[0] = new(foo);
+
+// fred[0]->name = `fred;
 
 // fred[0]->name
 
+// fred[0]->y = NULL;
+
 // int_exp(fred[0]->y == NULL)
 
-// defclass{foo; bar{expptr wife;}}
+// defclass{bar{foo;expptr wife;}};
 
-// bar barney[0] = new_bar(`barney,NULL,`betty);
+// bar barney[0] = new(bar);
 
-// barney[0]->name
+// barney[0]->name = `barney;
 
-// barney[0]->wife
-
-
+// barney[0]->wife = `betty;
 
 // defmethod{expptr name(foo self){return name;}}
 
@@ -511,16 +519,18 @@ expptr method_expansion(expptr e){
 
 // name(barney[0])
 
-// defclass{foo; bar2{expptr wife;}}
+// defclass{bar2{foo; expptr wife;}}
 
-// bar2 bambam[0] = new_bar2(`bambam,NULL,`huh);
+// bar2 bambam[0] = new(bar2);
 
 // name(bambam[0])
 
-
-// defmethod{void set_y(foo self, foo new_y){
-    self->y = new_y;}}
+// defmethod{void set_y(foo self, foo new_y){ self->y = new_y;}}
 
 // set_y(fred[0],(foo) barney[0]);
 
 // fred[0]->y->name
+
+// set_y(bambam[0],(foo) barney[0]);
+
+// bambam[0]->y->name
