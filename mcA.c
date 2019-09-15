@@ -63,7 +63,7 @@ void add_undone_int(int * loc){
 void** undone_pointer[100];
 int undoneptr_freeptr;
 
-void add_undone_pointer(void * * loc){
+void add_undone_pointer(voidptr * loc){
   if(undoneptr_freeptr == 100)berror("too many undone pointers");
   undone_pointer[undoneptr_freeptr++] = loc;
 }
@@ -76,6 +76,7 @@ typedef struct undo_frame{
 #define UNDOSTACK_DIM (1<<10)
 undo_frame undo_stack[UNDOSTACK_DIM];
 int undostack_freeptr;
+int undo_checkpoint;
 
 void save_undones(){
   for(int i = 0;i<undoneint_freeptr;i++){
@@ -132,6 +133,16 @@ void init_undo1(){
   undostack_freeptr = 0;
 
 }
+
+void set_undo_checkpoint(){
+  undo_set_int(undo_checkpoint,undostack_freeptr);
+  push_undo_frame();
+}
+
+void pop_to_checkpoint(){
+  restart_undo_frame(undo_checkpoint);
+}
+
 
 /** ========================================================================
 undo expression
@@ -1095,6 +1106,7 @@ expptr mcread_Ep(int p_left){
   //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
   //This returns a (possibly phantom) general expression (category E) to be consumed by the stack.
   expptr arg = mcread_Einf();
+  if(!arg)arg = nil;
   //readchar must now be a connective or a terminator.
   int p_right = precedence(readchar);
   while(!terminatorp(readchar)

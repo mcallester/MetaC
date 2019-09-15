@@ -344,7 +344,7 @@
             (re-search-forward "/** [0-9]+:" end)
             (beginning-of-line)
             (push-mark)
-            (re-search-forward "**/" end)
+            (search-forward "**/" end)
             (forward-char)
             (kill-region (mark) (point))))
       (error nil))))

@@ -752,11 +752,7 @@ expptr paren_inside(expptr);
   to be right-associative and binary connective applications are
   assumed to be left-associative.  These conventions are used in the
   other examples.  Expressions are printed to files, the REPL or the NIDE without the brackets ---
-  the brackets are ``phantoms'' that show the tree structure.  Because {\tt f(x)} in generally interpreted as (high-precedence) application,
-  it is best to avoid the Lisp convention of using space as a list connective.
-  When designing a syntax for lists it is better to use semicolon or comma
-  as in {\tt (f,(x),b)}. The
-  bracketing (parsing) done by the reader is specified formally in
+  the brackets are ``phantoms'' that show the tree structure.
   section~\ref{sec:reader}.}
 \label{fig:reader}
 \end{figure}
@@ -771,28 +767,20 @@ For example the expression \mtt{\{one two three\}} reads as $\{\fopen \mathtt{on
 Examples of strings and the phantom bracking imposed by the reading those strings is given in figure~{\ref{fig:reader}}.
 The printer simply removes the phantom brackets and prints the string that the expression represents.
 
-To reduce the clutter of brackets we will adopt two conventions for supressing brackets when exhibiting phantom brackets.
-The first convention is the Lisp right-branching convention of not showing all the cell brackets for right-associative (right-branching) sequences.
-For example $\fopen \mathtt{zero}\;\fopen \mathtt{one}\;\fopen \mathtt{two~three}\fclose \fclose \fclose$.
-will be written as $\fopen\mathtt{zero~one~two~three}\fclose$.  Note that these ``lists'' are atom-terminated rather than the Lisp convention of
-nil termination.
-
-The second convention is that we will sometimes write $\fopen \fopen a_1 \;o\fclose\;a_2\fclose$ where $o$ is a connective atom
-as the left-branching structure $\fopen a_1\;o\;a_2 \fclose$.  For example, the expression \mtt{\{a + b\}} reads as
+To reduce the clutter of brackets we will adopt two conventions for supressing brackets --- a list convention and a binary operator convention.
+The list convention abbreviates $\fopen \mathtt{zero}\;\fopen \mathtt{one}\;\fopen \mathtt{two~three}\fclose \fclose \fclose$.
+as $\fopen\mathtt{zero~one~two~three}\fclose$.  The binary operation convention abbreviates $\fopen \fopen a_1 \;o\fclose\;a_2\fclose$ where $o$ is a connective atom
+as $\fopen a_1\;o\;a_2 \fclose$.  For example, the expression \mtt{\{a + b\}} reads as
 $\{\fopen \fopen \mathtt{a~+} \fclose \;\mathtt{b} \fclose \}$ which is then abbreviated as
-$\{\fopen \mathtt{a~+~b} \fclose \}$.  Left-branching for binary connectives gives a
-C-consistent treatment of semicolon as a binary connective while also supporting the interpretation of semicolon as a statement terminator.
-This is discussed in more detail below.
-
-To emphasize the significance of left-branching binary connectives we note that
-the MetaC reader bracketing of
+$\{\fopen \mathtt{a~+~b} \fclose \}$. We note that
+The MetaC reader bracketing of
 $$\{e_1\;;\;e_2\;;\;e_3\;;\;e_4\}$$
-can be written using either the left-braching binary connective convention as
+is $$\{\fopen \fopen e_1\;;\fclose \;\fopen \fopen e_2\;;\fclose \;\fopen \fopen e_3\;;\fclose\;e_4\fclose\fclose\fclose\}.$$
+which can be abbreviated using the binary operation convention as
 $$\{\fopen e_1\;;\;\fopen e_2\;;\;\fopen e_3\;;\;e_4\fclose\fclose\fclose\}$$
-or the right-braching sequence convention as
-$$\{\fopen \fopen e_1\;;\fclose \;\fopen e_2\;;\fclose \;\fopen e_3\;;\fclose\;e_4\fclose\},$$
-both of which abbreviate the same full bracketing
-$$\{\fopen \fopen e_1\;;\fclose \;\fopen \fopen e_2\;;\fclose \;\fopen \fopen e_3\;;\fclose\;e_4\fclose\fclose\fclose\}.$$
+or abbreviated with the list convention as
+$$\{\fopen \fopen e_1\;;\fclose \;\fopen e_2\;;\fclose \;\fopen e_3\;;\fclose\;e_4\fclose\}.$$
+
 
 
 
@@ -861,7 +849,9 @@ in which the $\epsilon$-productions for $A$ and $B$ are selected only when no ot
 The nonterminal $E_\infty$ generates ``arguments'' --- expressions not containing connectives outside of parentheses.
 The nonterminal $E_p$ generates expressions whose root connective has priority $p$ (and whose internal connectives have priority at least $p$).
 ${\cal R}$ is the set of right-associative precedence levels and ${\cal L}$ is the set of left-associative levels.
-Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$.
+Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$
+with the exception that every binary operation must have a (possibly null) syntax node for each of its two arguments.
+Having two arguments for all occurrences of binary operations simplifies pattern matching.
 }
 \label{fig:grammar}
 \end{figure}

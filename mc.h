@@ -39,6 +39,8 @@ void push_undo_frame();
 void pop_undo_frame();
 void clear_undo_frame();
 void restart_undo_frame(int n);
+void set_undo_checkpoint();
+void pop_to_checkpoint();
 
 expptr expptr_to_stack(expptr exp);
 expptr expptr_to_undo(expptr exp);

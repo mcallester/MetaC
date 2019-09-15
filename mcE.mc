@@ -153,6 +153,23 @@ expptr array_extraction (expptr x){
   return `{$x = symbol_value[${symbol_index_exp(x)}];};
 }
 
+
+expptr strip_type(expptr arg){
+  ucase{arg;
+    {$type1 $var($type2)}.(symbolp(var)):{return var;};
+    {$type $var}.(symbolp(var)):{return var;};
+    {$any}:{berror("illegal function signature --variable names must be provided");}};
+  return NULL;
+}
+
+expptr args_variables(expptr args){
+  if(args == nil)return nil;
+  ucase{args;
+    {$first, $rest}:{return `{${strip_type(first)} , ${args_variables(rest)}};};
+    {$any}:{return strip_type(args);}};
+  return NULL;
+}
+
 void install_link_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
     {$type $f($args);}:{
@@ -190,7 +207,7 @@ void eval_from_load(expptr e){
       if(in_ide)send_emacs_tag(comp_error_tag);
       if(in_repl)fprintf(stdout,"\n evaluation aborted");
       throw_error();};
-    {load($sym)}.(atomp(sym)) : {
+    {load($sym);}.(atomp(sym)) : {
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
       if(in_repl)fprintf(stdout,"\n evaluation aborted");

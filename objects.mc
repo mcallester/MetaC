@@ -111,9 +111,9 @@ umacro{catch_excep{$exception}{$body}{$handler}}{
   return `{
     catch({$body})
       if(exception[0]){
-	if(exception[0] == `{$exception}){
-	  $handler
-	  expception[0] = NULL;}
+	if(exception[0] == `$exception){
+	  exception[0] = NULL;
+	  $handler}
 	else continue_throw();}};
 }
 
@@ -132,23 +132,20 @@ umacro{mention($x)}{
 //list operations on C statement lists (semicolon lists).
 
 expptr semi_append(expptr x, expptr y){
-  if(!y)return x;
   ucase{x;
     {$first ; $rest}:{return `{$first;${semi_append(rest,y)}};};
-    {$last ;}:{return `{$last ; $y};}};
+    {$any}:{return y;}};
   return NULL;
 }
 
+// semi_append(`{a;b;},`{c;d;})
+
 expptr semi_reverse(expptr x){
-  expptr result = NULL;
-  ucase{x;
-    {{}}:{return x;};
-    {$any ;}:{return x;};
-    {$first ; $rest}:{result = `{$first ;}; x = rest;}};
+  expptr result = `{};
   while(1){
     ucase{x;
-      {$last ;}:{return `{$last ; $result};};
-      {$first ; $rest}:{result = `{$first ; $result}; x = rest;}}}
+      {$first ; $rest}:{result = `{$first ; $result}; x = rest;};
+      {$any}:{return result;}}}
 }
 
 
@@ -162,27 +159,26 @@ umacro{semi_map($x,$y)($expression)}{
   expptr rest = gensym("rest");
   return `{({
 	expptr $yval = $y;
-	expptr $result = NULL;
-	ucase{$yval;
-	  {\$$x ; \$$rest}:{$result = `{\${($expression)} ;}; $yval = $rest;};
-	  {\$$x ;}:{$result = `{\${($expression)} ;}; $yval = NULL;}};
-	while($yval){
+	expptr $result = `{};
+	while(1){
 	  ucase{$yval;
 	    {\$$x ; \$$rest}:{$result = `{\${($expression)} ; \$$result}; $yval = $rest;};
-	    {\$$x ;}:      {$result = `{\${($expression)} ; \$$result}; $yval = NULL;}}};
+	    {\$any}:{break;}}}
 	$result;})};
 }
 
 
 // macroexpand1(`{semi_map(z,`{a;b;c})(`{(d,\$z)})})
 
-// semi_map(z,`{a;b;c;})(`{(d,$z)})
+//semi_map(z,`{a;b;c;})(`{(d,$z)})
 
 expptr semi_to_comma(expptr e){
   ucase{e;
-    {$first ; $rest}:{return `{$first,${semi_to_comma(rest)}};};
-    {$last ;}:{return last;};
-    {$any}:{return e;}}
+    {$first ; $rest}:{
+      if(rest == `{})return first;
+      else return `{$first,${semi_to_comma(rest)}};}};
+  berror("ill-terminated semicolon list");
+  return NULL;
 }
 
 // semi_to_comma(`{a; b;})
@@ -385,8 +381,8 @@ void add_method_forms(expptr outtype, expptr f_name, expptr argvars, expptr body
   orcase{argvars; {$class self, $any}{$class self}:{
       expptr ivars = class_ivars(class);
       expptr f_ptr_name = string_atom(sformat("%s_at_%s", atom_string(f_name), atom_string(class)));
-      expptr rest_ivars = NULL;
-      orcase{ivars; {$any ; $rest_ivars}{$any}:{
+      ucase{ivars;
+	{$any ; $rest_ivars}:{
 	  add_form(`{
 	      $outtype $f_ptr_name($argvars){
 		${localize_ivars(rest_ivars,body)}
@@ -425,9 +421,9 @@ void copy_methods(expptr superclass, expptr new_class){
 }
 
 expptr localize_ivars(expptr ivars, expptr body){
-  if(!ivars) return `{};
-  expptr rest = NULL;
-  orcase{ivars;{$type $var ; $rest}{$type $var;}:{
+  ucase{ivars;
+    {}:{return `{};};
+    {$type $var ; $rest}:{
       if(occurs_in(var, body)){
 	return `{$type $var = self->$var; ${localize_ivars(rest, body)}};}
       else{
@@ -488,10 +484,10 @@ umacro{check_cast($class,$superclass)}{
 }
   
 /** ========================================================================
-  test cases --- these are obsolete --- "new_foo" no longer take arguments
+  test cases
 ========================================================================**/
 
-// restart_undo_frame(1);
+// restart_undo_frame(0);
 
 // defclass{foo{object; expptr name;foo y;}};
 

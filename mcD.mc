@@ -34,17 +34,6 @@ umacro{sformat($args)}{
 	buffer;})};
 }
 
-expptr args_variables(expptr args){
-  if(args == nil)return nil;
-  ucase{args;
-    {$type1 $var($type2), $rest}:{return cons(cons(var,comma), args_variables(rest));};
-    {$type1 $var($type2)}:{return cons(var, nil);};
-    {$type $var, $rest}:{return cons(cons(var,comma), args_variables(rest));};
-    {$type $var}:{return cons(var, nil);};
-    {$any}:{berror("illegal function signature --variable names must be provided");}};
-  return nil;
-}
-
 umacro{mcprint($args)}{
   return
     `{{if(in_ide_proc()){
@@ -79,7 +68,6 @@ umacro{exp_from_undo_frame($exp)}{
 	  {pop_undo_frame();});
 	$newexp;})};
 }
-
 
 umacro{orcase{$valexp;{$firstpattern}{$secondpattern}:{$body}}}{
   return `{ucase{$valexp;{$firstpattern}:{$body}; {$secondpattern}:{$body}}};

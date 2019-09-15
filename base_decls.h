@@ -145,14 +145,15 @@ voidptr undo_alloc(int size);
 void undo_set_proc(void ** loc, void * val);
 void undo_set_int_proc(int * loc, int val);
 void add_undone_int(int * loc);
-void add_undone_pointer(void * * loc);
+void add_undone_pointer(voidptr * loc);
 
 void push_undo_frame();
 void pop_undo_frame();
 void clear_undo_frame();
 void restart_undo_frame(int n);
 expptr clean_undo_frame(expptr e);
-
+void set_undo_checkpoint();
+void pop_to_checkpoint();
 
 
 /** ========================================================================
