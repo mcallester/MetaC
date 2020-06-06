@@ -134,16 +134,6 @@ void init_undo1(){
 
 }
 
-void set_undo_checkpoint(){
-  undo_set_int(undo_checkpoint,undostack_freeptr);
-  push_undo_frame();
-}
-
-void pop_to_checkpoint(){
-  restart_undo_frame(undo_checkpoint);
-}
-
-
 /** ========================================================================
 undo expression
 
@@ -810,7 +800,8 @@ int level_adjustment(char c){
 }
 
 FILE * read_stream;
-
+FILE* read_stream_proc(){return read_stream;}
+  
 expptr read_from_repl(){
   init_readvars();
   from_repl = 1;
@@ -1139,6 +1130,11 @@ void send_emacs_tag(char * tag){
   fprintf(stdout,"%s",tag);
   fflush(stdout); //without this stderr can later add to the input of the tag.
 }
+
+void send_result(char * result){
+  if(!in_ide)berror("send_result undefined outside of NIDE");
+  fprintf(stdout,"%s",result);
+  send_emacs_tag(result_tag);}
 
 void send_print_tag(){send_emacs_tag(print_tag);}
 

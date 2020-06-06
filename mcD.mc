@@ -42,7 +42,7 @@ umacro{mcprint($args)}{
 }
 
 
-umacro{in_memory_frame($body)}{
+umacro{in_memory_frame{$body}}{
   return
     `{unwind_protect({
 	push_memory_frame();

@@ -39,8 +39,6 @@ void push_undo_frame();
 void pop_undo_frame();
 void clear_undo_frame();
 void restart_undo_frame(int n);
-void set_undo_checkpoint();
-void pop_to_checkpoint();
 
 expptr expptr_to_stack(expptr exp);
 expptr expptr_to_undo(expptr exp);
@@ -224,8 +222,12 @@ char *  continue_from_gdb_tag;
 char * print_tag;
 
 void send_emacs_tag(char *);
+void send_result(char *);
 void send_print_tag();
+
 int in_ide_proc();
+FILE* read_stream_proc();
+
 void return_to_NIDE();
 
 void mcpprint(expptr);

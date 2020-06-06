@@ -152,9 +152,6 @@ void pop_undo_frame();
 void clear_undo_frame();
 void restart_undo_frame(int n);
 expptr clean_undo_frame(expptr e);
-void set_undo_checkpoint();
-void pop_to_checkpoint();
-
 
 /** ========================================================================
 stack frames
@@ -169,11 +166,14 @@ voidptr stack_alloc(int size);
 
 expptr file_expressions(char *name);
 
-void send_emacs_tag(char * tag);
+expptr read_from_ide();
 
 void send_print_tag();
+void send_result(char* result);
 
 int in_ide_proc();
+
+FILEptr read_stream_proc();
 
 void mcpprint(expptr e);
 

@@ -66,6 +66,7 @@ void add_list_forms(expptr type){
 	  {\$any}:{return `{$consfun(\$x,NULL)};}}}
     });
 }
+/** 1:done **/
 
 umacro{deflists($type)}{ //for use with non-class types
   add_list_forms(type);
@@ -74,8 +75,6 @@ umacro{deflists($type)}{ //for use with non-class types
 
 deflists(expptr);
 deflists(voidptr);
-
-
 
 //  pushprop assumes the property value is a list of pointers
 
@@ -87,7 +86,6 @@ umacro{pushprop($val, getprop($x, $prop))}{
       voidptr $propval = $prop;
       setprop($xval, $propval, voidptr_cons($val, (voidptr_list) getprop($xval, $propval, NULL)));}};
 }
-
 
 int occurs_in(expptr symbol, expptr exp){
   if(atomp(exp))return (symbol == exp);
@@ -296,7 +294,7 @@ void install_class(expptr superclass, expptr class, expptr complete_ivars){
   if(index == class_dim()){
     berror(sformat("attempt to create more than %d classes", class_dim()));}
   setprop_int(class,`index, index);
-  class_counter[0]++ ;
+  undo_set_int(class_counter[0], class_counter[0]+1);
   class_name[index] = class;
   setprop(class, `ivars, complete_ivars);
   setprop(class,`superclass, superclass);
