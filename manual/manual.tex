@@ -26,21 +26,16 @@
 \maketitle
 
 \begin{abstract}
-  MetaC provides a read-eval-print loop (a REPL) and notebook interactive development environment (a NIDE) for C programming.
+  MetaC provides a notebook interactive development environment (a NIDE) for C programming.
   MetaC can also be described as a Lisp-inspired programming environment for C.
-  The REPL and the NIDE  are capable of incrementally compiling and executing
-  C statements and incremental procedure definitions in a persistent C process.  This is done by compiling and loading dynamic load libraries.
+  The NIDE is capable of incrementally compiling and executing
+  C statements and incremental procedure definitions in a persistent C process.
+  This is done by compiling and loading dynamic load libraries.
 
-  MetaC also extends C with Lisp-like features. More specifically, MetaC provides a C-like universal syntax,
-  computed macros, backquote~\cite{backquote}, and pattern-matching.
+  MetaC extends C with Lisp-like features. More specifically, it provides a C-like universal syntax,
+  computed macros, backquote (quasiquote) \cite{backquote}, and pattern-matching.
   The implementation is bootstrapped --- it is implemented in itself.  These C extensions are intended to support the development of high level
   frameworks with notebook interfaces as direct extensions of C.  This is in contrast to scripting-C hybrids such as Matlab, Numpy, TensorFlow or PyTorch.
-
-  The NIDE is implemented in Emacs piped to a MetaC REPL.  Presumably notebook IDEs for C or C++ could also be implemented as extensions
-  of Atom or Visual Studio Code piped to a persistent process.
-
-  Dynamic linking is difficult to implement robustly.
-  MetaC release 1.0 runs under both Ubuntu 18.04.1 / gcc 7.3.0 and MAC OSX 10.11.4 / gcc Apple LLVM version 7.3.0 (clang-703.0.31).
 \end{abstract}
 
 \vfill
@@ -55,15 +50,6 @@
 
 \subsection{Installation}
 
-\noindent To install the REPL:
-
-\begin{enumerate}
-\item Clone the MetaC repository in a local MetaC directory.
-\item Edit the last line of the file mcA.c to give your MetaC directory.
-\item From a shell running in your MetaC directory type {\tt make MC}.
-\item From the same shell type {\tt MC} to get the command line prompt {\tt MC$>$}.
-\end{enumerate}
-
 \noindent To install the NIDE:
 
 \begin{enumerate}
@@ -77,87 +63,151 @@
 MetaC will not be available in buffers created before the load.}
 \end{enumerate}
 
-\noindent The NIDE can be run on any file with extension .mc in any
-directory. To experiment with the NIDE use Emacs to visit the file
-NIDE-examples.mc from the MetaC repository.  Type {\tt C-z s}
-(control-z followed by s) to start (or restart) the C kernel. Typing {\tt C-z x}
-will run the cell containing the cursor and print the result in a C
-comment at the bottom of the cell.  This is substantially equivalent
-to typing the cell contents into the REPL.  More Emacs key bindings
-and other features of the NIDE are described in
-section~\ref{sec:Emacs}.
+\subsection{Basic NIDE Commands}
 
-\medskip
-\noindent The following examples use the REPL.  However, all of these examples can be run as cells in the NIDE.
+Emacs buffers visiting files ending in the extension .mc are placed
+in mc-mode which is an extension of c-mode.  The mc-mode commands
+manipulate ``sections'' and ``cells''.
 
-\subsection{Hello World}
-\label{sec:hello}
+Figure~\ref{fig:sample-file} shows a simple MetaC file with six cells divided into three sections.
+
+\begin{figure}
+
+{\small
+\begin{verbatim}
+
+/** ========================================================================
+ Hello world
+======================================================================== **/
+
+`{hello world}
+
+/** ========================================================================
+ Procedure defininition
+======================================================================== **/
+
+expptr f(expptr exp){return exp;}
+
+f(`a)
+
+/** ========================================================================
+ Imperative Programming
+======================================================================== **/
+
+int x[10];
+
+for(int i = 0; i < 10; i++)x[i] = i;
+
+int_exp(x[5])
+
+{int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
+\end{verbatim}
+}
+\caption{A sample MetaC file}
+\label{fig:sample-file}
+\end{figure}
+  
+\noindent A ``section'' is a region of conceptually related code.  As shown in figure~\ref{fig:sample-file}
+sections begin and end with
+section delimiter comments o the form
 
 \begin{verbatim}
-bash$ make MC
-...
-
-bash$ MC
-
-MC> `{hello world}
-
-hello world
-
-MC>
+/** ========================================================================
+ <section name>
+======================================================================== **/
 \end{verbatim}
 
-In the above example the backquote expression given to the REPL macro-expands to a C expression which evaluates to a
-MetaC universal syntax  expression which prints as {\tt hello world}.
-MetaC universal syntax expressions are described in more detail below.
+It is important that the interior of comments of this form are indented so as
+not to confuse cell boundaries.
+A cell begins at any nonempty line whose first character is other than white space (space or tab), a close character ')', '\}', or ']', a slash '/' or the equals sign '='.
+The cell ends at the beginning of the next cell or at the end of the file if no next cell.
 
-\subsection{C Statements and C Expressions}
+The commands of mc-mode are listed in fugure~\ref{fig:mc-commands}.
 
-We can also declare global variables and execute statements from the REPL.
-
+\begin{figure}
+  
 \begin{verbatim}
-MC> int x[10];
+(define-derived-mode mc-mode
+  c-mode "mc-mode"
+  "Major mode for meta-c"
+  (define-key mc-mode-map "\C-xc" 'make-section)
+  (define-key mc-mode-map "\C-\M-u" 'MC:beginning-of-sec)
+  (define-key mc-mode-map "\C-\M-d" 'MC:end-of-sec)
+  
+  (define-key mc-mode-map "\C-\M-s" 'MC:start-metac)
+  (define-key mc-mode-map "\C-\M-x" 'MC:execute-cell)
+  (define-key mc-mode-map "\C-\M-r" 'MC:load-region)
+  (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
+  (define-key mc-mode-map "\C-\M-e" 'MC:end-of-cell)
+  (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells)
+  (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell)
 
-done
-
-MC> for(int i = 0; i < 10; i++)x[i] = i;
-
-done
-
-
-MC> for(int i = 0; i < 10; i++)fprintf(stdout,"%d",x[i]);
-
-0123456789done
-
-MC>int_exp(x[5])
-
-5
-
-MC>
+  (define-key mc-mode-map "\C-x`" 'MC:display-error))
 \end{verbatim}
+
+\caption{The Commands of mc-mode.}
+\label{fig:mc-commands}
+\end{figure}
+
+Figure~\ref{fig:execution-results} shows the state of the buffer after executing the cells in figure~\ref{fig:sample-file}.
+
+\begin{figure}
+ \begin{verbatim}
+/** ========================================================================
+ Hello world
+======================================================================== **/
+
+`{hello world}
+/** 1:hello world **/
+
+
+/** ========================================================================
+ Procedure defininition
+======================================================================== **/
+
+expptr f(expptr exp){return exp;}
+/** 2:done **/
+
+f(`a)
+/** 3:a **/
+
+/** ========================================================================
+ Imperative Programming
+======================================================================== **/
+
+int x[10];
+/** 4:done **/
+
+for(int i = 0; i < 10; i++)x[i] = i;
+/** 5:done **/
+
+int_exp(x[5])
+/** 6:5 **/
+
+{int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
+/** 7:45 **/
+\end{verbatim}
+\caption{The result of executing the cells.  Executing a cell inserts or replaces a comment
+  giving the cell execution number (the count of executions since starting or restarting MetaC)
+  and the execution result.}
+\label{fig:execution-results}
+\end{figure}
 
 In C syntax one distinguishes C expressions from C statements.  A C
 statement is executed for effect while a C expression is evaluated for
-value. The REPL can be given either a statement or an expression.  When
-given a C statement, the REPL simply prints ``done'' after executing
-the statement.
+value. A MetaC cell can be either a statement or an expression.  The result of successfully
+executing a C statement is simply ``done''.
 When given a C expression the REPL computes and prints
-the value.  The REPL assumes that the value of a C expression
-is a universal syntax tree (also called an expression, giving a second, and confusing,
-sense of the term ``expression''). The procedure {\tt int\_exp} above
-converts an integer to a universal syntax expression.  Universal syntax expressions are abstract
-syntax trees but can viewed as representations of strings.
+the value which must be an instance of the MetaC data type expptr.
+A expptr is an abstract syntax tree as defined by a ``universal'' grammar.
+The procedure {\tt int\_exp} in figures~\ref{fig:sample-file} and \ref{fig:execution-result}
+converts an integer to an expptr.  Instances of the type expptr are ``universal'' in the sense that any parenthesis-balanced string
+parses as an expptr.  Futhermore, parsing a string and then printing the resulting expression is guaranteed to return the same string.
+Hence instance of this type can also be viewed as representations of strings.
 
-If a C statement executes a {\tt return} outside of any
+If a C statement in a cell executes a {\tt return} outside of any
 procedure then that value is returned to the REPL and printed.
-For example, the above session can be extended with the following.
-
-\begin{verbatim}
-MC>{int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-
-45
-
-MC>
-\end{verbatim}
+This is shown in the last cell in figure~\ref{fig:execution-results}. 
 
 \subsection{Definitions of Types and Procedures}
 
@@ -165,52 +215,41 @@ One can also define new data types and procedures from the REPL.
 
 \begin{verbatim}
 
-MC>typedef struct myexpstruct{
+typedef struct myexpstruct{
    char * label;
    struct myexpstruct * car;
    struct myexpstruct * cdr;} myexpstruct, *myexp;
+/** 7:done **/
 
-done
-
-MC> myexp mycons(char*s,myexp x,myexp y){
+myexp mycons(char*s,myexp x,myexp y){
     myexp cell=malloc(sizeof(myexpstruct));
     cell->label=s;
     cell->car=x;
     cell->cdr=y;
     return cell;}
+/** 8:done **/
 
-done
-
-MC> expptr myexp_exp(myexp x){
+expptr myexp_exp(myexp x){
    if(x==NULL)return string_atom("nil");
    return
     `{${string_atom(x->label)}
       ${myexp_exp(x->car)}
       ${myexp_exp(x->cdr)}};
 }
+/** 9:done **/
 
-done
+myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
+/** 10:foo bar nil nil nil **/
 \end{verbatim}
 
-Note that the last procedure has output type {\tt expptr}.  This is the type of the value returned by a backquote expression --- the
-type of MetaC universal syntax expressions.
-
-\begin{verbatim}
-MC> myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
-
-
-foo bar nil nil nil
-MC>
-\end{verbatim}
-
-Procedures can also be redefined at the REPL provided that the
+A cell can redefine a procedure provided that the
 signature (argument types and return type) remains the same. Changing a procedure signature
 requires restarting the MetaC REPL.  This restriction ensures
 meaningful C type checking in the presence of dynamic linking.
 
 \subsection{The Global Variable Array Restriction}
 
-To simplify dynamic linking, all global data
+To facilitate dynamic linking, all global data
 variables must be arrays. One can always use single element
 arrays to represent non-array variables.  To make this more convenient
 we allow single element arrays to be declared with an initial value in a
@@ -218,39 +257,32 @@ manner similar to non-array data variables.  For example, we can declare and ass
 as follows.
 
 \begin{verbatim}
-MC> int y[0] = 2;
-
-done
+int y[0] = 2;
+/** 10:done **/
 \end{verbatim}
 
 MetaC treats {\tt int y[0] = 2;} as equivalent to
 
 \begin{verbatim}
-MC> int y[1];
+int y[1];
+/** 10:done **/
 
-done
-
-MC> y[0] = 2;
-
-done
+y[0] = 2;
+/** 11:done **/
 \end{verbatim}
 
 We can continue with
 
 \begin{verbatim}
-MC> y[0] += 1;
+y[0] += 1;
+/** 11:done **/
 
-done
-
-MC> int_exp(y[0])
-
-3
-
-MC>
+int_exp(y[0])
+/** 12:3 **/
 \end{verbatim}
 
 Here assignments to {\tt y[0]} are allowed but assignments to {\tt y} are not --- assignments to array variables
-are not allowed in $C$. As noted above, this restriction greatly simplifies dynamic linking of data variables.
+are not allowed in $C$.
 
 \subsection{The Single Symbol Type Restriction}
 
@@ -262,19 +294,14 @@ Arbitrary types can be given single symbol names using {\tt typedef}.
 We now consider backquote and universal syntax in more detail.  Backquote can be used in a manner analogous to string formatting.
 
 \begin{verbatim}
-MC> expptr friend[0] = `{Bob Givan};
+expptr friend[0] = `{Bob Givan};
+/** 13:done **/
 
-done
+int height[0] = 6;
+/** 14:done **/
 
-MC> int height[0] = 6;
-
-done
-
-MC> `{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
-
-My friend Bob Givan is 6 feet tall.
-
-MC> 
+`{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
+/** 15:My friend Bob Givan is 6 feet tall. **/
 \end{verbatim}
 
 While universal syntax expressions can be viewed as representations of strings, universal syntax
@@ -293,20 +320,25 @@ ucase{e;
   <patternn>:{<bodyn>}}
 \end{verbatim}
 
-Variables are marked in patterns by the prefix $\$$.
+Variables are marked in patterns by the prefix $\$$.  When a {\tt ucase} is executed the patterns are tried sequentially and stops after the first match.
+If no pattern matches the {\tt ucase} generates an execution error.
+Execution errors are handled by the gnu debugger gdb and are discussed below.
+One can always add a final pattern of {\tt \{$\$$any\}} to provide a default
+catch-all case if that is desired.
+Repeated variables, such as in the pattern {\tt \{$\$$x + $\$$x\}}, are not supported (and not checked for).
+If a variable is repeated it will be matched at its last occurrence under depth-first left to right traversal.
+We have the following example.
 
 \begin{verbatim}
-
-MC>int numeralp(expptr x)
+int numeralp(expptr x)
     {if(!atomp(x))return 0;
     char*s=atom_string(x);
     for(int i=0;s[i]!='\0';i++){if(s[i]<'0'||s[i]>'9')return 0;}
     return 1;
 }
+/** <n>:done **/
 
-done
-
-MC> int value(expptr e)
+int value(expptr e)
   {ucase
     {e;
       {$x+$y}:{return value(x)+value(y);}
@@ -316,8 +348,7 @@ MC> int value(expptr e)
     }
   return 0; //this dead code convinces the compiler there is a return value.
   }
-
-done
+/** <n>:done **/
 \end{verbatim}
 
 The last clauses of the last procedure uses a condition feature where a pattern can have the
@@ -325,23 +356,8 @@ form \{$<$pattern$>$\}.($<$condition$>$)
 where $<$condition$>$ is a C expression which must be non-zero in order for the clause to be selected.
 
 \begin{verbatim}
-MC>int_exp(value(`{5+2*10}))
-
-25
-
-MC>int_exp(value(`{foo}))
-
-
- match error: the value 
-
-
-foo
-does not match any of
-
-
-{$z}.(numeralp(z)){($x)}{$x*$y}{$x+$y}
-
-MC>
+int_exp(value(`{5+2*10}))
+/** <n>:25 **/
 \end{verbatim}
 
 In many situations the choice of the particular tree structure imposed by the MetaC reader is not important as long as the same conventions are used in both the patterns and the expressions
@@ -350,38 +366,28 @@ they are matching.  For example, the expression {\tt a+b+c} will match the patte
 will not match the expression {\tt a+b*c} because the reader brackets {\tt a+b*c} as  $\fopen \mathtt{a~+} \fopen \mathtt{b * c} \fclose\fclose$. The pattern {\tt $\$$x*$\$$y} does match {\tt (a+b)*c}.
 The variable {\tt $\$$any} is special.  It acts as a wild card and is not bound to a value.
 
-When a {\tt ucase} is executed the patterns are tried sequentially and stops after the first match.  If no pattern matches an error is generated.
-One can always add a final pattern of {\tt \{$\$$any\}} to provide a default
-catch-all case if that is desired.
-
-In release 1.0 repeated variables, such as in the pattern {\tt \{$\$$x + $\$$x\}}, are not supported (and not checked for).
-If a variable is repeated it will be matched at its last occurrence under depth-first left to right traversal.
 
 \subsection{Gensym and Macro Definitions}
 
 MetaC supports computed macros.  Pattern matching and backquote greatly facilitate the writing of computed macros.  Backquote and ucase are both implemented as computed macros in the bootstrapped implementation. As a very simple example we can define a {\tt dolist} macro at the REPL.
 
 \begin{verbatim}
-
-MC>umacro{dolist($x,$L){$body}}{
+umacro{dolist($x,$L){$body}}{
    expptr rest=gensym("rest");
    return
     `{for(expptr $rest = $L; cellp($rest); $rest = cdr($rest);){
       expptr $x=car($rest);
       $body}};
 }
+/** <n>:done **/
 
-done
-
-MC>macroexpand(`{dolist(item,list){f(item);}})
-
+macroexpand(`{dolist(item,list){f(item);}})
+/** <n>:
 for
   (expptr _genrest33=list;
    cellp(_genrest33);
   _genrest33=cdr(_genrest33);
-  ){expptr item=car(_genrest33);f(item);}
-
-MC>
+  ){expptr item=car(_genrest33);f(item);} **/
 \end{verbatim}
 
 The general form of a macro definition is
@@ -412,86 +418,54 @@ It is sometimes useful to see the result of a single step
 of macro expansion. The procedure {\tt macroexpand1(expptr)} returns
 the result of a single step of macro expansion on the root of the given argument.
 
-\subsection{The Notebook IDE}
-\label{sec:Emacs}
-
-Starting the kernel with the key C-z s creates a running C process.  When a cell is executed
-with the command C-z x the text of the cell is passed to the C process from which a value is returned
-and then printed inside a comment below the cell.  If a comment already occurs directly below the cell this
-comment is replaced by a new comment containing the response of the REPL.  As in a Jupyter notebook,
-the values returned from the REPL are numbered so that one can see when the cell was executed
-relative to other cell execution in the notebook.  If C-z s is run when a kernel is already running
-the kernel process is killed and a new one started (as in a Jupyter notebook).  When the kernel is
-restarted the execution numbering is reset to start with 1.  Changing a procedure signature
-(argument and return types) requires restarting the kernel.
-
-{\bf Cell Boundaries.}
-A cell begins at any nonempty line whose first character is other than white space (space or tab), a close character ')', '\}', or ']', or a slash '/'.
-The cell ends at the beginning of the next non-empty line whose first character is other than white space or a close character
-or at the end of the file if no such line exists.
-
-Note that a comment
-starting at the beginning of a line terminates a cell.
-
 \noindent {\bf Errors and Breakpoints.}
 
-If the cell contains unbalanced parentheses, or non-ascii unicode characters, the NIDE will print {\tt "reader error"} as the value of the cell and display an error message.
+The execution of a cell involves
 
-If an error occurs while macro-expanding the cell expression, the NIDE will print {\tt "macro expansion error"} as the value of the cell and enter the gdb debugger.  Such an error may be
-due to a bug in a user-written macro and gdb can be useful in this case.  Typing the continue command, which can be abbreviated as just {\tt "c"}, will abort the cell execution and return to the NIDE.
+\begin{enumerate}
+  \item reading the expression in the cell into an expptr data structure
+  \item macroexpanding the expression,
+  \item compiling the resulting C code
+  \item executing the compiled code
+\end{enumerate}
 
+Errors can occur in any of these steps. If a cell contains unbalanced parentheses, or non-ascii unicode characters, the NIDE will print
+{\tt "reader error"} as the value of the cell and display an error message (placed in the buffer *MC compilation*).
+If an error occurs while macro-expanding the cell expression, the NIDE will print {\tt "macro expansion error"}
+as the value of the cell and enter the
+gdb debugger.  Such an error may be
+due to a bug in a user-written macro and gdb can be useful in this case.
+Typing the continue command, which can be abbreviated as just {\tt "c"}, will abort the cell execution and return to the NIDE.
 If an error occurs while attempting to compile the macro-expanded cell, the NIDE will print {\tt "compilation error"} as the value of the cell
-and display the compiler errors.  These errors contain the name of the C file passed to the compiler.  Examining this C file is sometimes helpful.
+and display the compiler errors.  In this case the ``display error'' command "$\backslash$ M x-`" will bring up a C file that was passed to the compiler.
+These errors contain the name of the C file passed to the compiler.  Examining this C file is sometimes helpful.
 
-If an error is trapped by dynamic checking while executing the compiled code for the cell, the NIDE will print {\tt "dynamic-check execution error"} as the value of the cell and enter the gdb debugger.
-Typing the continue command to gdb will abort execution and return to the NIDE. The procedure {\tt berror(char *)} can be called by the user to declare a dynamic-check error.
-
-If an error is trapped directly by gdb during execution, for example a segmentation fault in user code, the NIDE will print {\tt "gdb-trapped execution error"} as the value of the cell and enter the gdb debugger.
-In this case the continue command is ineffective and one must type {\tt p NIDE()} to return to the NIDE.
+There are two kinds of errors that can occur in the final execution phase.  The first is a ``dynamic check error''.  This is an error caught
+by a explicit check in the code such as a {\tt ucase} expression where no pattern matches or a call to the MetaC error function {\tt berror(char *)}.
+A dynamic error causes control to be passed to the gdb debugger.  The continue command then return control to the nide and the value of the cell is
+printed as ``dynamic-check error''.  It is also possible that execution leads to some other error, typically a segmentation fault.  This also causes
+control to be passed to the gdb debugger but the continue command is not applicable in this case.  In this case one can return to the NIDE by
+entering p NIDE() to gdb.
 
 The MetaC procedure {\tt breakpt(char *)} can be used for breakpoints
 from which execution can be continued.  When {\tt breakpt} is called
-the NIDE will invoke the debugger with no error message printed in the NIDE but with the string passed to {\tt breakpt} printed in the first line in the debugger window.
-The continue command will continue execution from the breakpoint.
+the NIDE will invoke gdb with no error message printed in the NIDE but with the string passed to {\tt breakpt} printed in the first line in
+the debugger window. The continue command will continue execution from the breakpoint.
 
 MetaC is designed to minimize the risk of memory corruption
 when returning to the NIDE from an error.
 See the discussions of unwind protection in sections~\ref{sec:memory} and \ref{sec:undo}.
-If there is a concern over memory corruption one can always restart the C process.
+If there is a concern over memory corruption one can always restart the C process with the command "$\backslash$C-$\backslash$M-s".
 
 \noindent {\bf Printing.} The procedure {\tt mcprint} is like {\tt fprintf} but omitting the file argument. The expression
 {\tt mcprint("x = \%s$\backslash$n",s)} will print to the *Messages* buffer in Emacs. The procedure {\tt mcpprint(expptr e)}
 will pretty-print the expression $e$ to the *Messages* buffer.  When in the gdb debugger entering {\tt p pp($<$exp$>$)} will
 pretty print the given expression.
 
-\noindent {\bf Key Bindings.}  mc.el provides the following key bindings.
-
-\begin{itemize}
-\item[C-z s] starts or restarts the persistent C process.
-
-\item[C-z x] executes the cell containing the cursor.
-  
-\item[C-z r] executes all cells in the current region sequentially with a different execution number for each cell execution.
-
-\item[C-z b] executes the entire buffer
-
-\item[C-z B] executes the buffer up to the current cursor position.
-  
-\item[C-z a] moves to the beginning of the current cell.
-
-\item[C-z p] moves to the beginning of the preceding cell.
-
-\item[C-z n] moves to the beginning of the next cell.
-
-\item[C-z c] removes all cell values.  This is useful before a git commit as it can reduce or eliminate file differences.
-\end{itemize}
-
 {\bf Load Statements.}  A cell in a code file containing {\tt
 load($<$filename$>$)} (with no semicolon) will load the cells
 of the named file (which should be a string constant) into the persistent C process.  The extension .mc
 will be automatically added and should not be explicitly given.
-Load statements can also be given to the REPL to load (and link) C
-files into the running REPL process.
 
 \section{Miscellaneous Features}
 
@@ -502,8 +476,8 @@ Interning means that two expressions which have the same tree structure and sequ
 This is sometimes called ``hash-consing'' and can be expressed in Lisp terminology by saying that ``equal'' implies ``eq''.
 Hence we have
 \begin{verbatim}
-MC> int_exp(`{foo(a)} == `{foo(a)})
-1
+int_exp(`{foo(a)} == `{foo(a)})
+/** <n>:1 **/
 \end{verbatim}
 Interned expressions with properties provide the functionality of dictionary data structures such as C++ hashmaps or Python dictionaries.
 Interning also facilitates the implementation of forward chaining inference algorithms --- we do not want to waste time noticing the same
@@ -542,12 +516,11 @@ exit from an enclosing use of {\tt in\_memory\_frame}.  MetaC
 pre-allocates the heap (stack space) used for memory frames.  The
 deallocation (resetting of the freeptr) is unwind protected --- it
 will occur when an error is thrown beyond the frame entry point.  This
-avoids a memory leak when returning from an error to the REPL or
-NIDE.
+avoids a memory leak when returning from an error to the NIDE.
 
-MetaC clears the base memory frame after every evaluation in the REPL and after every cell evaluation in the NIDE.
+MetaC clears the base memory frame after every cell execution.
 It is therefore important not to be using
-stack allocated memory between evaluations.
+stack allocated memory between cell executions.
 
 \subsection{Undo Frames}
 \label{sec:undo}
@@ -564,7 +537,8 @@ the state that existed on frame entry.
 
 The macro {\tt exp\_from\_undo\_frame($<$expression$>$)} computes the value of the given expression in a new undo frame, then pops that undo frame while
 copying the computed value into the parent undo frame.  The value must be a universal syntax expression
-(an {\tt expptr}). This is used for returning the ``value'' or ``result'' of a large computation while freeing the allocation and undoing the effects of the computation.
+(an {\tt expptr}). This is used for returning the ``value'' or ``result'' of a large computation while freeing the allocation
+and undoing the effects of the computation.
 The macro {\tt exp\_from\_undo\_frame($<$expression$>$)} has unwind protection so that the undo frame is popped (with memory deallocated and effects undone)
 if an error is thrown in the execution of the expression.
 %%
@@ -639,7 +613,8 @@ requiring this feature.
 
 In file expansion the initialization forms generated during macro expansion are incorporated into an initialization procedure.
 The macro {\tt init\_fun(<fname>)} macro expands to a definition of the given procedure name with no arguments but with the sequence
-of initialization forms in its body.  In the REPL and IDE the initialization forms are run before the macro expansion of the input or cell is run.
+of initialization forms in its body.  The macro expansion phase of a cell execution adds the initialization forms generated by macro expansion
+to the beginning of the C code which is then compiled and executed.
 
 \subsection{Macro Preliminary Definitions}
 
@@ -768,11 +743,11 @@ Examples of strings and the phantom bracking imposed by the reading those string
 The printer simply removes the phantom brackets and prints the string that the expression represents.
 
 To reduce the clutter of brackets we will adopt two conventions for supressing brackets --- a list convention and a binary operator convention.
-The list convention abbreviates $\fopen \mathtt{zero}\;\fopen \mathtt{one}\;\fopen \mathtt{two~three}\fclose \fclose \fclose$.
-as $\fopen\mathtt{zero~one~two~three}\fclose$.  The binary operation convention abbreviates $\fopen \fopen a_1 \;o\fclose\;a_2\fclose$ where $o$ is a connective atom
-as $\fopen a_1\;o\;a_2 \fclose$.  For example, the expression \mtt{\{a + b\}} reads as
-$\{\fopen \fopen \mathtt{a~+} \fclose \;\mathtt{b} \fclose \}$ which is then abbreviated as
-$\{\fopen \mathtt{a~+~b} \fclose \}$. We note that
+The list convention abbreviates $\fopen \mathtt{zero}\;\fopen \mathtt{one}\;\fopen \mathtt{two~three}\fclose \fclose \fclose$
+as $\fopen\mathtt{zero~one~two~three}\fclose$.  The binary operation convention involves connective atoms --- atoms whose string consists entirely of
+characters classified as a connectives as described in section \ref{sec:reader}.  For example, the string \mtt{\{a + b\}} reads as
+$\{\fopen \fopen \mathtt{a~+} \fclose \;\mathtt{b} \fclose \}$.  We then adopt the convention of writing this as
+$\{\fopen \mathtt{a~+~b} \fclose \}$.
 The MetaC reader bracketing of
 $$\{e_1\;;\;e_2\;;\;e_3\;;\;e_4\}$$
 is $$\{\fopen \fopen e_1\;;\fclose \;\fopen \fopen e_2\;;\fclose \;\fopen \fopen e_3\;;\fclose\;e_4\fclose\fclose\fclose\}.$$
@@ -878,14 +853,14 @@ If the value of variable {\tt z} is the expression {\tt c} then the value of exp
 The symbol {\tt \$} can be included in the value of a backquote expression by quoting it.  This gives our second expression.
 \begin{equation}
 \label{bq2}
-`\{`\{a + \$\{y\} + \backslash\$\{z\}\}\}
+`\{`\{a + \$\{y\} + \fopen \backslash\$\fclose\{z\}\}\}
 \end{equation}
 
 If the value of variable {\tt y} is the expression $b$ then the value expression of (\ref{bq2}) is expression (\ref{bq1}).
 We can even have multiple layers of quotation as in the following.
 \begin{equation}
 \label{bq3}
-`\{`\{`\{\$\{x\} + \backslash\$\{y\} + \backslash\backslash\$\{z\}\}\}\}
+`\{`\{`\{\$\{x\} + \fopen\backslash\$\fclose\{y\} + \fopen\backslash\backslash\$\fclose\{z\}\}\}\}
 \end{equation}
 
 If the value of variable {\tt x} is the expression {\tt a} then the value of expression (\ref{bq3}) is expression (\ref{bq2}).
