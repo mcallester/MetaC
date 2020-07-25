@@ -2,7 +2,7 @@
 
 /** ========================================================================
 undo_alloc, undo_set_int and undo_set
-premacros.h (included form mc.h) contains
+premacros.h (included form mc.h included above) contains
 
 #define undo_set_int(pointer,value) undo_set_int_proc((int *) &pointer,value)
 
@@ -20,7 +20,6 @@ void * undo_alloc(int size){
   return result;
 }
 
-
 typedef struct undopair_int{
   int * location;
   int oldval;
@@ -35,7 +34,6 @@ void undo_set_int_proc(int * loc, int val){
   undo_trail_int[undo_trail_int_freeptr].location = loc;
   undo_trail_int[undo_trail_int_freeptr++].oldval = *loc;
   *loc = val;}
-
 
 typedef struct undopair{
   void * * location;

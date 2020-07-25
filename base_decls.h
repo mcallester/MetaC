@@ -24,8 +24,6 @@ typedef struct expstruct{
 errors and breaks
 ========================================================================**/
 
-void cbreak();
-
 void breakpt(charptr s);
 
 void berror(charptr s);
