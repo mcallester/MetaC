@@ -66,7 +66,6 @@ void add_list_forms(expptr type){
 	  {\$any}:{return `{$consfun(\$x,NULL)};}}}
     });
 }
-/** 1:done **/
 
 umacro{deflists($type)}{ //for use with non-class types
   add_list_forms(type);
@@ -165,10 +164,9 @@ umacro{semi_map($x,$y)($expression)}{
 	$result;})};
 }
 
+//macroexpand1(`{semi_map(z,`{a;b;c})(`{(d,\$z)})})
 
-// macroexpand1(`{semi_map(z,`{a;b;c})(`{(d,\$z)})})
-
-//semi_map(z,`{a;b;c;})(`{(d,$z)})
+// semi_map(z,`{a;b;c;})(`{(d,$z)})
 
 expptr semi_to_comma(expptr e){
   ucase{e;
@@ -184,7 +182,11 @@ expptr semi_to_comma(expptr e){
 /** ========================================================================
   classes
 
-  the class hierarchy must be a tree with each class having a unique superclass rooted at `object.
+  Each class is associated with a sequence of instnace variables.  The class hierarchy is a dag
+  subject to the constraint that the instance variables of a superclass are a prefix of
+  the instance variables of a subclass. The top of the class heirarchy is the class "object".
+
+  Each class definition specifies a superclass but additional superclasses can be added with declare_superclass(subclass,superclass)
 
   after doing
 
@@ -230,12 +232,6 @@ int class_index(expptr class){
   return index;
 }
 
-expptr class_superclass(expptr class){
-  expptr superclass = getprop(class,`superclass,NULL);
-  if(!superclass)berror(sformat("undefined class %s",atom_string(class)));
-  return superclass;
-}
-
 expptr fix_typedef_recursion(expptr class, expptr structname, expptr ivars); // this allows the given class to be used directly as a type in ivars.
 
 void add_class_constructor(expptr class, expptr ivars);
@@ -243,15 +239,14 @@ void add_class_constructor(expptr class, expptr ivars);
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars){
   if(class == `object)berror("attempt to redefine the object class");
   expptr complete_ivars = semi_append(class_ivars(superclass), added_ivars); //this ensures that superclass is a defined class.
-  expptr old_superclass = getprop(class,`superclass,NULL);
-  if(old_superclass){
-    if(superclass != old_superclass || complete_ivars != class_ivars(class))
-      berror(sformat("attempt to change definition of class %s", atom_string(class)));}
-  else{
-    expptr structname = string_atom(sformat("%s_struct",atom_string(class)));
-    add_form(`{typedef struct $structname{${fix_typedef_recursion(class, structname, complete_ivars)}} $structname, * $class;});
-    add_list_forms(class);
-    add_form(`{install_class(`$superclass, `$class, `{$complete_ivars});});}
+  expptr old_ivars = getprop(class,`ivars,NULL);
+  if(old_ivars && complete_ivars != old_ivars){
+    berror(sformat("attempt to change definition of class %s", atom_string(class)));}
+  expptr structname = string_atom(sformat("%s_struct",atom_string(class)));
+  add_form(`{typedef struct $structname * $class;});
+  add_list_forms(class);
+  add_form(`{typedef struct $structname{$complete_ivars} $structname, * $class;});
+  add_form(`{install_class(`$superclass, `$class, `{$complete_ivars});});
 }
 
 expptr fix_typedef_recursion(expptr class, expptr structname, expptr ivars){
@@ -283,11 +278,16 @@ expptr classof(voidptr x){
   int index = ((object) x)->class_index;
   if(index < 0 || index >= class_dim())berror("attempt to determine the class of non-object");
   expptr class = class_name[index];
-  if(!class)berror("attempt to deterine the class of a non-object");
+  if(!class)berror("attempt to determine the class of a non-object");
   return class;
 }
 
-void copy_methods(expptr superclass, expptr new_class);
+umacro{declare_superclass($subclass,$superclass)}{
+  return `{add_superclass(`{$subclass},`{$superclass})};
+}
+
+void add_superclass(expptr subclass, expptr superclass);
+
 
 void install_class(expptr superclass, expptr class, expptr complete_ivars){
   int index = class_counter[0];
@@ -297,9 +297,14 @@ void install_class(expptr superclass, expptr class, expptr complete_ivars){
   undo_set_int(class_counter[0], class_counter[0]+1);
   class_name[index] = class;
   setprop(class, `ivars, complete_ivars);
-  setprop(class,`superclass, superclass);
-  pushprop(class, getprop(superclass, `subclasses));
-  copy_methods(superclass, class);
+  add_superclass(class, superclass);
+}
+
+void copy_methods(expptr superclass, expptr subclass);
+
+void add_superclass(expptr subclass, expptr superclass){
+  pushprop(subclass, getprop(superclass,`subclasses));
+  copy_methods(superclass,subclass);
 }
 
 expptr init_ivars(expptr ivars){
@@ -340,12 +345,29 @@ umacro{new($class)}{
 
 void add_method_forms(expptr outtype, expptr f_name, expptr argvars, expptr body);
 
-void add_method_name_forms(expptr outtype, expptr f_name, expptr argvars);
+void add_method_name_forms(expptr outtype, expptr f_name, expptr argtypes);
 
 void install_method_ptr(expptr f_name, expptr class, voidptrptr f_table, voidptr f_method);
 
+expptr strip_var(expptr argpair){
+  ucase{argpair;
+    {$type $any}:{return type;};
+    {$any}:{berror(sformat("illegal argument syntax %s",exp_string(argpair)));}
+  };
+  return `{};
+}
+
+expptr strip_vars(expptr arglist){
+  ucase{arglist;
+    {$first,$rest}:{return `{${strip_var(first)},${strip_vars(rest)}};};
+    {$any}:{return strip_var(arglist);}
+  };
+}
+
+// strip_vars(`{a b, c d})
+
 umacro{declare_method{$outtype $f($argvars)}}{
-  add_method_name_forms(outtype, f, argvars);
+  add_method_name_forms(outtype,f,strip_vars(argvars));
   return `{};
 }
 
@@ -360,12 +382,12 @@ expptr method_table_name(expptr f){
 
 expptr localize_ivars(expptr ivars, expptr body);
 
-void add_method_name_forms(expptr outtype, expptr f_name, expptr argvars){
+void add_method_name_forms(expptr outtype, expptr f_name, expptr argtypes){
   expptr f_table_name = method_table_name(f_name);
   expptr old_type = getprop(f_name,`method_type,NULL);
-  expptr restargvars = `{};
-  orcase{argvars; {$any self, $restargvars}{$any self}:{
-      expptr f_type = `{$outtype($restargvars)};
+  expptr restargtypes = `{};
+  orcase{argtypes; {$any, $restargtypes}{$any}:{
+      expptr f_type = `{$outtype($restargtypes)};
       if(!old_type){
 	add_form(`{voidptr $f_table_name[class_dim()];});
 	add_form(`{install_method_name(`$f_name, $f_table_name, `{$f_type});});}
@@ -373,8 +395,9 @@ void add_method_name_forms(expptr outtype, expptr f_name, expptr argvars){
 	berror(sformat("attempt to change the signature of method %s",atom_string(f_name)));}}}
 }
 
+
 void add_method_forms(expptr outtype, expptr f_name, expptr argvars, expptr body){
-  add_method_name_forms(outtype,f_name,argvars);
+  add_method_name_forms(outtype,f_name,strip_vars(argvars));
   expptr f_table_name = method_table_name(f_name);
   orcase{argvars; {$class self, $any}{$class self}:{
       expptr ivars = class_ivars(class);
@@ -410,12 +433,12 @@ voidptrptr method_table(expptr f_name){
   return f_table;
 }
 
-void copy_methods(expptr superclass, expptr new_class){
+void copy_methods(expptr superclass, expptr subclass){
   int superindex = class_index(superclass);
   expptr_iter(f_name, (getprop(superclass, `method_names, NULL))){
     voidptrptr table = method_table(f_name);
     voidptr f_ptr =  table[superindex];
-    install_method_ptr(f_name,new_class,table,f_ptr);}
+    install_method_ptr(f_name,subclass,table,f_ptr);}
 }
 
 expptr localize_ivars(expptr ivars, expptr body){
@@ -448,7 +471,7 @@ expptr method_expansion(expptr e){
 	  if(outtype == `void){
 	    return `{
 	      {voidptr $selfvar = $selfexp;
-		$outtype (* $f_ptr)(${restexps ? `{voidptr self, $restargvars} : `{voidptr self}}); //declares the variable f_ptr
+		$outtype (* $f_ptr)(${restargvars != `{} ? `{voidptr self, $restargvars} : `{voidptr self}}); //declares the variable f_ptr
 		int $index = ((object) $selfvar) -> class_index;
 		if($index < 0 || $index >= class_dim())berror("illegal self object in method call");
 		$f_ptr = ${method_table_name(f)}[$index];
@@ -459,7 +482,7 @@ expptr method_expansion(expptr e){
 	  else{
 	    return `{
 	      ({voidptr $selfvar = $selfexp;
-		$outtype (* $f_ptr)(${restexps ? `{voidptr self, $restargvars} : `{voidptr self}}); //declares the variable f_ptr
+		$outtype (* $f_ptr)(${restargvars != `{} ? `{voidptr self, $restargvars} : `{voidptr self}}); //declares the variable f_ptr
 		int $index = ((object) $selfvar) -> class_index;
 		if($index < 0 || $index >= class_dim())berror("illegal self object in method call");
 		$f_ptr = ${method_table_name(f)}[$index];
@@ -480,7 +503,9 @@ umacro{check_cast($class,$superclass)}{
   berror("unsafe cast from %s to %s");
   return `{};
 }
-  
+
+declare_method{expptr object_exp(object self)};
+
 /** ========================================================================
   test cases
 ========================================================================**/
@@ -528,3 +553,27 @@ umacro{check_cast($class,$superclass)}{
 // set_y(bambam[0],(foo) barney[0]);
 
 // bambam[0]->y->name
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

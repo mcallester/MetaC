@@ -418,7 +418,7 @@ It is sometimes useful to see the result of a single step
 of macro expansion. The procedure {\tt macroexpand1(expptr)} returns
 the result of a single step of macro expansion on the root of the given argument.
 
-\noindent {\bf Errors and Breakpoints.}
+\subsection{Errors and Breakpoints.}
 
 The execution of a cell involves
 
@@ -457,12 +457,12 @@ when returning to the NIDE from an error.
 See the discussions of unwind protection in sections~\ref{sec:memory} and \ref{sec:undo}.
 If there is a concern over memory corruption one can always restart the C process with the command "$\backslash$C-$\backslash$M-s".
 
-\noindent {\bf Printing.} The procedure {\tt mcprint} is like {\tt fprintf} but omitting the file argument. The expression
+\subsection {Printing.} The procedure {\tt mcprint} is like {\tt fprintf} but omitting the file argument. The expression
 {\tt mcprint("x = \%s$\backslash$n",s)} will print to the *Messages* buffer in Emacs. The procedure {\tt mcpprint(expptr e)}
 will pretty-print the expression $e$ to the *Messages* buffer.  When in the gdb debugger entering {\tt p pp($<$exp$>$)} will
 pretty print the given expression.
 
-{\bf Load Statements.}  A cell in a code file containing {\tt
+\subsection{Load Statements.}  A cell in a code file containing {\tt
 load($<$filename$>$)} (with no semicolon) will load the cells
 of the named file (which should be a string constant) into the persistent C process.  The extension .mc
 will be automatically added and should not be explicitly given.
@@ -650,7 +650,114 @@ definitions are installed along with the expression created by the
 macro.  MetaC 1.0 supports preambles but does not provide a macro for
 lambda expressions.
 
-\section{Object-Oriented Programming}
+\subsection{List Operations}
+
+The macro {\tt deflists(<type>)} creates operations on lists of the given type.  For example
+
+\medskip
+\centerline{\tt deflists(expptr)}
+
+expands to
+
+\begin{verbatim}
+typedef struct expptr_list_struct{
+    expptr first;
+    struct expptr_list_struct * rest;}expptr_list_struct, * expptr_list;
+
+expptr_list expptr_cons(expptr x, expptr_list y){
+   expptr_list cell = (expptr_list) undo_alloc(sizeof(expptr_list_struct));
+   ...}
+
+expptr_list expptr_append(expptr_list x, expptr_list y){...}
+
+expptr exptr_nth(expptr_list x, int n){...}
+
+int expptr_member(expptr x, expptr_list y){...}
+
+umacro{push_expptr($x,$y)}{return `{undo_set($y,expptr_cons($x,$y))}}
+
+umacro{exptr_iter($x,$y){$body}}{...} //executes body for each x in y
+
+umacro(expptr_listfun($args)}{...} //creates a list of any number of arguments
+\end{verbatim}
+
+The macro {\tt pushprop(x, getprop(y,prop))} pushes x onto the list stored in the given property of expptr y.  This cannot be easily type
+checked and it is assumed that the given property is a list of pointers.
+
+The list operations are predefined for {\tt expptr} and {\tt voidptr} and automatically defined for each class declared in the object system.
+
+
+\subsection{Throw, Catch, and Exceptions}
+
+The following throw and catch macros are contained directly in the MetaC source code.
+
+\begin{verbatim}
+#define CATCH_DIM 1000
+int *catch_freeptr;
+
+jmp_buf *catch_stack;
+int *error_flg;
+
+#define throw_check() \
+  {if(catch_freeptr[0] == 0) \
+    {fprintf(stderr,"\n uncaught throw --- C process fatal\n"); cbreak(); exit(1);}}
+
+#define catch_check() \
+   {if(catch_freeptr[0] == CATCH_DIM){berror("catch stack exhausted");}}
+
+#define throw_error() \
+   {throw_check(); error_flg[0]=1; longjmp(catch_stack[catch_freeptr[0]-1], 1);}
+
+#define catch_error(body) \
+ {catch_check(); error_flg[0]=0;\
+  if(setjmp(catch_stack[catch_freeptr[0]++]) == 0)\
+   {body; catch_freeptr[0]--;\
+    } else \
+     {catch_freeptr[0]--;\
+      if(!error_flg[0])\
+        {fprintf(stderr, "uncaught throw caught as error\n"); cbreak();}}}
+
+#define throw() \
+   {throw_check(); error_flg[0]=0; longjmp(catch_stack[catch_freeptr[0]-1], 1);}
+  
+#define continue_throw() \
+   {throw_check(); longjmp(catch_stack[catch_freeptr[0]-1], 1);}
+
+#define catch(body) {catch_check(); if(setjmp(catch_stack[catch_freeptr[0]++]) == 0)\
+  {body; catch_freeptr[0]--;} else{catch_freeptr[0]--; if(error_flg[0])continue_throw();}}
+
+#define unwind_protect(body, cleanup) \
+  {catch_check(); if(setjmp(catch_stack[catch_freeptr[0]++]) == 0)\
+  {body; catch_freeptr[0]--;} else { catch_freeptr[0]--; cleanup; continue_throw();}}
+\end{verbatim}
+
+The following extends the above to general exceptions.
+
+\begin{verbatim}
+expptr exception[0] = NULL;
+
+expptr exception_value[0];
+
+umacro{catch_excep{$exception}{$body}{$handler}}{
+  return `{
+    catch({$body})
+      if(exception[0]){
+	if(exception[0] == `$exception){
+	  exception[0] = NULL;
+	  $handler}
+	else continue_throw();}};
+}
+
+umacro{throw_excep{$exception;$value}}{
+  return `{
+    expcetion[0] = `{$exception};
+    exception_value[0] = $value;
+    throw();};
+}
+\end{verbatim}
+
+
+\subsection{Object-Oriented Programming}
 
 MetaC provides an object system where the collection of classes must be tree structured (no multiple inheritance) with
 a built-in root class called {\tt object}. Classes are declared with the macro {\tt defclass}.  The class declaration
@@ -719,8 +826,7 @@ Within the body of a method instance variables are defined as free variables.
 However, the current implementation does not support assignments {\tt x=v} for instance variable {\tt x} within methods --- do {\tt self->x = v;} instead
 and reember to use {\tt setf-undo} if you want effects undone (initialization does not have to be undone as the memory is reclaimed in any case).
 
-  
-
+List operations are automatically created for each class.
 
 \section{Universal Syntax}
 

@@ -330,7 +330,7 @@
       (let ((count 0))
 	(while (< (point) end)
 	  (setq count (+ count 1))
-	  (MC:next-def))
+	  (MC:end-of-cell))
 	count))))
 
 (defun MC:clean-cells ()
