@@ -40,7 +40,7 @@ typedef struct undopair{
   void * oldval;
 }undopair;
 
-#define UNDO_TRAIL_DIM  (1 << 16)
+#define UNDO_TRAIL_DIM  (1 << 20)
 undopair undo_trail[UNDO_TRAIL_DIM];
 int undo_trail_freeptr;
 
@@ -345,6 +345,10 @@ expptr stack_exp(char constr, expptr a1, expptr a2){
   return newexp;
 }
 
+expptr stack_cons(expptr x, expptr y){
+  if(!x || !y)berror("null argument given to cons");
+  return stack_exp(' ',x,y);}
+
 /** ========================================================================
 clean undo frame
 ======================================================================== **/
@@ -461,6 +465,12 @@ expptr nil;
 expptr append(expptr l1, expptr l2){
   if(cellp(l1))return cons(car(l1), append(cdr(l1),l2));
   else return l2;
+}
+
+int member(expptr x, expptr l){
+  if(!cellp(l))return 0;
+  if(x == car(l))return 1;
+  return member(x,cdr(l));
 }
 
 expptr reverse(expptr l){

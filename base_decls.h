@@ -55,6 +55,8 @@ int cellp(expptr e);
 
 expptr car(expptr x);
 
+expptr stack_cons(expptr x, expptr y);
+
 expptr cdr(expptr x);
 
 expptr intern_paren(char openchar, expptr arg);
@@ -123,6 +125,8 @@ cons and nil
 ========================================================================**/
 
 expptr append(expptr l1, expptr l2);
+
+int member(expptr x, expptr l);
 
 expptr reverse(expptr l);
 

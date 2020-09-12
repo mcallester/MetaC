@@ -71,6 +71,8 @@ char * atom_string(expptr a);
 
 expptr cons(expptr x, expptr y);
 
+expptr stack_cons(expptr x, expptr y);
+
 int cellp(expptr e);
 
 expptr car(expptr x);
@@ -164,6 +166,7 @@ void mapc(void f(expptr), expptr l);
 expptr mapcar(expptr f(expptr), expptr l);
 int length(expptr);
 expptr append(expptr,expptr);
+int member(expptr,expptr);
 expptr reverse(expptr);
 
 FILE * writestrm;

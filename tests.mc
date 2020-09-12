@@ -370,3 +370,13 @@ void baz(int x);
 void baz(int x, int y);
 /** mc to c dynamic-check error **/
 
+
+/** ========================================================================
+  test of enum
+========================================================================**/
+
+enum constructur{mz_forall, mz_exists};
+
+int code[0] = mz_forall;
+
+int_exp(code[0])

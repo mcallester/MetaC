@@ -298,7 +298,8 @@ expptr left_atom(expptr e){
   return NULL;}
 
 void preinstall(expptr statement){
-  if(left_atom(statement) == `typedef){
+  expptr leftexp = left_atom(statement);
+  if(leftexp == `typedef || leftexp == `enum){
     {if(!getprop(statement,`installed,NULL)) push(statement, new_preambles);};}
   else
     ucase{statement;
