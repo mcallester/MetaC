@@ -28,6 +28,7 @@ void breakpt(charptr s);
 
 void berror(charptr s);
 
+void cbreak();
 
 /** ========================================================================
 the catch and throw data structures must be visible to dynamically linked procedures.
