@@ -15,7 +15,7 @@
   (define-key mc-mode-map "\C-\M-r" 'MC:load-region)
   (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
   (define-key mc-mode-map "\C-\M-e" 'MC:end-of-cell)
-  (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells)
+  (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells) ;;will use region
   (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell)
 
   (define-key mc-mode-map "\C-x`" 'MC:display-error))
@@ -44,10 +44,19 @@
 (defun MC:end-of-sec () (interactive) (next-line) (next-line)
   (search-forward "/** =") (previous-line) (recenter 0))
 
+(defun MC:in-commentp ()
+  (save-excursion
+    (let ((here (point)))
+      (search-backward "/**")
+      (search-forward "**/")
+      (if (> (point) here) t nil))))
+
 (defun MC:beginning-of-cell ()
   (interactive)
   (condition-case nil
       (progn (re-search-backward "\n[^] \n\t})/=]")
+	     (while (MC:in-commentp)
+	       (re-search-backward "\n[^] \n\t})/=]"))
 	     (forward-char))
     (error
      (beginning-of-buffer)
@@ -60,6 +69,8 @@
   (condition-case nil
       (progn (move-end-of-line nil)
 	     (re-search-forward "\n[^] \n\t})/=]")
+	     (while (MC:in-commentp)
+	       (re-search-forward "\n[^] \n\t})/=]"))
 	     (move-beginning-of-line nil))
     (error (end-of-buffer))))
 

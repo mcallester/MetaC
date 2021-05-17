@@ -2,6 +2,7 @@
 
 /** ========================================================================
 undo_alloc, undo_set_int and undo_set
+
 premacros.h (included form mc.h included above) contains
 
 #define undo_set_int(pointer,value) undo_set_int_proc((int *) &pointer,value)

@@ -98,7 +98,7 @@ testE.c : expandE testE.mc
 testE.o : testE.c
 	${gcc} -g testE.c -c
 
-#REPL
+#REPL  --- the REPL is depricated and has not been maintained
 
 REPL.c : REPL.mc expandE
 	./expandE REPL.mc REPL.c

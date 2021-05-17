@@ -26,13 +26,13 @@
 \maketitle
 
 \begin{abstract}
-  MetaC provides a notebook interactive development environment (a NIDE) for C programming.
-  MetaC can also be described as a Lisp-inspired programming environment for C.
-  The NIDE is capable of incrementally compiling and executing
+  MetaC provides a notebook interactive development environment (NIDE) for C programming
+  implemented as an emacs editing mode.
+  MetaC is capable of incrementally compiling and executing
   C statements and incremental procedure definitions in a persistent C process.
   This is done by compiling and loading dynamic load libraries.
 
-  MetaC extends C with Lisp-like features. More specifically, it provides a C-like universal syntax,
+  MetaC extends C with symbolic programming features. More specifically, it provides a C-like universal syntax,
   computed macros, backquote (quasiquote) \cite{backquote}, and pattern-matching.
   The implementation is bootstrapped --- it is implemented in itself.  These C extensions are intended to support the development of high level
   frameworks with notebook interfaces as direct extensions of C.  This is in contrast to scripting-C hybrids such as Matlab, Numpy, TensorFlow or PyTorch.
@@ -50,7 +50,7 @@
 
 \subsection{Installation}
 
-\noindent To install the NIDE:
+\noindent To install MetaC:
 
 \begin{enumerate}
 \item Clone the MetaC repository in a local MetaC directory.
@@ -63,7 +63,7 @@
 MetaC will not be available in buffers created before the load.}
 \end{enumerate}
 
-\subsection{Basic NIDE Commands}
+\subsection{Emacs mc-mode}
 
 Emacs buffers visiting files ending in the extension .mc are placed
 in mc-mode which is an extension of c-mode.  The mc-mode commands
@@ -77,13 +77,13 @@ Figure~\ref{fig:sample-file} shows a simple MetaC file with six cells divided in
 \begin{verbatim}
 
 /** ========================================================================
- Hello world
+Hello world
 ======================================================================== **/
 
 `{hello world}
 
 /** ========================================================================
- Procedure defininition
+Procedure defininition
 ======================================================================== **/
 
 expptr f(expptr exp){return exp;}
@@ -91,7 +91,7 @@ expptr f(expptr exp){return exp;}
 f(`a)
 
 /** ========================================================================
- Imperative Programming
+Imperative Programming
 ======================================================================== **/
 
 int x[10];
@@ -117,9 +117,7 @@ section delimiter comments o the form
 ======================================================================== **/
 \end{verbatim}
 
-It is important that the interior of comments of this form are indented so as
-not to confuse cell boundaries.
-A cell begins at any nonempty line whose first character is other than white space (space or tab), a close character ')', '\}', or ']', a slash '/' or the equals sign '='.
+A cell begins at any nonempty line whose first character is other than white space (space or tab), a close character ')', '\}', or ']', or the equals sign '=' and which is outside of a C comment.
 The cell ends at the beginning of the next cell or at the end of the file if no next cell.
 
 The commands of mc-mode are listed in fugure~\ref{fig:mc-commands}.
@@ -197,21 +195,19 @@ In C syntax one distinguishes C expressions from C statements.  A C
 statement is executed for effect while a C expression is evaluated for
 value. A MetaC cell can be either a statement or an expression.  The result of successfully
 executing a C statement is simply ``done''.
-When given a C expression the REPL computes and prints
-the value which must be an instance of the MetaC data type expptr.
 A expptr is an abstract syntax tree as defined by a ``universal'' grammar.
-The procedure {\tt int\_exp} in figures~\ref{fig:sample-file} and \ref{fig:execution-result}
+The procedure {\tt int\_exp} in figures~\ref{fig:sample-file} and \ref{fig:execution-results}
 converts an integer to an expptr.  Instances of the type expptr are ``universal'' in the sense that any parenthesis-balanced string
 parses as an expptr.  Futhermore, parsing a string and then printing the resulting expression is guaranteed to return the same string.
 Hence instance of this type can also be viewed as representations of strings.
 
 If a C statement in a cell executes a {\tt return} outside of any
-procedure then that value is returned to the REPL and printed.
+procedure then that value is returned as the value of the cell.
 This is shown in the last cell in figure~\ref{fig:execution-results}. 
 
 \subsection{Definitions of Types and Procedures}
 
-One can also define new data types and procedures from the REPL.
+One can also define new data types and procedures in cells.
 
 \begin{verbatim}
 
@@ -244,7 +240,8 @@ myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 
 A cell can redefine a procedure provided that the
 signature (argument types and return type) remains the same. Changing a procedure signature
-requires restarting the MetaC REPL.  This restriction ensures
+requires clearing the undo frame in which the signature was defined or restarting MetaC if the signature is defined in the base frame.  See section~\ref{sec:undo}.
+This restriction ensures
 meaningful C type checking in the presence of dynamic linking.
 
 \subsection{The Global Variable Array Restriction}
@@ -315,7 +312,7 @@ The basic form of the case construct is
 
 \begin{verbatim}
 ucase{e;
-  <pattern1>:{<body1>}
+  <pattern1>:{<body1>};
    ...
   <patternn>:{<bodyn>}}
 \end{verbatim}
@@ -341,9 +338,9 @@ int numeralp(expptr x)
 int value(expptr e)
   {ucase
     {e;
-      {$x+$y}:{return value(x)+value(y);}
-      {$x*$y}:{return value(x)*value(y);}
-      {($x)}:{return value(x);}
+      {$x+$y}:{return value(x)+value(y);};
+      {$x*$y}:{return value(x)*value(y);};
+      {($x)}:{return value(x);};
       {$z}.(numeralp(z)):{return atoi(atom_string(z));}
     }
   return 0; //this dead code convinces the compiler there is a return value.
@@ -369,7 +366,7 @@ The variable {\tt $\$$any} is special.  It acts as a wild card and is not bound 
 
 \subsection{Gensym and Macro Definitions}
 
-MetaC supports computed macros.  Pattern matching and backquote greatly facilitate the writing of computed macros.  Backquote and ucase are both implemented as computed macros in the bootstrapped implementation. As a very simple example we can define a {\tt dolist} macro at the REPL.
+MetaC supports (unhygenic) computed macros.  Pattern matching and backquote greatly facilitate the writing of computed macros.  Backquote and ucase are both implemented as computed macros in the bootstrapped implementation. As a very simple example we can define a {\tt dolist} macro.
 
 \begin{verbatim}
 umacro{dolist($x,$L){$body}}{
@@ -429,14 +426,14 @@ The execution of a cell involves
   \item executing the compiled code
 \end{enumerate}
 
-Errors can occur in any of these steps. If a cell contains unbalanced parentheses, or non-ascii unicode characters, the NIDE will print
+Errors can occur in any of these steps. If a cell contains unbalanced parentheses, or non-ascii unicode characters, MetaC will print
 {\tt "reader error"} as the value of the cell and display an error message (placed in the buffer *MC compilation*).
-If an error occurs while macro-expanding the cell expression, the NIDE will print {\tt "macro expansion error"}
+If an error occurs while macro-expanding the cell expression, MetaC will print {\tt "macro expansion error"}
 as the value of the cell and enter the
 gdb debugger.  Such an error may be
 due to a bug in a user-written macro and gdb can be useful in this case.
-Typing the continue command, which can be abbreviated as just {\tt "c"}, will abort the cell execution and return to the NIDE.
-If an error occurs while attempting to compile the macro-expanded cell, the NIDE will print {\tt "compilation error"} as the value of the cell
+Typing the continue command, which can be abbreviated as just {\tt "c"}, will abort the cell execution and return to emacs.
+If an error occurs while attempting to compile the macro-expanded cell, emacs will print {\tt "compilation error"} as the value of the cell
 and display the compiler errors.  In this case the ``display error'' command "$\backslash$ M x-`" will bring up a C file that was passed to the compiler.
 These errors contain the name of the C file passed to the compiler.  Examining this C file is sometimes helpful.
 
@@ -444,16 +441,16 @@ There are two kinds of errors that can occur in the final execution phase.  The 
 by a explicit check in the code such as a {\tt ucase} expression where no pattern matches or a call to the MetaC error function {\tt berror(char *)}.
 A dynamic error causes control to be passed to the gdb debugger.  The continue command then return control to the nide and the value of the cell is
 printed as ``dynamic-check error''.  It is also possible that execution leads to some other error, typically a segmentation fault.  This also causes
-control to be passed to the gdb debugger but the continue command is not applicable in this case.  In this case one can return to the NIDE by
+control to be passed to the gdb debugger but the continue command is not applicable in this case.  In this case one can return to emacs by
 entering p NIDE() to gdb.
 
 The MetaC procedure {\tt breakpt(char *)} can be used for breakpoints
 from which execution can be continued.  When {\tt breakpt} is called
-the NIDE will invoke gdb with no error message printed in the NIDE but with the string passed to {\tt breakpt} printed in the first line in
+emacs will invoke gdb with no error message printed in emacs but with the string passed to {\tt breakpt} printed in the first line in
 the debugger window. The continue command will continue execution from the breakpoint.
 
 MetaC is designed to minimize the risk of memory corruption
-when returning to the NIDE from an error.
+when returning to emacs from an error.
 See the discussions of unwind protection in sections~\ref{sec:memory} and \ref{sec:undo}.
 If there is a concern over memory corruption one can always restart the C process with the command "$\backslash$C-$\backslash$M-s".
 
@@ -516,7 +513,7 @@ exit from an enclosing use of {\tt in\_memory\_frame}.  MetaC
 pre-allocates the heap (stack space) used for memory frames.  The
 deallocation (resetting of the freeptr) is unwind protected --- it
 will occur when an error is thrown beyond the frame entry point.  This
-avoids a memory leak when returning from an error to the NIDE.
+avoids a memory leak when returning from an error to emacs.
 
 MetaC clears the base memory frame after every cell execution.
 It is therefore important not to be using
@@ -527,8 +524,11 @@ stack allocated memory between cell executions.
 Undo frames are similar to memory frames but with the added feature of undoing effects tied to the frame.
 The macro {\tt exp\_from\_undo\_frame($<$expression$>$)} creates a new undo frame and executes the given expression
 in the new frame. Memory is allocated from the current undo frame
-with {\tt undo\_alloc(int nbytes)}.  Effects are tied to the current undo frame with the C preprocessor macro
-{\tt undo\_set(void * loc, void * val)}.  On exit from an undo frame all memory allocated from that frame is reclaimed by resetting a free pointer
+with {\tt undo\_alloc(int nbytes)}.  Undo assignments to pointer variables are done with
+{\tt undo\_set(void *, void *)}.
+Undo assignments to integer variables are done with 
+{\tt undo\_set\_int(int, int)}.
+On exit from an undo frame all memory allocated from that frame is reclaimed by resetting a free pointer
 and all locations assigned by {\tt undo\_set} are restored to the values they had before entry to the frame.
 
 In MetaC all expression allocation and property assignments are tied to the current undo frame.
@@ -544,7 +544,7 @@ if an error is thrown in the execution of the expression.
 %%
 %% is there a way for the user to throw an error other than berror, i.e. not go to gdb?
 %%
-%% internally there is the procedure throw_error() but this will throw all the way to the NIDE.
+%% internally there is the procedure throw_error() but this will throw all the way to emacs.
 %% we do not currently have general exceptions.
 %% 
 
@@ -617,13 +617,14 @@ This procedure takes a file name and returns a list of the expressions contained
 
 Macros expansion can have effects.  The macro {\tt umacro} expands to a procedure definition of the macro expansion code but also
 generates a statement which installs that procedure pointer in the macro property of the head symbol.  During macro expansion the
-MetaC primitive {\tt add\_init\_form(expptr statement)} is called with a statement that installs the procedure pointer on the appropriate property list.  The procedure {\tt add\_init\_form} is provided to the user for use in defining complex macros
+MetaC primitive {\tt add\_init\_form(expptr statement)} is called with a statement that installs the procedure pointer on the appropriate property list.
+The procedure {\tt add\_init\_form} is provided to the user for use in defining complex macros
 requiring this feature.
 
-In file expansion the initialization forms generated during macro expansion are incorporated into an initialization procedure.
-The macro {\tt init\_fun(<fname>)} macro expands to a definition of the given procedure name with no arguments but with the sequence
-of initialization forms in its body.  The macro expansion phase of a cell execution adds the initialization forms generated by macro expansion
-to the beginning of the C code which is then compiled and executed.
+{\bf In file expansion} the initialization forms generated during macro expansion are incorporated into an initialization procedure.
+The declaration {\tt init\_fun(<fname>)} gives the procedure name for an initialization procudure to install the effects.
+{\bf In cell execution} the initialization forms generated by macro expansion
+are inserted in the C code for cell execution.
 
 \subsection{Macro Preliminary Definitions}
 
@@ -645,7 +646,7 @@ definition is a ``preamble'' to the macro expansion.  MetaC provides
 the primitive {\tt add\_preamble(expptr definition)} for creating
 preambles during macro expansion.  In file expansion these preamble
 definitions are inserted into the output file before the expression
-generated by the macro.  In the REPL and NIDE these preamble
+generated by the macro.  When executing a cell these preamble
 definitions are installed along with the expression created by the
 macro.  MetaC 1.0 supports preambles but does not provide a macro for
 lambda expressions.
@@ -884,27 +885,16 @@ expptr paren_inside(expptr);
 \begin{figure}
 \begin{eqnarray*}
   \mathtt{Hello~World} & \Rightarrow & \fopen \mathtt{Hello}\;\; \mathtt{World}\fclose \\
-  \mathtt{one~two~three} & \Rightarrow & \fopen \mathtt{one}\;\; \fopen \mathtt{two} \; \;\mathtt{three}\fclose\fclose \\
-   & = & \fopen \mathtt{one~two~three} \fclose \\
-  \mathtt{x~+~y} & \Rightarrow & \fopen\fopen \mathtt{x~+}\fclose\;\mathtt{y}\fclose \\
-  & = & \fopen \mathtt{x~+~y} \fclose \\
+  \mathtt{one~two~three} & \Rightarrow & \fopen \mathtt{one}\;\; \fopen \mathtt{two} \; \;\mathtt{three}\fclose\fclose\;   = \; \fopen \mathtt{one~two~three} \fclose \\
+  \mathtt{x~+~y} & \Rightarrow & \fopen\fopen \mathtt{x~+}\fclose\;\mathtt{y}\fclose \; = \; \fopen \mathtt{x~+~y} \fclose \\
   \mathtt{x+y*z} & \Rightarrow & \fopen \mathtt{x~+}\; \fopen \mathtt{y~*~z} \fclose\fclose \\
   \mathtt{(x+y)*z} & \Rightarrow & \fopen (\fopen \mathtt{x~+~y} \fclose )\;\mathtt{*~z}\fclose \\
   \mathtt{foo}(\mathtt{int~x}) & \Rightarrow & \fopen \mathtt{foo}\; (\fopen \mathtt{int}\;  \; \mathtt{x}\fclose)\fclose \\
   \mathtt{foo(int~x,~float~y)} & \Rightarrow & \fopen \mathtt{foo} \; (\fopen\fopen \mathtt{int}\; \mathtt{x} \fclose\;
   \mathtt{,}\; \fopen\mathtt{float} \; \mathtt{y} \fclose\fclose )\;\fclose \\
-  \mathtt{(foo\; (int~x,~float~y)\; bar)} & \Rightarrow & (\fopen \fopen \mathtt{foo} \; (\mathtt{int}\; \mathtt{x}
-  \mathtt{,}\; \mathtt{float} \; \mathtt{y})\fclose\;{\tt bar}\fclose) \\
-  \\
-  \mathtt{(foo\; b\;c)} & \Rightarrow & (\fopen \mathtt{foo\;b\;c}\fclose)   \\
-  \mathtt{(foo\; (b)\;c)} & \Rightarrow & (\fopen \fopen \mathtt{foo} \; (\mathtt{b})\fclose\;{\tt c}\fclose) \\
-  \mathtt{(foo\; (b)\;(c)\; d\;e)} & \Rightarrow & (\fopen \fopen \mathtt{foo} \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose)  \\
-  \\
-  \mathtt{(\$\; \;f\; b\;c)} & \Rightarrow & (\fopen\fopen\$\; \mathtt{f}\fclose\; \mathtt{b}\;{\tt c}\fclose)   \\
-  \mathtt{(\$\; f\; (b)\;(c)\;d\;e)} & \Rightarrow &
-  (\fopen \fopen \fopen\$\; \mathtt{f}\fclose \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose) \\
-  \mathtt{(\$\; \{f(x)\}\;(b)\;(c)\;d\;e)} & \Rightarrow &
-  (\fopen \fopen \fopen\$\; \{\mathtt{f(x)}\}\fclose \; (\mathtt{b})\;({\tt c})\fclose\;{\tt d\;e}\fclose)
+  \mathtt{(foo\; (int~x,~float~y)\; bar)} & \Rightarrow & (\fopen \mathtt{foo} \; (\mathtt{int}\; \mathtt{x}
+  \mathtt{,}\; \mathtt{float} \; \mathtt{y})\;{\tt bar}\fclose) \\
+  \mathtt{(\$\; \;f\; \backslash \;\$\;b\;c)} & \Rightarrow & (\fopen\fopen\$\; \mathtt{f}\fclose\; \fopen\fopen\backslash \;\$\fclose \;\mathtt{b}\fclose\;{\tt c}\fclose)
 \end{eqnarray*}
 
 \caption{{\bf Examples of Reader Bracketings.} Bracketings are shown for the expression that results from reading the given strings.
@@ -913,9 +903,9 @@ expptr paren_inside(expptr);
   for dropping some of the brackets --- general sequences are assumed
   to be right-associative and binary connective applications are
   assumed to be left-associative.  These conventions are used in the
-  other examples.  Expressions are printed to files, the REPL or the NIDE without the brackets ---
+  other examples.  Expressions are printed without the brackets ---
   the brackets are ``phantoms'' that show the tree structure.
-  section~\ref{sec:reader}.}
+  See section~\ref{sec:reader}.}
 \label{fig:reader}
 \end{figure}
 
@@ -954,7 +944,7 @@ The MetaC reader can be described in three phases --- preprocessing, lexicalizat
 The MetaC preprocessor replaces each C-style comment with a space character.  When processing an entire file,
 as is done in the MetaC procedure {\tt file\_expressions}
 described in section~\ref{sec:bootstrap}, the preprocessor divides the file into
-cells using the same conventions as is used in the NIDE.
+cells using the same conventions as is used in the emacs under mc-mode.
 A file must be parenthesis-balanced within each cell.
 
 Lexicalization segments a pre-processed character string into a sequence of atoms.
@@ -972,7 +962,7 @@ The MetaC lexer preserves all non-white characters.  For the MetaC lexer each at
   \{{\tt *}, {\tt /}\} \{{\tt \%}, $\hat{~}$\} \{{\tt .}, {\tt \#}\}, \{$\epsilon$\}.}
   
   \medskip
-  The characters are listed from low precedence (weakly binding) to high precedence (strongly binding). A connective
+  The characters are listed from low precedence (strongly separating, weakly binding) to high precedence (strongly binding, weakly separating). A connective
   ---a string of connective characters --- has the precedence of its first character.  The ``null connective'' $\epsilon$
   intuitively represents the space character used as a connective.  The null connective and the null argument are discussed below.
 \item A quoted string.  A character string starting and ending with the same string quotation character.  For example {\tt "foo bar"}, {\tt "!:\&?;"} or {\tt 'a'}.
@@ -1008,12 +998,9 @@ The reader is specified by the grammar shown in figure~\ref{fig:grammar}.
 The nonterminal $\sym$ generates symbol atoms; $\conn_p$ generates connective atoms of precedence $p$; and $\quot$ generates string quotation atoms.
 The reader is defined by a deterministic left-to-right shift-reduce parser
 in which the $\epsilon$-productions for $A$ and $B$ are selected only when no other option is available.
-The nonterminal $E_\infty$ generates ``arguments'' --- expressions not containing connectives outside of parentheses.
+The nonterminal $E_\infty$ generates arguments to the binary connectives.
 The nonterminal $E_p$ generates expressions whose root connective has priority $p$ (and whose internal connectives have priority at least $p$).
 ${\cal R}$ is the set of right-associative precedence levels and ${\cal L}$ is the set of left-associative levels.
-Generated cells of the form $\fopen w\;\epsilon \fclose$ or $\fopen \epsilon \;w\fclose$ are replaced by $w$
-with the exception that every binary operation must have a (possibly null) syntax node for each of its two arguments.
-Having two arguments for all occurrences of binary operations simplifies pattern matching.
 }
 \label{fig:grammar}
 \end{figure}
@@ -1097,7 +1084,7 @@ expptr paren_inside(expptr e);
 char constructor(expptr e); //used for paren expressions.
 \end{verbatim}
 
-We also have integer-expression conversions.  The REPL and NIDE require that inputs and cells respectively are expression-valued.
+We also have integer-expression conversions.
 
 \begin{verbatim}
 expptr int_exp(int i);
@@ -1132,7 +1119,7 @@ void NIDE();
 The procedure {\tt file\_expressions} takes a file name and returns a
 list of the expressions (in universal syntax) contained in the cells
 of the file.  The procedures {\tt pprint} and {\tt mcpprint} and the macro {\tt mcprint} print to the emacs *Messages* buffer in
-the NIDE.
+emacs.
 
 \begin{verbatim}
 expptr file_expressions(charptr name);
