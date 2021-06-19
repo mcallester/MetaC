@@ -487,7 +487,7 @@ declare_method{expptr object_exp(object self)};
 
  the method g must already be declared.  The self type of g can be a proper superclass of foo.
 
- Fow orbject arguments the arguments are automatically case to the abstract argument type of g.
+ For orbject arguments the arguments are automatically cast to the abstract argument type of g.
  this allows the self argument to be a proper subclass of foo in which case the method is inhereted.
 
  If g is a declared method then g(s,z) macro-expands to an appropriately typed version of M_g[s->class_index](s,z)

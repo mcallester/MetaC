@@ -957,10 +957,11 @@ The MetaC lexer preserves all non-white characters.  For the MetaC lexer each at
   Grouped by precedence, the connective characters are
   
   \medskip
+  {\small
   \centerline{~\;\;\;\;\;\;\{\mtt{;}\} \{\mtt{,}\} \{\mtt{:}\} \{\mtt{@}\}
-  \{{\tt |}, {\tt \&}, {\tt ?}, {\tt !}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\}
+  \{{\tt |}\} \{{\tt \&}\} \{{\tt !}\} \{{\tt ?}\} \{{\tt =} {\tt $\sim$}, {\tt $<$}, {\tt $>$}\} \{{\tt +}, {\tt -}\}
   \{{\tt *}, {\tt /}\} \{{\tt \%}, $\hat{~}$\} \{{\tt .}, {\tt \#}\}, \{$\epsilon$\}.}
-  
+  }
   \medskip
   The characters are listed from low precedence (strongly separating, weakly binding) to high precedence (strongly binding, weakly separating). A connective
   ---a string of connective characters --- has the precedence of its first character.  The ``null connective'' $\epsilon$

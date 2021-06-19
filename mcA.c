@@ -1090,17 +1090,20 @@ int precedence(char c){
   if(c==',')return 2;
   if(c == ':')return 3;
   if(c=='@')return 4;
-  if(c=='|' || c =='&' || c == '!' || c == '?')return 5;
-  if(c=='=' || c=='<' || c=='>' || c =='~') return 6;
-  if(c=='+' || c=='-')return 7;
-  if(c=='*' || c=='/')return 8;
-  if(c == '%' || c == '^' )return 9;
-  if(c=='.' || c == '#')return 10;
+  if(c=='|')return 5;
+  if(c=='&')return 6;
+  if(c=='!')return 7;
+  if(c=='?')return 8;
+  if(c=='=' || c=='<' || c=='>' || c =='~') return 9;
+  if(c=='+' || c=='-')return 10;
+  if(c=='*' || c=='/')return 11;
+  if(c == '%' || c == '^' )return 12;
+  if(c=='.' || c == '#')return 13;
   berror("undefined precedence");
-  return 11; //prevents compiler warning
+  return 14; //prevents compiler warning
 }
 
-#define LEFT_THRESHOLD 9
+#define LEFT_THRESHOLD 12
 
 expptr mcread_Ep(int p_left){
   //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
