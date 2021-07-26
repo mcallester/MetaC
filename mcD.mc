@@ -69,6 +69,19 @@ umacro{exp_from_undo_frame($exp)}{
 	$newexp;})};
 }
 
+umacro{int_from_undo_frame($exp)}{
+  expptr expvar = gensym("expvar");
+  return
+    `{({int $expvar;
+	unwind_protect({
+	    push_undo_frame();
+	    $expvar = $exp; //can throw an error
+	    pop_undo_frame();},
+	  {pop_undo_frame();});
+	$expvar;})};
+}
+/** 152:done **/
+
 umacro{orcase{$valexp;{$firstpattern}{$secondpattern}:{$body}}}{
   return `{ucase{$valexp;{$firstpattern}:{$body}; {$secondpattern}:{$body}}};
 }

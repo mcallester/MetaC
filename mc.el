@@ -35,8 +35,7 @@
   (insert "========================================================================**/")
   (previous-line 1)
   (end-of-line)
-  (newline)
-  (insert "  "))
+  (newline))
 
 (defun MC:beginning-of-sec () (interactive) (previous-line)
   (search-backward "/** =") (previous-line) (recenter 0))
@@ -46,10 +45,12 @@
 
 (defun MC:in-commentp ()
   (save-excursion
-    (let ((here (point)))
-      (search-backward "/**")
-      (search-forward "**/")
-      (if (> (point) here) t nil))))
+    (condition-case nil
+	(let ((here (point)))
+	  (search-backward "/**")
+	  (search-forward "**/")
+	  (if (> (point) here) t nil))
+      (error nil))))
 
 (defun MC:beginning-of-cell ()
   (interactive)
