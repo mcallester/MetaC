@@ -147,7 +147,7 @@
 (defun MC:execute-cell-internal ()
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
   (while *starting*
-    (print '(wating for process)) 
+    ;;(print '(wating for process)) 
     (sleep-for 1))
 
   (delete-other-windows)
@@ -181,11 +181,15 @@
 
       (insert "/**  **/")
       (backward-char 4)
+      (setq *source-buffer* (current-buffer))
+      (setq *value-point* (point))
+      (print *value-point*)
       (process-send-string (mc-process) (format "%s\0\n" exp))
       ;; the above return seems needed to flush the buffer
     )))
 
 (defun MC:process-output ()
+  (print *value-point*)
   (when (> (length *mc-accumulator*) 0)
     (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumulator*
       (if cell
@@ -201,8 +205,13 @@
 	  (set-marker (process-mark (mc-process)) (point))
 	  (setq *mc-accumulator* nil))))))
 
-(defun MC:insert-in-segment (value)
-  (insert (replace-regexp-in-string "\n" "\n  " value)))
+(defun mc-fix (msg)
+  (replace-regexp-in-string "\n" "\n  " value))
+
+(defun MC:insert-value (value)
+  (with-current-buffer *source-buffer*
+    (goto-char *value-point*)
+    (insert (mc-fix value))))
 
 (defun MC:display-abort-message (msg)
   (if (get-buffer "*MC compilation*")
@@ -211,7 +220,7 @@
     (with-current-buffer buffer
       (erase-buffer)
       (insert "  ")
-      (MC:insert-in-segment msg)
+      (insert (mc-fix msg))
       (beginning-of-buffer)
       (compilation-mode))
     (display-buffer buffer 'display-buffer-pop-up-window)))
@@ -221,13 +230,13 @@
   (with-current-buffer (get-buffer-create "*MC compilation*")
     (compilation-display-error)))
 
-
 (defun MC:goto-gdb (value)
-  (pop-to-buffer (gdb-buffer))
-  (erase-buffer)
-  (MC:insert-in-segment value)
-  (set-marker (process-mark (mc-process)) (point))
-  (setq *gdb-mode* t))
+  (with-current-buffer (gdb-buffer)
+    (erase-buffer)
+    (insert (mc-fix value))
+    (set-marker (process-mark (mc-process)) (point))
+    (setq *gdb-mode* t))
+  (pop-to-buffer (gdb-buffer)))
 
 (defun MC:continue-from-gdb ()
   (delete-windows-on (gdb-buffer))
@@ -237,27 +246,27 @@
 (defun MC:dotag (tag value)
   (cond ((string= tag "reader-error")
          (beep)
-	 (MC:insert-in-segment "reader error")
+	 (MC:insert-value "reader error")
 	 (MC:display-abort-message value))
 
 	((string= tag "expansion-error")
          (beep)
-	 (MC:insert-in-segment "mc to c dynamic-check error")
+	 (MC:insert-value "mc to c dynamic-check error")
 	 (MC:goto-gdb value))
 
 	((string= tag "comp-error")
          (beep)
-	 (MC:insert-in-segment "c compilation error")
+	 (MC:insert-value "c compilation error")
 	 (MC:display-abort-message value))
 
 	((string= tag "exec-error")
          (beep)
-	 (MC:insert-in-segment "dynamic-check error")
+	 (MC:insert-value "dynamic-check error")
 	 (MC:goto-gdb value))
 	
 	((string= tag "gdb-exec-error")
          (beep)
-	 (MC:insert-in-segment "segment fault --- to resume type p NIDE()")
+	 (MC:insert-value "segment fault --- to resume type p NIDE()")
 	 (MC:goto-gdb value))
 
 	((string= tag "breakpoint")
@@ -268,7 +277,7 @@
 	 (MC:continue-from-gdb))
 
 	((string= tag "result")
-	 (MC:insert-in-segment (substring value 0 (- (length value) 1)))
+	 (MC:insert-value (substring value 0 (- (length value) 1)))
 	 (MC:end-of-cell)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when (> *load-count* 0) (MC:execute-cell-internal)))
