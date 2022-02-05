@@ -183,13 +183,11 @@
       (backward-char 4)
       (setq *source-buffer* (current-buffer))
       (setq *value-point* (point))
-      (print *value-point*)
       (process-send-string (mc-process) (format "%s\0\n" exp))
       ;; the above return seems needed to flush the buffer
     )))
 
 (defun MC:process-output ()
-  (print *value-point*)
   (when (> (length *mc-accumulator*) 0)
     (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumulator*
       (if cell
