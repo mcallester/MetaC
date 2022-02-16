@@ -1235,4 +1235,4 @@ void mcA_init(){
 
   set_macro(backquote, bquote_macro);
 
-  MetaC_directory = "/Users/davidmcallester/MC/";}
+  MetaC_directory = "/home/david/MC/";}

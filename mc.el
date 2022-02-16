@@ -1,5 +1,5 @@
-(setq *gdb* "/opt/local/bin/gdb-apple")
-(setq *MetaC* "/Users/davidmcallester/MC/")
+(setq *gdb* "/usr/bin/gdb")
+(setq *MetaC* "/home/david/MC/")
 
 (require 'shell)
 
