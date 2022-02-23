@@ -223,6 +223,7 @@ char *  exec_error_tag;
 char *  breakpoint_tag;
 char *  continue_from_gdb_tag;
 char * print_tag;
+char * running_tag;
 
 void send_emacs_tag(char *);
 void send_result(char *);

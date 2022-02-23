@@ -17,6 +17,9 @@ voidptr symbol_value[SYMBOL_DIM];
 expptr eval_exp(expptr);
 
 void IDE_loop(){
+
+  send_emacs_tag(running_tag);
+
   while(1){
     push_memory_frame();
     catch_error({
@@ -42,7 +45,7 @@ int main(int argc, char **argv){
   mcE_init1();
   mcE_init2();
   in_ide = 1;
-  
+
   catch_error(insert_base())
   if(error_flg[0] != 0)return error_flg[0];
 

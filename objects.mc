@@ -1,5 +1,5 @@
 /** ========================================================================
-  list operations on arbitrary types
+  LIST operations on arbitrary types
 ========================================================================**/
 
 
@@ -377,7 +377,7 @@ void check_subclass(expptr subclass, expptr superclass){
   expptr_list supervars = (expptr_list) getprop(superclass, `ivars, NULL);
   expptr_list subvars = (expptr_list) getprop(superclass, `ivars, NULL);
   while(supervars){
-    if(subvars == NULL | supervars->first != subvars->first)
+    if((subvars == NULL) | (supervars->first != subvars->first))
       berror(sformat("subclass %s is not compatible with superclass %s",
 		     exp_string(subclass),
 		     exp_string(superclass)));

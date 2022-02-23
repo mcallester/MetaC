@@ -8,7 +8,7 @@
   "Major mode for meta-c"
   (define-key mc-mode-map "\C-xc" 'make-section)
   (define-key mc-mode-map "\M-\C-u" 'MC:beginning-of-sec)
-  (define-key mc-mode-map "\M-\C-d" 'MC:end-of-sec)
+  (define-key mc-mode-map "\M-\C-f" 'MC:end-of-sec)
   
   (define-key mc-mode-map "\C-\M-s" 'MC:start-metac)
   (define-key mc-mode-map "\C-\M-x" 'MC:execute-cell)
@@ -110,23 +110,19 @@
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
   (shell-command "rm /tmp/*")
-  (start-process "MetaC" (gdb-buffer) *gdb*)
   (with-current-buffer (gdb-buffer) (shell-mode))
+  (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
   (set-process-filter (mc-process) (function MC:filter))
+  (process-send-string (mc-process) "gdb\n")
   (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
   (process-send-string (mc-process) "break cbreak\n")
   (process-send-string (mc-process) "run\n"))
 
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
-    ;;(print (list '*starting* *starting* 'filter-receiving clean))
+    (print (list '*starting* *starting* 'filter-receiving clean))
     (setq *mc-accumulator* (concat *mc-accumulator* clean))
-    (if *starting*
-	(when (eq t (compare-strings "..... done" nil nil *mc-accumulator* -11 -1))
-	  (setq *mc-accumulator* nil)
-	  (print '(kernel restarted))
-	  (setq *starting* nil))
-      (MC:process-output))))
+    (MC:process-output)))
 
 (defun MC:execute-cell ()
   (interactive)
@@ -147,7 +143,7 @@
 (defun MC:execute-cell-internal ()
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
   (while *starting*
-    ;;(print '(wating for process)) 
+    (print '(wating for process)) 
     (sleep-for 1))
 
   (delete-other-windows)
@@ -183,6 +179,7 @@
       (backward-char 4)
       (setq *source-buffer* (current-buffer))
       (setq *value-point* (point))
+      (print 'sending s)
       (process-send-string (mc-process) (format "%s\0\n" exp))
       ;; the above return seems needed to flush the buffer
     )))
@@ -193,10 +190,10 @@
       (if cell
 	(let ((tag (car cell))
 	      (value (cdr cell)))
-	  ;;(print (list '**** 'doing tag))
-	  ;;(print value)
+	  (print (list '**** 'doing tag))
+	  (print value)
 	  (MC:dotag tag value)
-	  ;;(print '(**** done))
+	  (print '(**** done))
 	  (MC:process-output))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)
@@ -230,7 +227,7 @@
 
 (defun MC:goto-gdb (value)
   (with-current-buffer (gdb-buffer)
-    (erase-buffer)
+    ;;(erase-buffer)
     (insert (mc-fix value))
     (set-marker (process-mark (mc-process)) (point))
     (setq *gdb-mode* t))
@@ -242,7 +239,12 @@
   (setq *gdb-mode* nil))
 
 (defun MC:dotag (tag value)
-  (cond ((string= tag "reader-error")
+  (cond (*starting*
+	 (when (string= tag "running")
+	  (setq *mc-accumulator* nil)
+	  (print '(kernel restarted))
+	  (setq *starting* nil)))
+	((string= tag "reader-error")
          (beep)
 	 (MC:insert-value "reader error")
 	 (MC:display-abort-message value))
