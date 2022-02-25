@@ -11,6 +11,7 @@ void add_list_forms(expptr type){
   expptr structtype = string_atom(sformat("%s_list_struct",cstring));
   expptr consfun = string_atom(sformat("%s_cons",cstring));
   expptr iterator = string_atom(sformat("%s_iter",cstring));
+  expptr mapper = string_atom(sformat("%s_map",cstring));
   expptr pusher = string_atom(sformat("push_%s",cstring));
   expptr listfun = string_atom(sformat("%s_listfun",cstring));
   expptr append = string_atom(sformat("%s_append",cstring));
@@ -58,6 +59,20 @@ void add_list_forms(expptr type){
 	      \$body}
 	  }};}
     });
+  add_form(`{
+      umacro{$mapper(\$x,\$y){\$body}}{
+	expptr yval = gensym("yval");
+	expptr result = gensym("result");
+	return `{
+	  ({
+	    $type \$x;
+	    $listtype \$result = NULL;
+	    for($listtype \$yval = \$y; \$yval; \$yval = \$yval ->rest){
+	      \$x = \$yval->first;
+	      \$result = $consfun(\$body,\$result);}
+	    \$result;
+	      })};
+      }});
   add_form(`{
       umacro{$listfun(\$x)}{
 	ucase{x;
