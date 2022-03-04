@@ -2,7 +2,6 @@
 .\#*
 *.o
 *.so
-*.c
 *.dSYM
 *~
 *.aux
@@ -11,13 +10,29 @@
 *.gz
 *.txt
 
+expandA.c
 expandA
+
+mcB.c
+expandB.c
 expandB
+
+mcC.c
+expandC.c
 expandC
+
+mcC2.c
+expandC2.c
 expandC2
+
+mcD.c
+expandD.c
 expandD
+
+mcE.c
+expandE.c
 expandE
-MC
-testREPL
+
+IDE.c
 NIDE
 
