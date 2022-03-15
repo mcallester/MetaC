@@ -14,9 +14,10 @@
   (define-key mc-mode-map "\C-\M-x" 'MC:execute-cell)
   (define-key mc-mode-map "\C-\M-r" 'MC:load-region)
   (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
-  (define-key mc-mode-map "\C-\M-d" 'MC:next-cell)
-  (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells) ;;will use region
   (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell) ;;also used for end-of-cell
+  (define-key mc-mode-map "\C-\M-b" 'MC:next-cell)
+  (define-key mc-mode-map "\C-\M-p" 'MC:previous-cell)
+  (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells) ;;will use region
   (define-key mc-mode-map [?\r] 'MC:return)
   (define-key mc-mode-map [?\t] 'MC:tab)
 
@@ -25,9 +26,11 @@
   (define-key mc-mode-map [?}] 'self-insert-command)
   (define-key mc-mode-map [?{] 'self-insert-command)
   (define-key mc-mode-map [?\(] 'self-insert-command)
-  (define-key mc-mode-map [?\(] 'self-insert-command)
+  (define-key mc-mode-map [?\)] 'self-insert-command)
   (define-key mc-mode-map [?\[] 'self-insert-command)
-  (define-key mc-mode-map [?\]] 'self-insert-command))
+  (define-key mc-mode-map [?\]] 'self-insert-command)
+  (define-key mc-mode-map [?:] 'self-insert-command)
+  (define-key mc-mode-map [?\;] 'self-insert-command))
   
 
 (setq auto-mode-alist
@@ -70,13 +73,13 @@
 	  (point1 0)
 	  (point2 0))
       (condition-case nil
-	  (progn (re-search-backward "\n[^] \n\t})]")
+	  (progn (re-search-backward "\n[^]}) \n\t\/]")
 		 (forward-char)
 		 (setq point1 (point)))
 	    (error))
       (goto-char point0)
       (condition-case nil
-	  (progn (search-backward "**/")
+	  (progn (search-backward "=**/")
 		 (setq point2 (point)))
 	    (error))
       (if (< point1 point2)
@@ -93,15 +96,15 @@
 	     (move-beginning-of-line nil))
     (error (end-of-buffer))))
 
-(defun MC:end-of-cell ()
+(defun MC:previous-cell ()
   (interactive)
   (condition-case nil
-      (progn (move-end-of-line nil)
-	     (re-search-forward "\n[^ \n\t]")
+      (progn (move-beginning-of-line nil)
+	     (re-search-backward "\n[^])} \n\t\/]")
 	     (while (MC:in-commentp)
-	       (re-search-forward "\n[^ \n\t]"))
-	     (move-beginning-of-line nil))
-    (error (end-of-buffer))))
+	       (re-search-backward "\n[^])} \n\t\/]"))
+	     (forward-char))
+    (error (beginning-of-buffer))))
 
 (defun MC:return ()
   (interactive)
@@ -118,65 +121,71 @@
 
 
 (defun MC:pprint-paren-tab (indent close-char)
-  ;(print (list 'pprint-tab indent close-char))
+  ;;(print (list 'pprint-tab indent close-char))
   (let ((c (char-after)))
-    (forward-char)
-    (cond ((>= (line-number-at-pos) *init-line*)
-	   (delete-horizontal-space)
-	   (indent-to indent)
-	   (when (and (closep (char-after))
-		      (not (= (char-after) close-char)))
-	     (beep))
-	   (throw 'tab nil))
-	  ((= c 10) ;;newline
-	   (delete-horizontal-space)
-	   (indent-to indent)
-	   (MC:pprint-paren-tab indent close-char)) ;;else continue
-	  ((closep c)
-	   (when (or (= indent 0)
-		     (not (= c close-char)))
-	     (backward-char)
-	     (beep)
-	     (throw 'tab nil)))
-	  ((openp c)
-	   (if (= c 40) ;;open paren
-	       (progn (MC:pprint-paren-tab (current-column) 41) ;;close paren
-		      (MC:pprint-paren-tab indent close-char))
-	     (progn (MC:pprint-paren-tab (+ indent 2) (close-for c))
-		    (MC:pprint-paren-tab indent close-char))))
-	  (t (MC:pprint-paren-tab indent close-char)))))
+    (while c
+      (forward-char)
+      (cond ((>= (line-number-at-pos) *init-line*)
+	     (delete-horizontal-space)
+	     (indent-to indent)
+	     (when (and (char-after)
+			(closep (char-after))
+			(not (= (char-after) close-char)))
+	       (beep))
+	     (throw 'tab nil))
+	    ((= c 10) ;;newline
+	     (delete-horizontal-space)
+	     (indent-to indent)
+	     (setq c (char-after)))
+	    ((closep c)
+	     (when (or (= indent 0)
+		       (not (= c close-char)))
+	       (backward-char)
+	       (beep)
+	       (throw 'tab nil))
+	     (setq c nil))
+	    ((openp c)
+	     (if (= c 40) ;;open paren
+		 (progn (MC:pprint-paren-tab (current-column) 41) ;;close paren
+			(setq c (char-after)))
+	       (progn (MC:pprint-paren-tab (+ indent 2) (close-for c))
+		      (setq c (char-after)))))
+	    (t (setq c (char-after)))))))
 
 (defun MC:indent-cell ()
   (interactive)
   (catch 'cell
     (beginning-of-line)
-    (unless (not (member (char-after) '(32 9 10)))
+    (when (member (char-after) '(32 9 10))
       (MC:beginning-of-cell))
     (MC:pprint-paren-cell 0 0)))
 
 (defun MC:pprint-paren-cell (indent close-char)
-    (let ((c (char-after)))
+  (let ((c (char-after)))
+    (while c
       (forward-char)
       (cond ((= c 10) ;;newline
-	     (when (> indent 0) ;if indent = 0 return
-	       (when (not (member (char-after) (list 32 9 10)))
-		 (beep)
-		 (throw 'cell nil))
-	       (delete-horizontal-space)
-	       (indent-to indent)
-	       (MC:pprint-paren-cell indent close-char)))
+	     (cond ((= indent 0) (setq c nil))
+		   (t (when (and (char-after)
+				 (not (member (char-after) (list 32 9 10))))
+			(beep)
+			(throw 'cell nil))
+		      (delete-horizontal-space)
+		      (indent-to indent)
+		      (setq c (char-after)))))
 	    ((closep c)
 	     (when (not (= c close-char))
 	       (backward-char)
 	       (beep)
-	       (throw 'cell nil)))
+	       (throw 'cell nil))
+	     (setq c nil))
 	    ((openp c)
 	     (if (= c 40) ;;open paren
 		 (progn (MC:pprint-paren-cell (current-column) 41) ;;close paren
-			(MC:pprint-paren-cell indent close-char))
+			(setq c (char-after)))
 	       (progn (MC:pprint-paren-cell (+ indent 2) (close-for c))
-		      (MC:pprint-paren-cell indent close-char))))
-	    (t (MC:pprint-paren-cell indent close-char))))))
+		      (setq c (char-after)))))
+	    (t (setq c (char-after)))))))
 
 
 
@@ -382,7 +391,7 @@
 
 	((string= tag "result")
 	 (MC:insert-value (substring value 0 (- (length value) 1)))
-	 (MC:end-of-cell)
+	 (MC:next-cell)
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
 	 (when (> *load-count* 0) (MC:execute-cell-internal)))
 
