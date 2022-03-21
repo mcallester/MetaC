@@ -96,22 +96,21 @@ expptr casecode5(expptr pattern, expptr valvar , expptr body){
   if(atomp(pattern))return `{if($valvar == `{$pattern}){$body}};
   if(parenp(pattern)){
     return
-      `{if(parenp($valvar) && constructor($valvar) == ${constructor_code(constructor(pattern))}){
+    `{if(parenp($valvar) && constructor($valvar) == ${constructor_code(constructor(pattern))}){
 	${casecode4(paren_inside(pattern), `{paren_inside($valvar)}, body)}}};}
   if(car(pattern) == dollar){
     if(symbolp(cdr(pattern))){
       return
-	`{{expptr ${cdr(pattern)} = $valvar; $body}};}
+      `{{expptr ${cdr(pattern)} = $valvar; $body}};}
     if(cellp(cdr(pattern)) && symbolp(car(cdr(pattern)))){
       return
       `{if(cellp($valvar)){
 	  expptr ${car(cdr(pattern))} = car($valvar);
-	  ${casecode4(cdr(cdr(pattern)),`{cdr($valvar)},body)}}};}
-    berror("illegal syntax for variable in ucase pattern");}
+	  ${casecode4(cdr(cdr(pattern)),`{cdr($valvar)},body)}}};}}
   return
-    `{if(cellp($valvar)){
+  `{if(cellp($valvar)){
       ${casecode4(car(pattern),`{car($valvar)},casecode4(cdr(pattern),`{cdr($valvar)},body))}}};
-}
+  }
 
 void mcB_init(){
   set_macro(`{ucase}, ucase_macro);

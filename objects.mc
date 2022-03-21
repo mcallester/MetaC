@@ -168,11 +168,25 @@ expptr comma_rest(expptr x){
     {$any,}:{return NULL;};
     {$any,$rest}:{return rest;};
     {$any}:{return NULL;}};
-}
+  }
 
 //comma_rest(`{a})
 //comma_rest(`{a,})
 //comma_rest(`{a,b,c})
+
+int comma_length(expptr x){
+  ucase{x;
+    {}:{return 0;};
+    {$any,}:{return 1;};
+    {$any,$rest}:{return 1+ comma_length(rest);};
+    {$any}:{return 1;}};
+  }
+
+//int_exp(comma_length(`{}))
+//int_exp(comma_length(`{a}))
+//int_exp(comma_length(`{a,}))
+//int_exp(comma_length(`{a,b,c}))
+//int_exp(comma_length(`{a b, c d}))
 
 expptr comma_cons(expptr x, expptr y){
   if(y){return `{$x,$y};}
@@ -204,7 +218,7 @@ expptr comma_reverse(expptr cl){
   return result;
 }
 
-comma_reverse(`{a,b})
+//comma_reverse(`{a,b})
 
 umacro{comma_map($x,$y)($expression)}{
   expptr yval = gensym("yval");
@@ -781,3 +795,57 @@ umacro{collect_method{$f($argvars)}}{
 
 //macroexpand1(`{collect_method{void bar(piecemethod self, int i)}})
 
+
+/** ========================================================================
+void closures (demons)
+========================================================================**/
+
+expptr wrap_body(expptr freevars, expptr cname, int offset, expptr body){
+  if(!freevars || freevars == `{})return body;
+  return `{
+    ${comma_first(freevars)} = *($cname + ${int_exp(offset)});
+    ${wrap_body(comma_rest(freevars),cname,offset+1, body)}};}
+/** 82:done **/
+
+wrap_body(`{expptr x, expptr y},`h, 1,`{foo(x,y,z);})
+/** 83:expptr x= *(h+1);expptr y= *(h+2);foo(x,y,z); **/
+
+expptr install_vars(expptr cname, expptr freevars, int offset){
+  if(!freevars || freevars == `{})return `{};
+  return `{
+    *($cname + ${int_exp(offset)}) = ${cdr(comma_first(freevars))};
+    ${install_vars(cname,comma_rest(freevars),offset+1)}};}
+/** 84:done **/
+
+install_vars(`c,`{expptr x, expptr y}, 1)
+/** 85: *(c+1)=x; *(c+2)=y; **/
+
+umacro{lambda($freevars)($args){$body}}{ // all free variables must be pointers and the closure must not return a value
+  expptr pname = gensym("lambda_proc");
+  expptr cname = gensym("closure");
+  add_form(`{void $pname(voidptrptr $cname,$args){${wrap_body(freevars,cname,1,body)}}});
+  return `{({
+	      void** $cname = undo_alloc(${int_exp(sizeof(void*)*(1 + comma_length(freevars)))});
+	      *$cname = $pname;
+	      ${install_vars(cname,freevars,1)}
+	      $cname;})};}
+/** 86:done **/
+
+umacro{capply($f)($args)}{ return `{(* $f)($f,$args)};}
+/** 87:done **/
+
+//macroexpand(`{lambda(expptr x)(expptrz y){e[0]= `{\$x,\$y};}})
+
+//expptr e[0];
+
+//typedef void (** mcnoticer)(void *, expptr);
+
+//mcnoticer foo(expptr x){mcpprint(x); return (mcnoticer) lambda(expptr x)(expptr y){e[0] = `{$x,$y};};}
+
+//mcnoticer n[0];
+
+//n[0] = foo(`a);
+
+//capply(n[0])(`b);
+
+//e[0]

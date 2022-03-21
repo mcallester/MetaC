@@ -3,6 +3,9 @@
 
 (require 'shell)
 
+(define-key c-mode-map "\C-x`" 'MC:display-error)
+
+
 (define-derived-mode mc-mode
   c-mode "mc-mode"
   "Major mode for meta-c"
@@ -21,8 +24,6 @@
   (define-key mc-mode-map [?\r] 'MC:return)
   (define-key mc-mode-map [?\t] 'MC:tab)
 
-  (define-key mc-mode-map "\C-x`" 'MC:display-error)
-
   (define-key mc-mode-map [?}] 'self-insert-command)
   (define-key mc-mode-map [?{] 'self-insert-command)
   (define-key mc-mode-map [?\(] 'self-insert-command)
@@ -30,6 +31,7 @@
   (define-key mc-mode-map [?\[] 'self-insert-command)
   (define-key mc-mode-map [?\]] 'self-insert-command)
   (define-key mc-mode-map [?:] 'self-insert-command)
+  (define-key mc-mode-map [?,] 'self-insert-command)
   (define-key mc-mode-map [?\;] 'self-insert-command))
   
 
@@ -52,10 +54,10 @@
   (newline))
 
 (defun MC:beginning-of-sec () (interactive) (previous-line)
-  (search-backward "/** =") (previous-line) (recenter 0))
+  (search-backward "/** =") (previous-line))
 
 (defun MC:end-of-sec () (interactive) (next-line) (next-line)
-  (search-forward "/** =") (previous-line) (recenter 0))
+  (search-forward "/** =") (previous-line))
 
 (defun MC:in-commentp ()
   (save-excursion
@@ -68,23 +70,24 @@
 
 (defun MC:beginning-of-cell ()
   (interactive)
-  (when (not (MC:in-commentp))
-    (let ((point0 (point))
-	  (point1 0)
-	  (point2 0))
-      (condition-case nil
-	  (progn (re-search-backward "\n[^]}) \n\t\/]")
-		 (forward-char)
-		 (setq point1 (point)))
-	    (error))
-      (goto-char point0)
-      (condition-case nil
-	  (progn (search-backward "=**/")
-		 (setq point2 (point)))
-	    (error))
-      (if (< point1 point2)
-	  (forward-line)
-	(goto-char point1)))))
+  (if (MC:in-commentp)
+      (search-backward "/*"))
+  (let ((point0 (point))
+	(point1 0)
+	(point2 0))
+    (condition-case nil
+	(progn (re-search-backward "\n[^]}) \n\t\/]")
+	       (forward-char)
+	       (setq point1 (point)))
+      (error))
+    (goto-char point0)
+    (condition-case nil
+	(progn (search-backward "=**/")
+	       (setq point2 (point)))
+      (error))
+    (if (< point1 point2)
+	(forward-line)
+      (goto-char point1))))
 
 (defun MC:next-cell ()
   (interactive)
@@ -222,7 +225,7 @@
   (setq *mc-accumulator* nil)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
-  (shell-command "rm /tmp/*")
+  (shell-command "rm /tmp/TEMP*")
   (with-current-buffer (gdb-buffer) (shell-mode))
   (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
   (set-process-filter (mc-process) (function MC:filter))
@@ -335,8 +338,56 @@
 
 (defun MC:display-error ()
   (interactive)
-  (with-current-buffer (get-buffer-create "*MC compilation*")
-    (compilation-display-error)))
+  (let ((starting-buffer (current-buffer)))
+    (catch 'done
+      (other-window 1)
+      (switch-to-buffer "*MC compilation*")
+      (condition-case nil
+	  (progn (re-search-forward (rx (or "error:" "warning:")))
+		 (setq found t))
+	(error
+	 (progn (print "moved past last error")
+		(other-window 1)
+		(switch-to-buffer starting-buffer)
+		(throw 'done nil))))
+      (beginning-of-line)
+      (re-search-forward "/")
+      (let ((p1 (point)))
+	(search-forward ":")
+	(let ((p2 (point)))
+	  (let ((file (buffer-substring (- p1 1) (- p2 1))))
+	    (search-forward ":")
+	    (let ((p3 (point)))
+	      (let ((line (string-to-number (buffer-substring p2 (- p3 1)))))
+		(search-forward ":")
+		(let ((p4 (point)))
+		  (setq c (string-to-number (buffer-substring p3 (- p4 1))))
+		  (forward-line)
+		  (other-window 1)
+		  (find-file file)
+		  (goto-line line)
+		  (move-to-column (- c 1)))))))))))
+
+(defun last-compiled-file ()
+  (save-excursion
+    (find-file "/tmp")
+    (beginning-of-buffer)
+    (let ((largest 0))
+      (catch 'done
+	(while t
+	  (condition-case nil
+	      (search-forward " TEMP")
+	    (error (throw 'done nil)))
+	  (let ((p1 (point)))
+	    (search-forward ".")
+	    (let ((s  (buffer-substring p1 (- (point) 1))))
+	      (print s)
+	      (setq largest (max largest (string-to-number s)))))))
+      (format "TEMP%d.c" largest))))
+	   
+	 
+
+    
 
 (defun MC:goto-gdb (value)
   (with-current-buffer (gdb-buffer)
