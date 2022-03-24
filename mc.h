@@ -91,6 +91,7 @@ static inline char constructor(expptr e){
 
 expptr int_exp(int i);
 int exp_int(expptr s);
+expptr pointer_exp(void * p);
 
 expptr atom_quote_code(expptr a);
 

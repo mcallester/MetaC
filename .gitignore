@@ -8,7 +8,6 @@
 *.log
 *.toc
 *.gz
-*.txt
 
 expandA.c
 expandA

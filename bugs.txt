@@ -1,0 +1,7 @@
+1. macro expansion to a procedure definition does not work.  You have to used "add_form".
+
+2. entries in the symbol_value array are added with a direct set rather than an undo set.  This can cause
+a failure to recognize a call to an undefined procedure after restarting a frame typically resulting in a segment fault.
+
+
+

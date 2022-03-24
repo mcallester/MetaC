@@ -718,6 +718,11 @@ expptr macroexpand1(expptr e){
   if(!cellp(e))return e;
   expptr s = car(e);
   if(!atomp(s))return e;
+  expptr s2;
+  for(s2=cdr(e);cellp(s2);s2=cdr(s2)){
+    expptr s3 = car(s2);
+    if(!(symbolp(s3) || parenp(s3)))return e;}
+  if(!(symbolp(s2) || parenp(s2)))return e;
   expptr (*f)(expptr);
   f = (expptr (*)(expptr)) getprop(s,macro,NULL);
   if(f == NULL){return e;}
@@ -764,6 +769,11 @@ int exp_int(expptr s){
   if(!atomp(s)){berror("illegal call to exp_int");}
   return atoi((char *) atom_string(s));
 }
+
+expptr pointer_exp(void* p){
+  sprintf(ephemeral_buffer,"%p",p);
+  return string_atom(ephemeral_buffer);
+  }
 
 int gensym_count;
 

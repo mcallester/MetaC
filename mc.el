@@ -3,8 +3,6 @@
 
 (require 'shell)
 
-(define-key c-mode-map "\C-x`" 'MC:display-error)
-
 
 (define-derived-mode mc-mode
   c-mode "mc-mode"
@@ -21,6 +19,7 @@
   (define-key mc-mode-map "\C-\M-b" 'MC:next-cell)
   (define-key mc-mode-map "\C-\M-p" 'MC:previous-cell)
   (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells) ;;will use region
+  (define-key mc-mode-map "\C-x'"   'MC:last-compilation)
   (define-key mc-mode-map [?\r] 'MC:return)
   (define-key mc-mode-map [?\t] 'MC:tab)
 
@@ -33,7 +32,11 @@
   (define-key mc-mode-map [?:] 'self-insert-command)
   (define-key mc-mode-map [?,] 'self-insert-command)
   (define-key mc-mode-map [?\;] 'self-insert-command))
-  
+
+(define-key c-mode-map "\C-x`" 'MC:display-error)
+(define-key compilation-mode-map "\C-x`" 'MC:display-error)
+
+
 
 (setq auto-mode-alist
       (append
@@ -251,10 +254,12 @@
   (setq *source-buffer* (current-buffer))
   (let ((top (region-beginning)))
     (setq *load-count* (MC:num-cells-region))
-    (goto-char top)
     (if (zerop *load-count*)
-        (message "Region contains no cell beginning")
-      (MC:execute-cell-internal))))
+        (message "Region contains no first cell")
+      (progn
+	(goto-char top)
+	(MC:next-cell)
+	(MC:execute-cell-internal)))))
 
 (defun MC:execute-cell-internal ()
   (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
@@ -266,6 +271,7 @@
   (setq buffer-file-coding-system 'utf-8-unix)
   (move-end-of-line nil)
   (MC:beginning-of-cell)
+
   (let ((top (point)))
     (condition-case nil
 	(progn (move-end-of-line nil)
@@ -368,9 +374,13 @@
 		  (goto-line line)
 		  (move-to-column (- c 1)))))))))))
 
+(defun tmp-buffer ()
+  (get-buffer-create ""))
+
 (defun last-compiled-file ()
-  (save-excursion
+  (let ((b (current-buffer)))
     (find-file "/tmp")
+    (revert-buffer t t)
     (beginning-of-buffer)
     (let ((largest 0))
       (catch 'done
@@ -381,17 +391,21 @@
 	  (let ((p1 (point)))
 	    (search-forward ".")
 	    (let ((s  (buffer-substring p1 (- (point) 1))))
-	      (print s)
 	      (setq largest (max largest (string-to-number s)))))))
-      (format "TEMP%d.c" largest))))
+      (pop-to-buffer b)
+      (format "/tmp/TEMP%d.c" largest))))
 	   
-	 
+(defun MC:last-compilation ()
+  (interactive)
+  (find-file (last-compiled-file))
+  (end-of-buffer)
+  (delete-other-windows))
 
     
 
 (defun MC:goto-gdb (value)
   (with-current-buffer (gdb-buffer)
-    ;;(erase-buffer)
+    (erase-buffer)
     (insert (mc-fix value))
     (set-marker (process-mark (mc-process)) (point))
     (setq *gdb-mode* t))
@@ -509,13 +523,11 @@
     (let ((end (region-end))
           (beg (region-beginning)))
       (goto-char beg)
-      (MC:beginning-of-cell)
-      (while (< (point) beg)
-        (MC:end-of-cell))
+      (MC:next-cell)
       (let ((count 0))
 	(while (< (point) end)
 	  (setq count (+ count 1))
-	  (MC:end-of-cell))
+	  (MC:next-cell))
 	count))))
 
 (defun MC:clean-cells ()
