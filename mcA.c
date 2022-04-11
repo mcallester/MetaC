@@ -10,16 +10,22 @@ premacros.h (included form mc.h included above) contains
 #define undo_set(pointer,value) undo_set_proc((void **) &pointer,value)
 ========================================================================**/
 
-#define UNDO_HEAP_DIM (1<<26)
+#define UNDO_HEAP_DIM (1<<30)
 char undo_heap[UNDO_HEAP_DIM];
 int undo_heap_freeptr;
 
+
+void* current_undo_heap_pointer(){
+  return &undo_heap[undo_heap_freeptr];
+}
+
 void * undo_alloc(int size){
   if(undo_heap_freeptr + size > UNDO_HEAP_DIM)berror("undo heap exhausted");
-  char * result = &undo_heap[undo_heap_freeptr];
+  void * result = current_undo_heap_pointer();
   undo_heap_freeptr += size;
   return result;
 }
+
 
 typedef struct undopair_int{
   int * location;
@@ -36,6 +42,8 @@ void undo_set_int_proc(int * loc, int val){
   undo_trail_int[undo_trail_int_freeptr++].oldval = *loc;
   *loc = val;}
 
+
+
 typedef struct undopair{
   void * * location;
   void * oldval;
@@ -50,6 +58,8 @@ void undo_set_proc(void ** loc, void * val){
   undo_trail[undo_trail_freeptr].location = loc;
   undo_trail[undo_trail_freeptr++].oldval = *loc;
   *loc = val;}
+
+
 
 int * undone_integer[100];
 int undoneint_freeptr;
@@ -67,6 +77,8 @@ void add_undone_pointer(voidptr * loc){
   undone_pointer[undoneptr_freeptr++] = loc;
 }
 
+
+
 typedef struct undo_frame{
   int undo_trail_freeptr;
   int undo_trail_int_freeptr;
@@ -79,9 +91,11 @@ int undo_checkpoint;
 
 void save_undones(){
   for(int i = 0;i<undoneint_freeptr;i++){
+    if(undo_trail_int_freeptr == UNDO_TRAIL_INT_DIM)berror("undo trail exhausted");
     undo_trail_int[undo_trail_int_freeptr].location = undone_integer[i];
     undo_trail_int[undo_trail_int_freeptr++].oldval = *undone_integer[i];}
   for(int i = 0;i<undoneptr_freeptr;i++){
+    if(undo_trail_freeptr == UNDO_TRAIL_DIM)berror("undo trail exhausted");
     undo_trail[undo_trail_freeptr].location = undone_pointer[i];
     undo_trail[undo_trail_freeptr++].oldval = *undone_pointer[i];}
 }
@@ -115,20 +129,26 @@ void pop_undo_frame(){
   undostack_freeptr--;
 }
 
+void mcpprint(expptr e);
+
 void restart_undo_frame(int n){
-  if(n == undostack_freeptr){push_undo_frame();return;}
+  if(n == undostack_freeptr){
+    push_undo_frame();
+    //mcpprint(int_exp(undo_heap_freeptr));
+    return;}
   if(n > undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
   while(undostack_freeptr > n+1)pop_undo_frame();
   clear_undo_frame();
+  //mcpprint(int_exp(undo_heap_freeptr));
 }
 
 void init_undo1(){
   undo_heap_freeptr = 0;
+  undoneint_freeptr = 0;
+  undoneptr_freeptr = 0;
   add_undone_int(&undo_heap_freeptr);
   undo_trail_int_freeptr = 0;
   undo_trail_freeptr = 0;
-  undoneint_freeptr = 0;
-  undoneptr_freeptr = 0;
   undostack_freeptr = 0;
 
 }
@@ -172,6 +192,20 @@ expptr intern_exp(char constr, expptr a1, expptr a2){
     }else{
       if(oldexp -> constructor == constr && oldexp->arg1 == a1 && oldexp-> arg2 == a2)return oldexp;
     }
+  }
+}
+
+expptr intern_index_exp(expptr e){
+  char constr = e->constructor;
+  expptr a1 = e->arg1;
+  expptr a2 = e->arg2;
+  if(constr == '\0')berror("bad constructuctor in intern_exp");
+  unsigned int j = (constr + 729*((long int) a1) + 125*((long int) a2)) & UNDOEXP_HASH_DIM-1;
+  for(int i = j;1;i++){
+    if(i == UNDOEXP_HASH_DIM)i=0;
+    expptr oldexp = undoexp_hash_table[i];
+    if(oldexp == NULL)return int_exp(i);
+    if(oldexp -> constructor == constr && oldexp->arg1 == a1 && oldexp-> arg2 == a2)return int_exp(i);
   }
 }
 
@@ -774,6 +808,10 @@ expptr pointer_exp(void* p){
   sprintf(ephemeral_buffer,"%p",p);
   return string_atom(ephemeral_buffer);
   }
+
+expptr undo_heap_freeptr_exp(){
+  return pointer_exp(&undo_heap[undo_heap_freeptr]);
+}
 
 int gensym_count;
 

@@ -95,6 +95,7 @@ expptr int_exp(int i);
 int exp_int(expptr s);
 
 expptr pointer_exp(void* p);
+expptr undo_heap_freeptr_exp();
 
 /** ========================================================================
 gensym
@@ -191,3 +192,9 @@ void add_init_form(expptr form);
 void add_preamble(expptr form);
 
 void add_form(expptr form);
+
+expptr symbolcount();
+
+expptr intern_index_exp(expptr e);
+
+voidptr current_undo_heap_pointer();

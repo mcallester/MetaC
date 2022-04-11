@@ -283,10 +283,11 @@ umacro{catch_excep{$exception}{$body}{$handler}}{
 
 umacro{throw_excep{$exception;$value}}{
   return `{
-    expcetion[0] = `{$exception};
+    exception[0] = `{$exception};
     exception_value[0] = $value;
     throw();};
 }
+/** 180:done **/
 
 /** ========================================================================
   classes
@@ -796,7 +797,7 @@ umacro{collect_method{$f($argvars)}}{
 //macroexpand1(`{collect_method{void bar(piecemethod self, int i)}})
 
 /** ========================================================================
-void closures (demons)
+closures
 ========================================================================**/
 
 expptr wrap_body(expptr freevars, expptr cname, int offset, expptr body){
@@ -890,3 +891,4 @@ umacro{lambda $outtype($freevars)($args){$body}}{ // all free variables must be 
 //apply_closure(m[0])();
 
 //e[0]
+

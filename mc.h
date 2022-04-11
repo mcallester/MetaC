@@ -92,6 +92,7 @@ static inline char constructor(expptr e){
 expptr int_exp(int i);
 int exp_int(expptr s);
 expptr pointer_exp(void * p);
+expptr undo_heap_freeptr_exp();
 
 expptr atom_quote_code(expptr a);
 
@@ -239,5 +240,9 @@ void mcpprint(expptr);
 
 char * MetaC_directory;
 
+expptr symbolcount();
 
+expptr intern_index_exp(expptr e);
+
+void * current_undo_heap_pointer();
 

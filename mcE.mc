@@ -139,13 +139,15 @@ dll procedure to do the exprtaction at call time.
 ======================================================================== **/
 
 expptr new_procedure_insertion (expptr f){
-    return `{
-      symbol_value[${symbol_index_exp(f)}] = ${getprop(f,`{gensym_name},NULL)};};
+  return `{
+    undo_set(symbol_value[${symbol_index_exp(f)}],
+	     ${getprop(f,`{gensym_name},NULL)});};
 }
 
 expptr new_array_insertion (expptr x){
   ucase{getprop(x,`{signature},nil);
-    {$type $x[$dim];}:{return `{symbol_value[${symbol_index_exp(x)}] = malloc($dim*sizeof($type));};}};
+    {$type $x[$dim];}:{return `{undo_set(symbol_value[${symbol_index_exp(x)}],
+					 undo_alloc($dim*sizeof($type)));};}};
   return nil; //avoids compiler warning
 }
 
@@ -361,9 +363,11 @@ int symbol_index(expptr sym){
     if(symbol_count == SYMBOL_DIM){berror("Mc symbol table exhausted");}
     index = symbol_count++;
     setprop_int(sym,`{index}, index);
-  }
+    }
   return index;
-}
+  }
+
+expptr symbolcount(){return int_exp(symbol_count);}
 
 expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));

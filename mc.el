@@ -17,8 +17,8 @@
   (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
   (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell) ;;also used for end-of-cell
   (define-key mc-mode-map "\C-\M-b" 'MC:next-cell)
-  (define-key mc-mode-map "\C-\M-p" 'MC:previous-cell)
   (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells) ;;will use region
+  (define-key c-mode-map "\C-x`" 'MC:display-error)
   (define-key mc-mode-map "\C-x'"   'MC:last-compilation)
   (define-key mc-mode-map [?\r] 'MC:return)
   (define-key mc-mode-map [?\t] 'MC:tab)
@@ -32,10 +32,6 @@
   (define-key mc-mode-map [?:] 'self-insert-command)
   (define-key mc-mode-map [?,] 'self-insert-command)
   (define-key mc-mode-map [?\;] 'self-insert-command))
-
-(define-key c-mode-map "\C-x`" 'MC:display-error)
-(define-key compilation-mode-map "\C-x`" 'MC:display-error)
-
 
 
 (setq auto-mode-alist
@@ -71,27 +67,6 @@
 	  (if (> (point) here) t nil))
       (error nil))))
 
-(defun MC:beginning-of-cell ()
-  (interactive)
-  (if (MC:in-commentp)
-      (search-backward "/*"))
-  (let ((point0 (point))
-	(point1 0)
-	(point2 0))
-    (condition-case nil
-	(progn (re-search-backward "\n[^]}) \n\t\/]")
-	       (forward-char)
-	       (setq point1 (point)))
-      (error))
-    (goto-char point0)
-    (condition-case nil
-	(progn (search-backward "=**/")
-	       (setq point2 (point)))
-      (error))
-    (if (< point1 point2)
-	(forward-line)
-      (goto-char point1))))
-
 (defun MC:next-cell ()
   (interactive)
   (condition-case nil
@@ -102,11 +77,10 @@
 	     (move-beginning-of-line nil))
     (error (end-of-buffer))))
 
-(defun MC:previous-cell ()
+(defun MC:beginning-of-cell ()
   (interactive)
   (condition-case nil
-      (progn (move-beginning-of-line nil)
-	     (re-search-backward "\n[^])} \n\t\/]")
+      (progn (re-search-backward "\n[^])} \n\t\/]")
 	     (while (MC:in-commentp)
 	       (re-search-backward "\n[^])} \n\t\/]"))
 	     (forward-char))
@@ -229,8 +203,8 @@
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
   (shell-command "rm /tmp/TEMP*")
-  (with-current-buffer (gdb-buffer) (shell-mode))
   (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
+  (with-current-buffer (gdb-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:filter))
   (process-send-string (mc-process) "gdb\n")
   (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
