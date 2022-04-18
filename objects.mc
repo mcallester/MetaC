@@ -287,7 +287,6 @@ umacro{throw_excep{$exception;$value}}{
     exception_value[0] = $value;
     throw();};
 }
-/** 180:done **/
 
 /** ========================================================================
   classes
@@ -394,6 +393,7 @@ void install_class(expptr superclass, expptr class, expptr complete_ivars){
 }
 
 void copy_methods(expptr superclass, expptr subclass);
+
 void check_subclass(expptr subclass, expptr superclass);
 
 void add_superclass(expptr subclass, expptr superclass){

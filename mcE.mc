@@ -2,15 +2,17 @@
 
 voidptr symbol_value[SYMBOL_DIM] = {0};
 
+expptr index_symbol_table[SYMBOL_DIM] = {NULL};
+
 /** ========================================================================
 In this implementation all global data variables must be arrays.
 We can replace a declaration
 
-    <type>  x;
+<type>  x;
 
 by
 
-   <type> x[1];
+<type> x[1];
 
 and replace x by x[0] throughout the code.
 
@@ -27,6 +29,17 @@ This can be achieved by performing all effects with the add_form construct so th
 the effect is done from inside do_it.
 ======================================================================== **/
 
+int occurs_in(expptr symbol, expptr exp){
+  if(atomp(exp))return (symbol == exp);
+  ucase{exp;
+    {$e->$any}:{return occurs_in(symbol,e);};
+    {$any}:{
+      if(cellp(exp))
+	return (occurs_in(symbol,car(exp)) || occurs_in(symbol,cdr(exp)));
+      else
+	return occurs_in(symbol,paren_inside(exp));}}
+}
+
 expptr file_preamble; // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
 expptr procedures;
 expptr arrays;
@@ -36,6 +49,7 @@ expptr new_sig_procedures;
 expptr new_arrays;
 expptr doit_statements;
 expptr new_preambles;
+expptr current_forms;
 
 void install_preamble(expptr e){
   if(!getprop_int(e,`{installed},0)){
@@ -96,7 +110,8 @@ void mcE_init1(){
   compilecount = 0;
   cellcount = 0;
   add_undone_int(&cellcount);
-}
+  }
+
 
 umacro{insert_base()}{
   expptr result = nil;
@@ -155,7 +170,6 @@ expptr array_extraction (expptr x){
   return `{$x = symbol_value[${symbol_index_exp(x)}];};
 }
 
-
 expptr strip_type(expptr arg){
   ucase{arg;
     {$type1 $var($type2)}.(symbolp(var)):{return var;};
@@ -188,8 +202,12 @@ void install_link_def(expptr f){
 	     fileout,
 	     0);};
     {$any}:{}}
-}
+  }
 
+void install_link_def_sparsely(expptr f){
+  if(f == `berror || f == `undo_set_proc || f == `string_atom || occurs_in(f,current_forms))install_link_def(f);
+  }
+  
 /** ========================================================================
  eval_exp
 ======================================================================== **/
@@ -233,55 +251,68 @@ void write_signature(expptr sym){
   ucase{sig;
     {$type $x[$dim];}:{pprint(`{${type} * ${x};},fileout,0);};
     {$any}:{pprint(sig,fileout,0);}}
-}
-    
+  }
+
+void write_signature_sparsely(expptr sym){
+  if(sym == `berror || sym == `undo_set_proc || sym == `string_atom || occurs_in(sym, current_forms))write_signature(sym);
+  }
+
 expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
   compilecount++; //this needs to be here becasue sformat duplicates the second argument
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
   fprintf(fileout,"#include \"%spremacros.h\"\n", MetaC_directory);
-
+  
   new_body_procedures = nil;
   new_sig_procedures = nil;
   new_arrays = nil;
   doit_statements = nil;
   new_preambles = nil;
-
+  current_forms = forms;
+  
   mapc(preinstall,forms);
   
   mapc(print_preamble,reverse(file_preamble));
+  fputc('\n',fileout);
   mapc(print_preamble,reverse(new_preambles));
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout,0);
-
-  mapc(write_signature, procedures);
+  fputc('\n',fileout);
+  mapc(write_signature_sparsely, procedures);
+  fputc('\n',fileout);
   mapc(write_signature, new_sig_procedures);
-  mapc(write_signature, arrays);
+  fputc('\n',fileout);
+  mapc(write_signature_sparsely, arrays);
+  fputc('\n',fileout);
   mapc(write_signature, new_arrays);
-
+  fputc('\n',fileout);
+  
   //procedure value extractions.  array extractions are done in doit.
-
-  mapc(install_link_def,procedures);
+  
+  mapc(install_link_def_sparsely,procedures);
+  fputc('\n',fileout);
   mapc(install_link_def,new_sig_procedures);
+  fputc('\n',fileout);
   mapc(install_proc_def,new_body_procedures);
-
+  fputc('\n',fileout);
+  
   pprint(`{
-      expptr _mc_doit(voidptr * symbol_value){
-	symbol_value_copy = symbol_value;
-	${mapcar(array_extraction, arrays)} // procedure extractions are done by install_link_def above
-	${mapcar(new_procedure_insertion, new_body_procedures)}
-	${mapcar(new_array_insertion, new_arrays)}
-	${mapcar(array_extraction, new_arrays)} // procedure extractions are done by install_link_def above
-	${reverse(doit_statements)}
-	return string_atom("done");}},
-    fileout,0);
+	   expptr _mc_doit(voidptr * symbol_value){
+	     symbol_value_copy = symbol_value;
+	     ${mapcar(array_extraction, arrays)} // procedure extractions are done by install_link_def above
+	     ${mapcar(new_procedure_insertion, new_body_procedures)}
+	     ${mapcar(new_array_insertion, new_arrays)}
+	     ${mapcar(array_extraction, new_arrays)} // procedure extractions are done by install_link_def above
+	     ${reverse(doit_statements)}
+	     return string_atom("done");}},
+	 fileout,0);
   fclose(fileout);
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
-
+  
   expptr (* _mc_doit)(voidptr *);
   _mc_doit = dlsym(header,"_mc_doit");
-
+  
   if(in_ide)send_emacs_tag(ignore_tag); // this cleans output from call to dlsym.
   
   in_doit = 1;
@@ -292,7 +323,7 @@ expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
   mapc(install_procedure,reverse(new_sig_procedures));
   if(!e)e = `{};
   return `{${int_exp(++cellcount)}: $e};
-}
+  }
 
 expptr left_atom(expptr e){
   if(atomp(e)) return e;
@@ -301,8 +332,8 @@ expptr left_atom(expptr e){
 
 void preinstall(expptr statement){
   expptr leftexp = left_atom(statement);
-  if(leftexp == `typedef || leftexp == `enum){
-    {if(!getprop(statement,`installed,NULL)) push(statement, new_preambles);};}
+  if(leftexp == `typedef)
+  {if(!getprop(statement,`installed,NULL)) push(statement, new_preambles);}
   else
     ucase{statement;
       {}:{};
@@ -334,6 +365,7 @@ void check_signature(expptr sym, expptr sig){
 }
 
 void preinstall_array(expptr type, expptr X, expptr dim){
+  if(getprop(X,`macro,NULL))berror("attempt to redefine macro as array");
   expptr sig = `{$type $X[$dim];};
   if(getprop_int(X,`{installed},0) == 0){
     setprop(X,`{signature},sig);
@@ -343,6 +375,7 @@ void preinstall_array(expptr type, expptr X, expptr dim){
 }
 
 void preinstall_proc(expptr type,  expptr f, expptr args, expptr body){
+  if(getprop(f,`macro,NULL))berror("attempt to redefine macro as procedure");
   expptr sig = `{$type $f($args);};
   if(getprop_int(f,`{installed},0) == 0){
     setprop(f,`{signature},sig);
@@ -363,16 +396,16 @@ int symbol_index(expptr sym){
     if(symbol_count == SYMBOL_DIM){berror("Mc symbol table exhausted");}
     index = symbol_count++;
     setprop_int(sym,`{index}, index);
+    index_symbol_table[index] = sym;
     }
   return index;
   }
-
-expptr symbolcount(){return int_exp(symbol_count);}
 
 expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));
 }
 
+expptr symbolcount(){return int_exp(symbol_count);}
 
 void install_proc_def(expptr f){
   ucase{getprop(f,`{signature},NULL);
@@ -426,4 +459,9 @@ char *strip_quotes(char *input){
 void NIDE(){
   send_emacs_tag(continue_from_gdb_tag);
   throw_error();
-}
+  }
+
+expptr index_symbol(int i){
+  return index_symbol_table[i];
+  }
+

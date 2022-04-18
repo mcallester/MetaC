@@ -6,18 +6,6 @@ Hello world
 `a
 
 /** ========================================================================
-some undo memory tests --- the pointer should be the same both times
-========================================================================**/
-
-restart_undo_frame(0);
-
-pointer_exp(`a)
-
-restart_undo_frame(0);
-
-pointer_exp(`a)
-
-/** ========================================================================
 procedure definitions
 ========================================================================**/
 
@@ -391,3 +379,47 @@ enum constructur{mz_forall, mz_exists};
 int code[0] = mz_forall;
 
 int_exp(code[0])
+
+/** ========================================================================
+some undo memory tests --- the pointer should be the same both times
+========================================================================**/
+
+restart_undo_frame(0);
+
+pointer_exp(`a)
+
+restart_undo_frame(0);
+
+pointer_exp(`a)
+
+
+/** ========================================================================
+linker remembering previous symbol index bug.
+========================================================================**/
+
+restart_undo_frame(0);
+/** segment fault --- to resume type p NIDE() **/
+
+expptr foo(){return `a;}
+
+restart_undo_frame(0);
+
+expptr foo2(){return `b;}
+
+expptr foo();
+
+expptr baz(){return foo();}
+
+expptr foo(){return `a;}
+
+baz() //buggy version calls foo2 rather than foo.
+
+restart_undo_frame(0);
+
+expptr foo2(){return `b;}
+
+expptr foo(){return `a;}
+
+expptr baz(){return foo();}
+
+baz()

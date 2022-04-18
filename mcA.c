@@ -23,6 +23,7 @@ void * undo_alloc(int size){
   if(undo_heap_freeptr + size > UNDO_HEAP_DIM)berror("undo heap exhausted");
   void * result = current_undo_heap_pointer();
   undo_heap_freeptr += size;
+  memset(result,0,size);
   return result;
 }
 
@@ -129,17 +130,15 @@ void pop_undo_frame(){
   undostack_freeptr--;
 }
 
-void mcpprint(expptr e);
-
 void restart_undo_frame(int n){
   if(n == undostack_freeptr){
     push_undo_frame();
-    //mcpprint(int_exp(undo_heap_freeptr));
     return;}
   if(n > undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
-  while(undostack_freeptr > n+1)pop_undo_frame();
+  while(undostack_freeptr > n+1){
+    clear_undo_frame();
+    undostack_freeptr--;}
   clear_undo_frame();
-  //mcpprint(int_exp(undo_heap_freeptr));
 }
 
 void init_undo1(){

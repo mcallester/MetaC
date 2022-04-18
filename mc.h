@@ -246,3 +246,10 @@ expptr intern_index_exp(expptr e);
 
 void * current_undo_heap_pointer();
 
+expptr index_symbol(int i);
+
+expptr symbol_index_exp(expptr e);
+
+int undostack_freeptr;
+
+int occurs_in(expptr symbol, expptr exp);

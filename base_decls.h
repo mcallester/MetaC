@@ -195,6 +195,11 @@ void add_form(expptr form);
 
 expptr symbolcount();
 
-expptr intern_index_exp(expptr e);
-
 voidptr current_undo_heap_pointer();
+
+expptr index_symbol(int i);
+
+expptr symbol_index_exp(expptr e);
+
+int occurs_in(expptr symbol, expptr exp);
+
