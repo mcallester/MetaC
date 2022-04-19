@@ -1,5 +1,51 @@
 #include "mc.h"
 
+#define PERM_HEAP_DIM (1<<20)
+char perm_heap[PERM_HEAP_DIM] = {0};
+int perm_heap_freeptr;
+
+void * perm_alloc(int size){
+  if(perm_heap_freeptr + size > PERM_HEAP_DIM)berror("perm heap exhausted");
+  void * result = &perm_heap[perm_heap_freeptr];
+  perm_heap_freeptr += size;
+  memset(result,0,size);
+  return result;
+}
+
+//permanent strings with two properties.
+
+char * string_hash_table[STRING_DIM] = {0};
+int string_count;
+
+int string_key(char * s){
+  int i, key;
+
+  key=0;
+  for(i=0;s[i] != 0;i++){
+    key = (1458*key + s[i]);
+  }
+  key = key&(STRING_DIM-1);
+
+  while(string_hash_table[key] != NULL
+	&& strcmp(string_hash_table[key], s) != 0){
+    key++;
+    if(key==STRING_DIM)key=0;
+  }
+  return key;
+}
+
+int intern_string(char * s){
+  int key = string_key(s);
+  if(string_hash_table[key]==NULL){
+    if(string_count >= (2*STRING_DIM)/3)berror("string hash table exhausted");
+    char * s2 = perm_alloc(strlen(s) + 1);
+    strcpy(s2,s);
+    string_hash_table[key] = s2;
+    string_count++;
+  }
+  return key;
+}
+
 /** ========================================================================
 undo_alloc, undo_set_int and undo_set
 
@@ -14,19 +60,13 @@ premacros.h (included form mc.h included above) contains
 char undo_heap[UNDO_HEAP_DIM];
 int undo_heap_freeptr;
 
-
-void* current_undo_heap_pointer(){
-  return &undo_heap[undo_heap_freeptr];
-}
-
 void * undo_alloc(int size){
   if(undo_heap_freeptr + size > UNDO_HEAP_DIM)berror("undo heap exhausted");
-  void * result = current_undo_heap_pointer();
+  void * result = &undo_heap[undo_heap_freeptr];
   undo_heap_freeptr += size;
   memset(result,0,size);
   return result;
 }
-
 
 typedef struct undopair_int{
   int * location;
@@ -143,6 +183,7 @@ void restart_undo_frame(int n){
 
 void init_undo1(){
   undo_heap_freeptr = 0;
+  perm_heap_freeptr = 0;
   undoneint_freeptr = 0;
   undoneptr_freeptr = 0;
   add_undone_int(&undo_heap_freeptr);
@@ -151,6 +192,7 @@ void init_undo1(){
   undostack_freeptr = 0;
 
 }
+
 
 /** ========================================================================
 undo expression
@@ -169,7 +211,7 @@ typedef struct expstruct{ //in undo memory
 ======================================================================== **/
 
 #define UNDOEXP_HASH_DIM  (1 << 24)
-expptr undoexp_hash_table[UNDOEXP_HASH_DIM];
+expptr undoexp_hash_table[UNDOEXP_HASH_DIM] = {0};
 int undoexp_count;
 
 expptr intern_exp(char constr, expptr a1, expptr a2){
@@ -208,50 +250,13 @@ expptr intern_index_exp(expptr e){
   }
 }
 
-
-#define UNDOSTRING_HASH_DIM 10000
-char * undostring_hash_table[UNDOSTRING_HASH_DIM];
-int undostring_count;
-
-int undostring_key(char * s){
-  int i, key;
-
-  key=0;
-  for(i=0;s[i] != 0;i++){
-    key = (1458*key + s[i]);
-  }
-  key = key&(UNDOSTRING_HASH_DIM-1);
-
-  while(undostring_hash_table[key] != NULL
-	&& strcmp(undostring_hash_table[key], s) != 0){
-    key++;
-    if(key==UNDOSTRING_HASH_DIM)key=0;
-  }
-  return key;
-}
-
-char * string_to_undo(char * s){
-  int key = undostring_key(s);
-  if(undostring_hash_table[key]==NULL){
-    if(undostring_count >= (2*UNDOSTRING_HASH_DIM)/3)berror("string hash table exhausted");
-    char * s2 = undo_alloc(strlen(s) + 1);
-    strcpy(s2,s);
-    undo_set(undostring_hash_table[key],s2);
-    undostring_count++;
-  }
-  return undostring_hash_table[key];
-}
-
 void init_undo_memory(){
   init_undo1();
 
-  for(int i=0;i<UNDOEXP_HASH_DIM;i++)undoexp_hash_table[i] = NULL;
   undoexp_count = 0;
   add_undone_int(&undoexp_count);
 
-  for(int i=0;i<UNDOSTRING_HASH_DIM;i++)undostring_hash_table[i]=NULL;
-  undostring_count = 0;
-  add_undone_int(&undostring_count);
+  string_count = 0;
 }
 
 /** ========================================================================
@@ -395,7 +400,7 @@ expptr expptr_to_stack(expptr exp){
 
 expptr expptr_to_undo(expptr exp){
   if(!exp)return NULL;
-  if (atomp(exp))return intern_exp('A',(expptr) string_to_undo((char *) exp->arg1),NULL);
+  if (atomp(exp))return intern_exp('A',(expptr) exp->arg1,NULL);
   return intern_exp(exp->constructor,expptr_to_undo(exp->arg1),expptr_to_undo(exp->arg2));
 }
 
@@ -461,10 +466,10 @@ int symbolp(expptr e){return atomp(e) && alphap(atom_string(e)[0]);}
 char * atom_string(expptr a){
   if(constructor(a) != 'A'){
     berror("attempt to get string of non-atom");}
-  return (char *) a->arg1;}
+  return (char *) string_hash_table[(int) (long int) a->arg1];}
 
 expptr string_atom(char * s){
-  return intern_exp('A', (expptr) string_to_undo(s),NULL);
+  return intern_exp('A', (expptr) (long int) intern_string(s),NULL);
 }
 
 expptr cons(expptr x, expptr y){
@@ -808,25 +813,25 @@ expptr pointer_exp(void* p){
   return string_atom(ephemeral_buffer);
   }
 
-expptr undo_heap_freeptr_exp(){
-  return pointer_exp(&undo_heap[undo_heap_freeptr]);
-}
+int gensym_index[STRING_DIM] ={0};
 
-int gensym_count;
 
-expptr gensym(char * s){
+int symbol_index(expptr sym){
+  return (int) (long int) sym->arg1;
+  }
+
+expptr gensym(expptr sym){
   while(1){
-    int i = rand()%(3*gensym_count);
-    gensym_count++;
-    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"%s_%d",s,i);
+    int i = gensym_index[symbol_index(sym)]++;
+    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"%s__%d",atom_string(sym),i);
     if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
-    int key = undostring_key(ephemeral_buffer);
-    if(undostring_hash_table[key]==NULL)break;}
+    int key = string_key(ephemeral_buffer);
+    if(string_hash_table[key]==NULL)break;}
   return string_atom(ephemeral_buffer);
 }
 
 /** ========================================================================
-read__from_repl and read_from_ide
+read_from_repl and read_from_ide
 ========================================================================**/
 
 int from_repl;
@@ -1278,8 +1283,6 @@ void mcA_init(){
   init_source();
   init_tags();
   
-  gensym_count = 1;
-
   set_macro(backquote, bquote_macro);
 
   MetaC_directory = "/home/david/MC/";}

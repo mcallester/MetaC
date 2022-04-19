@@ -1,8 +1,8 @@
 1. macro expansion to a procedure definition does not work.  You have to used "add_form".
 
-2. entries in the symbol_value array are added with a direct set rather than an undo set.  This can cause
-a failure to recognize a call to an undefined procedure after restarting a frame.  In the best case this causes
-a segment fault.  In the worst case it calls a procedure defined for that index in a frame that was popped.
+2. There needs to be a top level catch to catch uncought throws.
+
+
 
 
 

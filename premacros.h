@@ -23,6 +23,7 @@ remains on the stack while the body is executed.
 
 #define CATCH_DIM 1000
 int *catch_freeptr;
+#define STRING_DIM 10000
 
 jmp_buf *catch_stack;
 int *error_flg;

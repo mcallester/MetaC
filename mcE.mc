@@ -80,7 +80,6 @@ void preinstall_array(expptr,expptr,expptr);
 void preinstall_proc(expptr,expptr,expptr,expptr);
 void install_proc_def(expptr f);
 void install_link_def(expptr f);
-int symbol_index(expptr);
 expptr symbol_index_exp(expptr);
 void install_base();
 char * strip_quotes(char *);
@@ -167,7 +166,8 @@ expptr new_array_insertion (expptr x){
 }
 
 expptr array_extraction (expptr x){
-  return `{$x = symbol_value[${symbol_index_exp(x)}];};
+  if(occurs_in(x,current_forms)) return `{$x = symbol_value[${symbol_index_exp(x)}];};
+  return `{};     
 }
 
 expptr strip_type(expptr arg){
@@ -205,7 +205,15 @@ void install_link_def(expptr f){
   }
 
 void install_link_def_sparsely(expptr f){
-  if(f == `berror || f == `undo_set_proc || f == `string_atom || occurs_in(f,current_forms))install_link_def(f);
+  if(f == `berror ||
+     f == `undo_set_proc ||
+     f == `undo_set_int_proc ||
+     f == `cbreak ||
+     f == `string_atom ||
+     f == `undo_alloc ||
+     occurs_in(f,current_forms)){
+    
+    install_link_def(f);}
   }
   
 /** ========================================================================
@@ -385,21 +393,10 @@ void preinstall_proc(expptr type,  expptr f, expptr args, expptr body){
   if(body){
     if (getprop(f,`{base},NULL))berror(sformat("attempt to change base function %s",atom_string(f)));
     push(f, new_body_procedures);
-    setprop(f,`{gensym_name},gensym(atom_string(f)));
+    setprop(f,`{gensym_name},gensym(f));
     setprop(f,`{body},body);
   }
 }
-
-int symbol_index(expptr sym){
-  int index = getprop_int(sym, `{index}, -1);
-  if(index == -1){
-    if(symbol_count == SYMBOL_DIM){berror("Mc symbol table exhausted");}
-    index = symbol_count++;
-    setprop_int(sym,`{index}, index);
-    index_symbol_table[index] = sym;
-    }
-  return index;
-  }
 
 expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));

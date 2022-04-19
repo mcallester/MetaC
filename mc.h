@@ -92,7 +92,6 @@ static inline char constructor(expptr e){
 expptr int_exp(int i);
 int exp_int(expptr s);
 expptr pointer_exp(void * p);
-expptr undo_heap_freeptr_exp();
 
 expptr atom_quote_code(expptr a);
 
@@ -100,7 +99,7 @@ expptr atom_quote_code(expptr a);
 gensym
 ========================================================================**/
 
-expptr gensym(char * s);
+expptr gensym(expptr sym);
 
 /** ========================================================================
 properties
@@ -242,13 +241,9 @@ char * MetaC_directory;
 
 expptr symbolcount();
 
-expptr intern_index_exp(expptr e);
-
-void * current_undo_heap_pointer();
-
 expptr index_symbol(int i);
 
-expptr symbol_index_exp(expptr e);
+int symbol_index(expptr e);
 
 int undostack_freeptr;
 

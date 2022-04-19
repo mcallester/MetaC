@@ -10,7 +10,7 @@ umacro{undo_push($x,$y)}{
 
 umacro{dolist($x,$y){$body}}{
   //we need make "break" and "continue" work from inside iteration macros.
-  expptr yval = gensym("yval");
+  expptr yval = gensym(`yval);
   return `{{
       expptr $x;
       for(expptr $yval = $y; cellp($yval); $yval = cdr($yval)){
@@ -52,9 +52,9 @@ umacro{in_memory_frame{$body}}{
 }
 
 umacro{exp_from_undo_frame($exp)}{
-  expptr expvar = gensym("expvar");
-  expptr stackexp = gensym("stack_exp");
-  expptr newexp = gensym("new_exp");
+  expptr expvar = gensym(`expvar);
+  expptr stackexp = gensym(`stack_exp);
+  expptr newexp = gensym(`new_exp);
   return
     `{({expptr $newexp;
 	unwind_protect({
@@ -70,7 +70,7 @@ umacro{exp_from_undo_frame($exp)}{
 }
 
 umacro{int_from_undo_frame($exp)}{
-  expptr expvar = gensym("expvar");
+  expptr expvar = gensym(`expvar);
   return
     `{({int $expvar;
 	unwind_protect({

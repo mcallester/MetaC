@@ -95,13 +95,12 @@ expptr int_exp(int i);
 int exp_int(expptr s);
 
 expptr pointer_exp(void* p);
-expptr undo_heap_freeptr_exp();
 
 /** ========================================================================
 gensym
 ========================================================================**/
 
-expptr gensym(char * s);
+expptr gensym(expptr sym);
 
 
 /** ========================================================================
@@ -192,14 +191,6 @@ void add_init_form(expptr form);
 void add_preamble(expptr form);
 
 void add_form(expptr form);
-
-expptr symbolcount();
-
-voidptr current_undo_heap_pointer();
-
-expptr index_symbol(int i);
-
-expptr symbol_index_exp(expptr e);
 
 int occurs_in(expptr symbol, expptr exp);
 

@@ -30,8 +30,8 @@ expptr ucase_macro(expptr e){
   expptr exp = car(car(paren_inside(cdr(e))));
   expptr rules =   cdr(paren_inside(cdr(e)));
 
-  expptr donelabel = gensym("done");
-  expptr topvar = gensym("top");
+  expptr donelabel = gensym(`done);
+  expptr topvar = gensym(`top);
   return `{{expptr $topvar = $exp;
       ${casecode1(rules, topvar, donelabel, nil)}
       ${donelabel}: ;}};
@@ -88,7 +88,7 @@ expptr casecode3(expptr rule, expptr topvar, expptr donelabel){
 
 expptr casecode4(expptr pattern, expptr valexp , expptr body){
   if(pattern == any)return body;
-  expptr valvar = gensym("");
+  expptr valvar = gensym(`{});
   return `{expptr $valvar = $valexp; ${casecode5(pattern,valvar,body)}};
 }
 

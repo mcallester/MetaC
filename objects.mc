@@ -51,7 +51,7 @@ void add_list_forms(expptr type){
     });
   add_form(`{
       umacro{$iterator(\$x,\$y){\$body}}{
-	expptr yval = gensym("yval");
+	expptr yval = gensym(`yval);
 	return `{{
 	    $type \$x;
 	    for($listtype \$yval = \$y; \$yval; \$yval = \$yval ->rest){
@@ -61,8 +61,8 @@ void add_list_forms(expptr type){
     });
   add_form(`{
       umacro{$mapper(\$x,\$y){\$body}}{
-	expptr yval = gensym("yval");
-	expptr result = gensym("result");
+	expptr yval = gensym(`yval);
+	expptr result = gensym(`result);
 	return `{
 	  ({
 	    $type \$x;
@@ -127,7 +127,7 @@ expptr semi_append(expptr x, expptr y){
 // semi_append(`{a;b;},`{c;d;})
 
 umacro{semi_iter($x,$y){$body}}{
-  expptr yval = gensym("yval");
+  expptr yval = gensym(`yval);
   return `{{
       expptr $yval = $y;
       while($yval){
@@ -140,8 +140,8 @@ umacro{semi_iter($x,$y){$body}}{
 
 umacro{semi_map($x,$y)($expression)}{
   //this reverses the list
-  expptr yval = gensym("yval");
-  expptr result = gensym("result");
+  expptr yval = gensym(`yval);
+  expptr result = gensym(`result);
   return `{({
 	expptr $yval = $y;
 	expptr $result = NULL;
@@ -201,7 +201,7 @@ expptr comma_append(expptr x, expptr y){
 // comma_append(`{a,b},`{c,d})
 
 umacro{comma_iter($x,$y){$body}}{
-  expptr yval = gensym("yval");
+  expptr yval = gensym(`yval);
   return `{{
       expptr $yval = $y;
       while($yval){
@@ -221,8 +221,8 @@ expptr comma_reverse(expptr cl){
 //comma_reverse(`{a,b})
 
 umacro{comma_map($x,$y)($expression)}{
-  expptr yval = gensym("yval");
-  expptr result = gensym("result");
+  expptr yval = gensym(`yval);
+  expptr result = gensym(`result);
   return `{({
 	expptr $yval = $y;
 	expptr $result = NULL;
@@ -246,72 +246,54 @@ umacro{mention($x)}{
 //  pushprop assumes the property value is a list of pointers
 
 umacro{pushprop($val, getprop($x, $prop))}{
-  expptr xval = gensym("xval");
-  expptr propval = gensym("prop");
+  expptr xval = gensym(`xval);
+  expptr propval = gensym(`prop);
   return `{{
       voidptr $xval = $x;
       voidptr $propval = $prop;
       setprop($xval, $propval, voidptr_cons($val, (voidptr_list) getprop($xval, $propval, NULL)));}};
 }
 
-int occurs_in(expptr symbol, expptr exp){
-  if(atomp(exp))return (symbol == exp);
-  ucase{exp;
-    {$e->$any}:{return occurs_in(symbol,e);};
-    {$any}:{
-      if(cellp(exp))
-	return (occurs_in(symbol,car(exp)) || occurs_in(symbol,cdr(exp)));
-      else
-	return occurs_in(symbol,paren_inside(exp));}}
-}
 
 //    general exceptions  
 
 expptr exception[0] = NULL;
+/** 1:done **/
 
-expptr exception_value[0];
+expptr exception_value[0] = NULL;
+/** 2:done **/
 
 umacro{catch_excep{$exception}{$body}{$handler}}{
   return `{
     catch({$body})
-      if(exception[0]){
-	if(exception[0] == `$exception){
+    if(exception[0]){
+	if(exception[0] == $exception){
 	  exception[0] = NULL;
 	  $handler}
 	else continue_throw();}};
 }
+/** 3:done **/
 
 umacro{throw_excep{$exception;$value}}{
   return `{
-    exception[0] = `{$exception};
+    exception[0] = $exception;
     exception_value[0] = $value;
     throw();};
-}
+  }
+/** 4:done **/
 
 /** ========================================================================
-  classes
+void foo(){
+  throw_excep{`bar;`a}
+  }
 
-  Each class is associated with a sequence of instnace variables.  The class hierarchy is a dag
-  subject to the constraint that the instance variables of a superclass are a prefix of
-  the instance variables of a subclass. The top of the class heirarchy is the class "object".
+expptr bar(){
+  catch_excep{`bar}{foo();}{return exception_value[0];};
+  return `b;
+  }
 
-  Each class definition specifies a superclass but additional superclasses can be added with declare_subclass(subclass,superclass)
+bar()
 
-  after doing
-
-  defclass{foo{object; expptr x;}}
-
-  the declaration
-
-  defclass{bar{foo; foo y; bar z;}} generates
-
- typedef struct bar_struct{
-  int class_index;
-  expptr x;
-  foo y;
-  bar_struct * z;} bar_struct, *bar;
-
- Any class foo in the class hierarchy can be allocated with the macro new(foo).
 ========================================================================**/
 
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars);
@@ -424,7 +406,7 @@ expptr init_ivars(expptr ivars){
 }
 
 umacro{new($class)}{
-  expptr object = gensym("object");
+  expptr object = gensym(`object);
   expptr struct_type = string_atom(sformat("%s_struct",atom_string(class)));
   return `{({
 	$class $object = ($class) undo_alloc(sizeof($struct_type));
@@ -613,10 +595,10 @@ expptr method_type(expptr f_name){
 expptr add_coercions(expptr argexps, expptr types);
 
 expptr method_expansion(expptr e){
-  expptr f_ptr = gensym("f_ptr");
-  expptr y = gensym("y");
-  expptr selfvar = gensym("self");
-  expptr index = gensym("index");
+  expptr f_ptr = gensym(`f_ptr);
+  expptr y = gensym(`y);
+  expptr selfvar = gensym(`self);
+  expptr index = gensym(`index);
   ucase{e;
     {$f($argexps)}:{
       ucase{method_type(f); {$outtype($argtypes)}:{
@@ -817,8 +799,8 @@ expptr install_vars(expptr cname, expptr freevars, int offset){
 //install_vars(`c,`{expptr x, expptr y}, 1)
 
 umacro{lambda($freevars)($args){$body}}{ // all free variables must be pointers and the closure must not return a value
-  expptr pname = gensym("lambda_proc");
-  expptr cname = gensym("closure");
+  expptr pname = gensym(`lambda_proc);
+  expptr cname = gensym(`closure);
   if(args == `{})add_form(`{void $pname(voidptrptr $cname){${wrap_body(freevars,cname,1,body)}}});
   else
   add_form(`{void $pname(voidptrptr $cname,$args){${wrap_body(freevars,cname,1,body)}}});
@@ -847,9 +829,9 @@ umacro{apply_closure($f)($args)}{
   return  `{(* $f)($f,$args)};}
 
 umacro{lambda $outtype($freevars)($args){$body}}{ // all free variables must be pointers and the closure must not return a value
-  expptr pname = gensym("lambda_proc");
-  expptr cname = gensym("closure");
-  expptr f = gensym("f");
+  expptr pname = gensym(`lambda_proc);
+  expptr cname = gensym(`closure);
+  expptr f = gensym(`f);
   if(args == `{})add_form(`{void $pname(voidptrptr $cname){${wrap_body(freevars,cname,1,body)}}});
   else
   add_form(`{void $pname(voidptrptr $cname,$args){${wrap_body(freevars,cname,1,body)}}});

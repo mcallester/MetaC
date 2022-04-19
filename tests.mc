@@ -119,7 +119,7 @@ foo(1)
 ======================================================================== **/
 
 umacro{mydolist($x, $L){$body}}{
-     expptr rest = gensym("rest");
+     expptr rest = gensym(`rest);
      return `{for(explist $rest = $L;
                   !atomp($rest);
                   $rest = cdr($rest);)
@@ -348,14 +348,17 @@ nil()
 /** ========================================================================
  dynamic linking of catch and throw
 ======================================================================== **/
-
+`a
+/** 2:a **/
 void throw_test(){
   throw();
 }
+/** 1:done **/
 
 void catch_test(){
   catch(throw_test(););
 }
+/** c compilation error **/
 
 catch_test();
 
@@ -394,11 +397,11 @@ pointer_exp(`a)
 
 
 /** ========================================================================
-linker remembering previous symbol index bug.
+In a previous version the linker got confused when symbol indeces changed from the last undo state.
+This is fixed by making symbol indeces permanent (not undone).
 ========================================================================**/
 
 restart_undo_frame(0);
-/** segment fault --- to resume type p NIDE() **/
 
 expptr foo(){return `a;}
 
@@ -406,20 +409,6 @@ restart_undo_frame(0);
 
 expptr foo2(){return `b;}
 
-expptr foo();
-
-expptr baz(){return foo();}
-
 expptr foo(){return `a;}
 
-baz() //buggy version calls foo2 rather than foo.
-
-restart_undo_frame(0);
-
-expptr foo2(){return `b;}
-
-expptr foo(){return `a;}
-
-expptr baz(){return foo();}
-
-baz()
+foo()
