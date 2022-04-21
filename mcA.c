@@ -1,5 +1,12 @@
 #include "mc.h"
 
+void throw(){
+  if(catch_freeptr[0] == 0){
+    berror("uncatchable throw: c process will exit upon continuation");
+    exit(1);}
+  longjmp(catch_stack[--(catch_freeptr[0])], 1);
+}
+
 #define PERM_HEAP_DIM (1<<20)
 char perm_heap[PERM_HEAP_DIM] = {0};
 int perm_heap_freeptr;
@@ -879,14 +886,14 @@ expptr read_from_ide(){
 
 void reader_error(){
   if(in_ide)send_emacs_tag(reader_error_tag);
-  if(from_file)throw_error();
+  if(from_file)throw();
   if(from_ide){
     while(next != 0)next = fgetc(read_stream);
     fgetc(read_stream);
-    throw_error();}
+    throw();}
   if(from_repl){
     while(next != '\n')next = fgetc(read_stream);
-    throw_error();}
+    throw();}
 }
 
 void simple_advance(){
@@ -914,12 +921,15 @@ expptr file_expressions(char * fname){
   if(read_stream == NULL){
     fprintf(stdout,"attempt to open %s failed",fname);
     berror("");}
+  
   expptr exps;
-  unwind_protect({
+  catch({
       exps = file_expressions2();
-      fclose(read_stream);},
-    {fclose(read_stream);});
-  return exps;
+      fclose(read_stream);
+      return exps;
+    },{
+      fclose(read_stream);
+      throw();})
 }
 
 expptr file_expressions2(){
@@ -1182,10 +1192,10 @@ expptr mcread(){//this is called from top level read functions only
 }
 
 /** ========================================================================
-cbreak, berror
+breakpt, berror
 ========================================================================**/
 
-void cbreak(){};
+void cbreak(){};  //this procedure has a break set in gdb
 
 void send_emacs_tag(char * tag){
   if(!in_ide)berror("sending to emacs from REPL");
@@ -1219,12 +1229,7 @@ void berror(char *s){
     else send_emacs_tag(expansion_error_tag);}
   cbreak();
   if(in_ide)send_emacs_tag(continue_from_gdb_tag);
-  throw_error();
-}
-
-void uerror(expptr e){
-  pp(e);
-  berror("");
+  throw();
 }
 
 /** ========================================================================
@@ -1270,13 +1275,9 @@ void init_exp_constants(){
 
 void mcA_init(){
 
-  //state variables of catch and throw macros must be visible to dynamically linked code.
   catch_freeptr = malloc(sizeof(int));
   catch_freeptr[0] = 0;
   catch_stack = malloc(CATCH_DIM*sizeof(jmp_buf));
-  error_flg = malloc(sizeof(int));
-  error_flg[0] = 0;
-
   init_undo_memory();
   init_stack_memory();
   init_exp_constants();

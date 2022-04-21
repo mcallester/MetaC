@@ -234,12 +234,12 @@ void eval_from_load(expptr e){
       fprintf(stdout,"loaded file contains an undo restart");
       if(in_ide)send_emacs_tag(comp_error_tag);
       if(in_repl)fprintf(stdout,"\n evaluation aborted");
-      throw_error();};
+      throw();};
     {load($sym);}.(atomp(sym)) : {
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
       if(in_repl)fprintf(stdout,"\n evaluation aborted");
-      throw_error();};
+      throw();};
     {$any} : {simple_eval(e);}}
 }
 
@@ -416,10 +416,10 @@ void install_proc_def(expptr f){
 
 void comp_error(){
   if(in_ide)
-    send_emacs_tag(comp_error_tag);
+  send_emacs_tag(comp_error_tag);
   else
-    fprintf(stdout,"\n evaluation aborted\n\n");
-  throw_error();
+  fprintf(stdout,"\n evaluation aborted\n\n");
+  throw();
 }
 
 voidptr compile_load_file(charptr fstring){
@@ -455,7 +455,7 @@ char *strip_quotes(char *input){
 
 void NIDE(){
   send_emacs_tag(continue_from_gdb_tag);
-  throw_error();
+  throw();
   }
 
 expptr index_symbol(int i){

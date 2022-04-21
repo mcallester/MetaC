@@ -28,14 +28,11 @@ void breakpt(charptr s);
 
 void berror(charptr s);
 
-void cbreak();
-
 /** ========================================================================
 the catch and throw data structures must be visible to dynamically linked procedures.
 ======================================================================== **/
 int catch_freeptr[1];
 jmp_buf catch_stack[CATCH_DIM];
-int error_flg[0];
 
 /** ========================================================================
 interning (procedures called by the expansion of backquote)
@@ -194,3 +191,4 @@ void add_form(expptr form);
 
 int occurs_in(expptr symbol, expptr exp);
 
+void throw();

@@ -348,20 +348,17 @@ nil()
 /** ========================================================================
  dynamic linking of catch and throw
 ======================================================================== **/
-`a
-/** 2:a **/
-void throw_test(){
-  throw();
-}
+
+expptr foo(){throw(); return `a;}
 /** 1:done **/
 
-void catch_test(){
-  catch(throw_test(););
+expptr catch_test(){
+  catch({foo();},{return `b;})
 }
-/** c compilation error **/
+/** mc to c dynamic-check errorc compilation error **/
 
 catch_test();
-
+/** segment fault --- to resume type p NIDE() **/
 
 /** ========================================================================
   attempt to redefine signature

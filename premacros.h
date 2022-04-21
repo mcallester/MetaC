@@ -13,37 +13,27 @@
 
 
 /** ========================================================================
-The state variables of the catch and throw macros must be visible to dynamically linked code.
+The catch macro must be a macro so that that catch point remains on the stack while executing the body.
 
-See mcA_init at the end of mcA.c and base_decls.h
+The catch macro exposes the variables catch_freeptr and catch_stack in the DLL files.
 
-I believe that catch needs to be a macro so that the stack frame in which the setjump is run
-remains on the stack while the body is executed.
+Hence these variables must be dynamically linked
 ======================================================================== **/
 
 #define CATCH_DIM 1000
-int *catch_freeptr;
-#define STRING_DIM 10000
-
 jmp_buf *catch_stack;
-int *error_flg;
 
-#define throw_check() {if(catch_freeptr[0] == 0){fprintf(stderr,"\n uncaught throw --- C process fatal\n"); cbreak(); exit(1);}}
+int *catch_freeptr;
+
 #define catch_check() {if(catch_freeptr[0] == CATCH_DIM){berror("catch stack exhausted");}}
 
-#define throw_error() {throw_check(); error_flg[0]=1; longjmp(catch_stack[catch_freeptr[0]-1], 1);}
-#define catch_error(body) {catch_check(); error_flg[0]=0; if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){ \
-  body; catch_freeptr[0]--;\
-  } else{\
-    catch_freeptr[0]--;if(!error_flg[0]){fprintf(stderr, "uncaught throw caught as error\n"); cbreak();}}}
+#define catch(body1,body2){catch_check(); if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){body1; catch_freeptr[0]--;} else {body2;}}
 
-#define throw() {throw_check(); error_flg[0]=0; longjmp(catch_stack[catch_freeptr[0]-1], 1);}
-  
-#define continue_throw() {throw_check(); longjmp(catch_stack[catch_freeptr[0]-1], 1);}
-#define catch(body) {catch_check(); if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){body; catch_freeptr[0]--;} else{catch_freeptr[0]--; if(error_flg[0])continue_throw();}}
+#define unwind_protect(body1,body2){catch(body1,{body2;throw();})}
 
-#define unwind_protect(body, cleanup) {catch_check(); if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){body; catch_freeptr[0]--;} else { catch_freeptr[0]--; cleanup; continue_throw();}}
+#define stop_throw(body){catch(body,{})}
 
+void throw();
 
 /** ========================================================================
 undo_set
@@ -56,5 +46,6 @@ undo_set
 /** ========================================================================
 nil
 ======================================================================== **/
+#define STRING_DIM 10000
 
 #define nil() string_atom("")

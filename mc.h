@@ -51,8 +51,6 @@ cbreak, berror and macro_error
 see berror and macro_error in mcA.mc
 ========================================================================**/
 
-void cbreak();
-
 void breakpt(char * s);
 
 void berror(char *s);

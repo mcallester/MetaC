@@ -1,6 +1,6 @@
 1. macro expansion to a procedure definition does not work.  You have to used "add_form".
 
-2. There needs to be a top level catch to catch uncought throws.
+2. The catch-throw test cases now cause a segment fault.
 
 
 
