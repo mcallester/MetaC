@@ -1,5 +1,58 @@
 #include "mc.h"
 
+
+/** ========================================================================
+Stack discipline for stack memory and undo frames.
+========================================================================**/
+
+umacro{in_memory_frame{$body}}{
+  return
+  `{unwind_protect{
+      push_memory_frame();
+      $body;
+      pop_memory_frame();
+      }{
+      {pop_memory_frame();}}};
+  }
+
+umacro{int_from_undo_frame($exp)}{
+  expptr expvar = gensym(`expvar);
+  expptr stackexp = gensym(`stack_exp);
+  expptr result = gensym(`result);
+  return
+  `{({
+       int $result;
+       unwind_protect{
+	 push_undo_frame();
+	 expptr $result = $exp; //unsafe.
+	 pop_undo_frame();
+	 }{
+	 pop_undo_frame();}
+       $result;
+       })};
+  }
+
+umacro{exp_from_undo_frame($exp)}{
+  expptr expvar = gensym(`expvar);
+  expptr stackexp = gensym(`stack_exp);
+  expptr newexp = gensym(`new_exp);
+  return
+  `{({
+       expptr $newexp;
+       unwind_protect{
+	 push_undo_frame();
+	 expptr $expvar = $exp; //unsafe.  The rest is safe which is required for proper stack memory management.
+	 push_memory_frame();
+	 expptr $stackexp = expptr_to_stack($expvar);
+	 pop_undo_frame();
+	 $newexp = expptr_to_undo($stackexp);
+	 pop_memory_frame();
+	 }{
+	 pop_undo_frame();}
+       $newexp;
+       })};
+  }
+
 voidptr symbol_value[SYMBOL_DIM] = {0};
 
 expptr index_symbol_table[SYMBOL_DIM] = {NULL};
@@ -105,10 +158,11 @@ void mcE_init1(){
   add_undone_pointer((void**) &procedures);
   symbol_count = 0;
   add_undone_int(&symbol_count);
-  install_base();  //ExpandE and NIDE need to have the same indeces for base functions.
+  install_base();  //the procedure install_base is different from the macro insert_base.
   compilecount = 0;
   cellcount = 0;
   add_undone_int(&cellcount);
+
   }
 
 
@@ -127,13 +181,11 @@ void install_base(){
   dolist(sig,file_expressions(sformat("%sbase_decls.h", MetaC_directory))){
     ucase{sig;
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
-	symbol_index(f);  //establish the index
-        setprop(f,`{base},`{true});
-        push(f,procedures);
+	setprop(f,`{base},`{true});
+	push(f,procedures);
 	setprop(f,`{signature},sig);
       };
       {$type $x[$dim];}.(symbolp(type) && symbolp(x)):{
-	symbol_index(x);  //establish the index
 	push(x,arrays);
 	setprop(x,`{signature},sig);};
       {$e}:{push(e,file_preamble);} //typedefs
@@ -233,12 +285,10 @@ void eval_from_load(expptr e){
     {restart_undo_frame($any);}:{
       fprintf(stdout,"loaded file contains an undo restart");
       if(in_ide)send_emacs_tag(comp_error_tag);
-      if(in_repl)fprintf(stdout,"\n evaluation aborted");
       throw();};
     {load($sym);}.(atomp(sym)) : {
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
-      if(in_repl)fprintf(stdout,"\n evaluation aborted");
       throw();};
     {$any} : {simple_eval(e);}}
 }

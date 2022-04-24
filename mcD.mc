@@ -1,10 +1,46 @@
 #include "mc.h"
 
-umacro{push($x,$y)}{
-  return `{$y = cons($x,$y);};
-}
+umacro{catch{$body1}{$body2}}{ //body1 must not contain "return" or nonlocal "continue" or "break".  This should get fixed.
+  return `{{
+      if(catch_freeptr[0] == CATCH_DIM)berror("catch stack exhausted");
+      
+      if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){
+	{$body1} catch_freeptr[0]--;
+	} else {
+	$body2}
+      }};
+  }
 
-umacro{undo_push($x,$y)}{
+umacro{unwind_protect{$body1}{$body2}}{
+  return `{catch{$body1}{{$body2} throw();}};
+  }
+
+umacro{stop_throw{$body}}{
+  return `{catch{$body}{}};
+  }
+
+umacro{throw_value($name($value))}{
+  return `{{
+    catch_name[0] = `{$name};
+    catch_val[0] = $value;
+    throw();}};
+  }
+
+umacro{catch_value($name($val)){$body1}{$body2}}{
+  return `{
+    catch{$body1}{
+      if(catch_name[0] == `{$name}){
+	expptr $val = catch_val[0];
+	$body2
+	} else {
+	throw();}}};
+  }
+  
+/** ========================================================================
+primitive list operations --- depricated in favor of deflists in objects.mc
+========================================================================**/
+
+umacro{push($x,$y)}{
   return `{undo_set($y,cons($x,$y));};
 }
 
@@ -41,46 +77,6 @@ umacro{mcprint($args)}{
       else fprintf(stdout,$args);}};
 }
 
-
-umacro{in_memory_frame{$body}}{
-  return
-    `{unwind_protect({
-	push_memory_frame();
-	$body; //can throw an error
-	pop_memory_frame();},
-      {pop_memory_frame();})};
-}
-
-umacro{exp_from_undo_frame($exp)}{
-  expptr expvar = gensym(`expvar);
-  expptr stackexp = gensym(`stack_exp);
-  expptr newexp = gensym(`new_exp);
-  return
-    `{({expptr $newexp;
-	unwind_protect({
-	    push_undo_frame();
-	    expptr $expvar = $exp; //can throw an error
-	    push_memory_frame();
-	    expptr $stackexp = expptr_to_stack($expvar); //assumed safe
-	    pop_undo_frame();
-	    $newexp = expptr_to_undo($stackexp); //assumed safe
-	    pop_memory_frame();},
-	  {pop_undo_frame();});
-	$newexp;})};
-}
-
-umacro{int_from_undo_frame($exp)}{
-  expptr expvar = gensym(`expvar);
-  return
-    `{({int $expvar;
-	unwind_protect({
-	    push_undo_frame();
-	    $expvar = $exp; //can throw an error
-	    pop_undo_frame();},
-	  {pop_undo_frame();});
-	$expvar;})};
-}
-/** 152:done **/
 
 umacro{orcase{$valexp;{$firstpattern}{$secondpattern}:{$body}}}{
   return `{ucase{$valexp;{$firstpattern}:{$body}; {$secondpattern}:{$body}}};

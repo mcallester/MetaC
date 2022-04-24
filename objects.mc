@@ -255,47 +255,6 @@ umacro{pushprop($val, getprop($x, $prop))}{
 }
 
 
-//    general exceptions  
-
-expptr exception[0] = NULL;
-/** 1:done **/
-
-expptr exception_value[0] = NULL;
-/** 2:done **/
-
-umacro{catch_excep{$exception}{$body}{$handler}}{
-  return `{
-    catch({$body})
-    if(exception[0]){
-	if(exception[0] == $exception){
-	  exception[0] = NULL;
-	  $handler}
-	else continue_throw();}};
-}
-/** 3:done **/
-
-umacro{throw_excep{$exception;$value}}{
-  return `{
-    exception[0] = $exception;
-    exception_value[0] = $value;
-    throw();};
-  }
-/** 4:done **/
-
-/** ========================================================================
-void foo(){
-  throw_excep{`bar;`a}
-  }
-
-expptr bar(){
-  catch_excep{`bar}{foo();}{return exception_value[0];};
-  return `b;
-  }
-
-bar()
-
-========================================================================**/
-
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars);
 
 umacro{defclass{$class{$ivars}}}{

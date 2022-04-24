@@ -209,12 +209,12 @@ The following "source flags" are currently used in berror and, to a very minor e
 ======================================================================== **/
 
 int in_doit;
-int in_repl;
 int in_expand;
 int in_ide;
 
 char *  ignore_tag;
 char *  result_tag;
+char *  next_cell_tag;
 char *  reader_error_tag;
 char *  expansion_error_tag;
 char *  comp_error_tag;
@@ -243,6 +243,11 @@ expptr index_symbol(int i);
 
 int symbol_index(expptr e);
 
-int undostack_freeptr;
-
 int occurs_in(expptr symbol, expptr exp);
+
+int catch_freeptr[1];
+jmp_buf catch_stack[CATCH_DIM];
+expptr catch_name[1];
+expptr catch_val[1];
+
+void throw();

@@ -23,15 +23,18 @@ void IDE_loop(){
   while(1){
     push_memory_frame(); //stack memory
     
-    stop_throw({
-    expptr e=read_from_ide();
-    fprintf(stdout, "processing:\n");
-    pprint(e,stdout,0);
-    send_emacs_tag(print_tag);
-    
-    expptr result = eval_exp(e);
-    pprint(result,stdout,0);
-    send_emacs_tag(result_tag);})
+    catch{
+      expptr e=read_from_ide();
+      fprintf(stdout, "processing:\n");
+      pprint(e,stdout,0);
+      send_emacs_tag(print_tag);
+      
+      expptr result = eval_exp(e);
+      pprint(result,stdout,0);
+      send_emacs_tag(result_tag);
+      send_emacs_tag(next_cell_tag);
+      }{
+      send_emacs_tag(next_cell_tag);};
     
     pop_memory_frame();}
   }
@@ -45,6 +48,6 @@ int main(int argc, char **argv){
   mcE_init1();
   mcE_init2();
   in_ide = 1;
-  catch({insert_base()},{fprintf(stdout,"insert base failed");return -1;})
+  insert_base();
   IDE_loop();
 }

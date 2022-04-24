@@ -1,11 +1,42 @@
 #include "mc.h"
 
+/** ========================================================================
+a call to berror in the expansion process of the makefile will cause the process to exit with error
+because there is catch for the throw.
+========================================================================**/
+
 void throw(){
   if(catch_freeptr[0] == 0){
-    berror("uncatchable throw: c process will exit upon continuation");
-    exit(1);}
-  longjmp(catch_stack[--(catch_freeptr[0])], 1);
+    fprintf(stdout,"uncatchable throw: c process fatal");
+    exit(-1);}
+  catch_freeptr[0]--;
+  longjmp(catch_stack[catch_freeptr[0]], 1);
 }
+
+void cbreak(){};  //this procedure has a break set in gdb
+
+void berror(char *);
+
+void send_emacs_tag(char * tag){
+  if(!in_ide)berror("sending to emacs while not in the IDE");
+  fflush(stderr); //this is needed for the ignore tag to operate on stderr.
+  fprintf(stdout,"%s",tag);
+  fflush(stdout); //without this stderr can later add to the input of the tag.
+}
+
+void berror(char *s){
+  fprintf(stdout,"\n%s\n",s);
+  if(in_ide){
+    if(in_doit) send_emacs_tag(exec_error_tag);
+    else send_emacs_tag(expansion_error_tag);}
+  cbreak();
+  if(in_ide){send_emacs_tag(continue_from_gdb_tag); throw();}
+  exit(-1);
+  }
+
+/** ========================================================================
+The permanent heap (not garbage collected or freed in any way)
+========================================================================**/
 
 #define PERM_HEAP_DIM (1<<20)
 char perm_heap[PERM_HEAP_DIM] = {0};
@@ -21,7 +52,7 @@ void * perm_alloc(int size){
 
 //permanent strings with two properties.
 
-char * string_hash_table[STRING_DIM] = {0};
+char * string_hash_table[STRING_DIM] = {0};  //STRING_DIM is defined in premacros.h.  It is needed in mcE.mc for string property tables.
 int string_count;
 
 int string_key(char * s){
@@ -651,7 +682,6 @@ void pprint(expptr w, FILE * f, int indent_level){
   print_lastchar = '\0';
   pprint_indent_level = indent_level;
   pprint_newlinep[0] = (exp_length(w) + 2) > PAREN_LENGTH_LIMIT;
-  if(in_repl){fprintf(f,"\n");}
   pprint_exp(w);
   fprintf(f,"\n");
 }
@@ -838,11 +868,17 @@ expptr gensym(expptr sym){
 }
 
 /** ========================================================================
-read_from_repl and read_from_ide
+read_from_ide and file_expressions.  File expressions must recognize cell boundaries
+
+file_expressions can be called from the ide so we need in_file_exps as an additional
+state variable to in_ide.
+
+file_expressions is also called in file exansion used in the makefile.
+In the expansions of the makefile any call to berror is process fatal
+because the throw called by berror has no catch.
 ========================================================================**/
 
-int from_repl;
-int from_file;
+int in_file_exps; //this turns on recognition of cell boundaries when reading a file.
 int from_ide;
 
 char readchar;
@@ -852,30 +888,17 @@ int paren_level; // this is the paren_level immediately after readchar.
 expptr mcread();;
 
 void init_readvars(){
-  from_repl = 0;
-  from_file = 0;
+  in_file_exps = 0;
   from_ide = 0;
   paren_level = 0;
   readchar = ' ';
   next = ' ';
 }
 
-int level_adjustment(char c){
-  if(openp(c))return 1;
-  if(closep(c))return -1;
-  return 0;
-}
 
 FILE * read_stream;
 FILE* read_stream_proc(){return read_stream;}
   
-expptr read_from_repl(){
-  init_readvars();
-  from_repl = 1;
-  read_stream = stdin;
-  return mcread();
-}
-
 expptr read_from_ide(){
   init_readvars();
   from_ide = 1;
@@ -884,16 +907,54 @@ expptr read_from_ide(){
   return e;
 }
 
+expptr file_expressions2();
+
+expptr file_expressions(char * fname){
+  init_readvars();
+  in_file_exps = 1;
+  read_stream = fopen(fname, "r");
+
+  if(read_stream == NULL){
+    fprintf(stdout,"attempt to open %s failed",fname);
+    berror("");}
+  
+  expptr exps;
+  catch({
+      exps = file_expressions2();
+      fclose(read_stream);
+    },{
+      fclose(read_stream);
+      throw();})
+
+  return exps;
+
+}
+
+expptr file_expressions2(){
+  if(next == EOF)return nil;
+  if(closep(readchar))berror("file contains unmatched close\n");
+  expptr e = mcread();
+  if(e == nil)return file_expressions2();
+  return cons(e, file_expressions2());
+}
+
+/** ========================================================================
+reader utilities
+========================================================================**/
+
 void reader_error(){
   if(in_ide)send_emacs_tag(reader_error_tag);
-  if(from_file)throw();
+  if(in_file_exps)throw();
   if(from_ide){
     while(next != 0)next = fgetc(read_stream);
     fgetc(read_stream);
     throw();}
-  if(from_repl){
-    while(next != '\n')next = fgetc(read_stream);
-    throw();}
+}
+
+int level_adjustment(char c){
+  if(openp(c))return 1;
+  if(closep(c))return -1;
+  return 0;
 }
 
 void simple_advance(){
@@ -908,37 +969,6 @@ void simple_advance(){
 }
 
 
-/** ========================================================================
-file_expressions
-======================================================================== **/
-
-expptr file_expressions2();
-
-expptr file_expressions(char * fname){
-  init_readvars();
-  from_file = 1;
-  read_stream = fopen(fname, "r");
-  if(read_stream == NULL){
-    fprintf(stdout,"attempt to open %s failed",fname);
-    berror("");}
-  
-  expptr exps;
-  catch({
-      exps = file_expressions2();
-      fclose(read_stream);
-      return exps;
-    },{
-      fclose(read_stream);
-      throw();})
-}
-
-expptr file_expressions2(){
-  if(next == EOF)return nil;
-  if(closep(readchar))berror("file contains unmatched close\n");
-  expptr e = mcread();
-  if(e == nil)return file_expressions2();
-  return cons(e, file_expressions2());
-}
 
 /** ========================================================================
 mcexpand
@@ -977,33 +1007,21 @@ void advance_readchar(){
   //readchar modifications
   if(readchar == '/' && next == '*'){
     //replace comment with white space
-    if(from_repl && paren_level == 0){
-      fprintf(stdout,"comment from REPL outside of parens");
-      reader_error();
-    }
     while(!(readchar == '*' && next == '/')){if(endp(readchar))return; simple_advance();}
     simple_advance();
     readchar = ' ';}
 
   else if(readchar == '/' && next == '/'){
     //replace comment with white space
-    if(from_repl && paren_level == 0){
-      fprintf(stdout,"comment from REPL outside of parens");
-      reader_error();
-    }
     while(readchar != '\n' && !endp(readchar))simple_advance();}
 
   else if(readchar == '\\' && next == '\n'){
     //advance past quoted return --- needed for parsing #define from a file.
     simple_advance(); advance_readchar();}
 
-  else if(from_file && readchar == '\n' && !whitep(next) && !closep(next)){
+  else if(in_file_exps && readchar == '\n' && !whitep(next) && !closep(next)){
     //file segmentation
     readchar = '\0';}
-
-  else{
-    //REPL termination
-    if(from_repl && next == '\n' && paren_level == 0)next = '\0';}
 }
 
 void skipwhite(){
@@ -1195,15 +1213,6 @@ expptr mcread(){//this is called from top level read functions only
 breakpt, berror
 ========================================================================**/
 
-void cbreak(){};  //this procedure has a break set in gdb
-
-void send_emacs_tag(char * tag){
-  if(!in_ide)berror("sending to emacs from REPL");
-  fflush(stderr); //this is needed for the ignore tag to operate on stderr.
-  fprintf(stdout,"%s",tag);
-  fflush(stdout); //without this stderr can later add to the input of the tag.
-}
-
 void send_result(char * result){
   if(!in_ide)berror("send_result undefined outside of NIDE");
   fprintf(stdout,"%s",result);
@@ -1222,22 +1231,12 @@ void breakpt(char *s){
   }
 }
 
-void berror(char *s){
-  fprintf(stdout,"\n%s\n",s);
-  if(in_ide){
-    if(in_doit) send_emacs_tag(exec_error_tag);
-    else send_emacs_tag(expansion_error_tag);}
-  cbreak();
-  if(in_ide)send_emacs_tag(continue_from_gdb_tag);
-  throw();
-}
 
 /** ========================================================================
 section: initialization
 ========================================================================**/
 
 void init_source(){
-  in_repl = 0;
   in_expand = 0;
   in_ide = 0;
   in_doit = 0;
@@ -1246,6 +1245,7 @@ void init_source(){
 void init_tags(){
   ignore_tag = "*#*#dsflsadk#*#*ignore*#*#dsflsadk#*#*";
   result_tag = "*#*#dsflsadk#*#*result*#*#dsflsadk#*#*";
+  next_cell_tag = "*#*#dsflsadk#*#*next-cell*#*#dsflsadk#*#*";
   reader_error_tag = "*#*#dsflsadk#*#*reader-error*#*#dsflsadk#*#*";
   expansion_error_tag = "*#*#dsflsadk#*#*expansion-error*#*#dsflsadk#*#*";
   comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";
@@ -1275,9 +1275,7 @@ void init_exp_constants(){
 
 void mcA_init(){
 
-  catch_freeptr = malloc(sizeof(int));
   catch_freeptr[0] = 0;
-  catch_stack = malloc(CATCH_DIM*sizeof(jmp_buf));
   init_undo_memory();
   init_stack_memory();
   init_exp_constants();

@@ -21,5 +21,5 @@ int main(int argc, char **argv){
   mcE_init1();
   mcE_init2();
   in_expand = 1;
-  catch({mcexpand(argv[1], argv[2]);},{return -1;});
+  catch{mcexpand(argv[1], argv[2]);}{return -1;};
 }

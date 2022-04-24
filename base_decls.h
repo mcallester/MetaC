@@ -191,4 +191,9 @@ void add_form(expptr form);
 
 int occurs_in(expptr symbol, expptr exp);
 
+int catch_freeptr[1];
+jmp_buf catch_stack[CATCH_DIM];
+expptr catch_name[1];
+expptr catch_val[1];
+
 void throw();

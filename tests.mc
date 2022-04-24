@@ -342,49 +342,67 @@ bar()
 
 `{}
 
-nil()
-
-
 /** ========================================================================
- dynamic linking of catch and throw
+dynamic linking of catch and throw
 ======================================================================== **/
 
-expptr foo(){throw(); return `a;}
+expptr value[0] = `a;
 /** 1:done **/
 
-expptr catch_test(){
-  catch({foo();},{return `b;})
-}
-/** mc to c dynamic-check errorc compilation error **/
+value[0]
+
+void foo(){value[0] = `b;}
+
+void catch_test(){
+  catch{foo();}{value[0] = `a;};
+  }
 
 catch_test();
-/** segment fault --- to resume type p NIDE() **/
 
-/** ========================================================================
-  attempt to redefine signature
-========================================================================**/
+value[0]
 
-void baz(int x);
+void foo2(){value[0] = `b; throw();}
 
-void baz(int x, int y);
-/** mc to c dynamic-check error **/
+void catch_test2(){
+  catch{foo2();}{value[0] = `a;};
+  }
 
+catch_test2();
 
-/** ========================================================================
-  test of enum
-========================================================================**/
+value[0]
 
-enum constructur{mz_forall, mz_exists};
+void catch_test3(){
+  catch_value(bar(e)){value[0]= `a;}{value[0]=e;};
+  }
+/** 2:done **/
 
-int code[0] = mz_forall;
+catch_test3();
+/** 3:done **/
 
-int_exp(code[0])
+value[0]
+/** 4:a **/
 
-/** ========================================================================
-some undo memory tests --- the pointer should be the same both times
-========================================================================**/
+void foo3(){
+  throw_value(bar(`b));
+  }
+/** 5:done **/
+
+void catch_test4(){
+  catch_value(bar(e)){foo3();}{value[0]=e;};
+  }
+/** 6:done **/
+
+catch_test4(); //infinite loop
+/** 7:done **/
+
+value[0]
+/** 8:b **/
+
+throw();
+/**  **/
 
 restart_undo_frame(0);
+/** 9:done **/
 
 pointer_exp(`a)
 
