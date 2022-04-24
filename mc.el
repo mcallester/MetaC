@@ -431,11 +431,13 @@
 	((string= tag "result")
 	 (MC:insert-value (substring value 0 (- (length value) 1)))
 	 (setq *load-count* (- *load-count* 1))  ;;for load-region
-	 (when (> *load-count* 0) (MC:execute-cell-internal))
-	 (MC:next-cell))
+	 (MC:next-cell)
+
+	 (when (> *load-count* 0)
+	   (MC:execute-cell-internal)))
 
 	((string= tag "uncaught-throw")
-	 (MC:next-cell))
+	 (MC:insert-value "uncaught throw"))
 
 	((string= tag "ignore"))
 

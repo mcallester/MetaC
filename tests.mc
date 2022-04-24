@@ -347,71 +347,52 @@ dynamic linking of catch and throw
 ======================================================================== **/
 
 expptr value[0] = `a;
-/** 2:done **/
 
 value[0]
-/** 3:a **/
 
 void foo(){value[0] = `b;}
-/** 4:done **/
 
 void catch_test(){
   catch{foo();}{value[0] = `a;};
   }
-/** 5:done **/
 
 catch_test();
-/** 6:done **/
 
 value[0]
-/** 7:b **/
 
 void foo2(){value[0] = `b; throw();}
-/** 8:done **/
 
 void catch_test2(){
   catch{foo2();}{value[0] = `a;};
   }
-/** 9:done **/
 
 catch_test2();
-/** 10:done **/
 
 value[0]
-/** 11:a **/
 
 void catch_test3(){
   catch_value(bar(e)){value[0]= `a;}{value[0]=e;};
   }
-/** 12:done **/
 
 catch_test3();
-/** 13:done **/
 
 value[0]
-/** 14:a **/
 
 void foo3(){
   throw_value(bar(`b));
   }
-/** 15:done **/
 
 void catch_test4(){
   catch_value(bar(e)){foo3();}{value[0]=e;};
   }
-/** 16:done **/
 
 catch_test4(); //infinite loop
-/** 17:done **/
 
 value[0]
-/** 18:b **/
 
 throw();
-/** reader error **/
 
 restart_undo_frame(0);
-/** 1:done **/
 
 pointer_exp(`a)
 
