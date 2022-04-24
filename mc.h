@@ -214,7 +214,7 @@ int in_ide;
 
 char *  ignore_tag;
 char *  result_tag;
-char *  next_cell_tag;
+char *  uncaught_throw_tag;
 char *  reader_error_tag;
 char *  expansion_error_tag;
 char *  comp_error_tag;

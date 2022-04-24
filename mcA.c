@@ -1245,7 +1245,7 @@ void init_source(){
 void init_tags(){
   ignore_tag = "*#*#dsflsadk#*#*ignore*#*#dsflsadk#*#*";
   result_tag = "*#*#dsflsadk#*#*result*#*#dsflsadk#*#*";
-  next_cell_tag = "*#*#dsflsadk#*#*next-cell*#*#dsflsadk#*#*";
+  uncaught_throw_tag = "*#*#dsflsadk#*#*uncaught-throw*#*#dsflsadk#*#*";
   reader_error_tag = "*#*#dsflsadk#*#*reader-error*#*#dsflsadk#*#*";
   expansion_error_tag = "*#*#dsflsadk#*#*expansion-error*#*#dsflsadk#*#*";
   comp_error_tag = "*#*#dsflsadk#*#*comp-error*#*#dsflsadk#*#*";

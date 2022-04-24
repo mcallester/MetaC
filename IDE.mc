@@ -32,9 +32,8 @@ void IDE_loop(){
       expptr result = eval_exp(e);
       pprint(result,stdout,0);
       send_emacs_tag(result_tag);
-      send_emacs_tag(next_cell_tag);
       }{
-      send_emacs_tag(next_cell_tag);};
+      send_emacs_tag(uncaught_throw_tag);};
     
     pop_memory_frame();}
   }
