@@ -285,13 +285,13 @@ void eval_from_load(expptr e){
     {restart_undo_frame($any);}:{
       fprintf(stdout,"loaded file contains an undo restart");
       if(in_ide)send_emacs_tag(comp_error_tag);
-      throw();};
+      throw_value(NIDE(NULL));};
     {load($sym);}.(atomp(sym)) : {
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
-      throw();};
+      throw_value(NIDE(NULL));};
     {$any} : {simple_eval(e);}}
-}
+  }
 
 expptr eval_exp(expptr exp){
   ucase{exp;
@@ -469,7 +469,7 @@ void comp_error(){
   send_emacs_tag(comp_error_tag);
   else
   fprintf(stdout,"\n evaluation aborted\n\n");
-  throw();
+  throw_value(NIDE(NULL));
 }
 
 voidptr compile_load_file(charptr fstring){

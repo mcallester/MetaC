@@ -391,6 +391,13 @@ catch_test4(); //infinite loop
 value[0]
 
 throw();
+/** uncaught throw **/
+
+breakpt("");
+
+`a
+throw_value(NIDE(NULL))
+/**  **/
 
 restart_undo_frame(0);
 

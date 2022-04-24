@@ -2,6 +2,7 @@
 
 umacro{catch{$body1}{$body2}}{ //body1 must not contain "return" or nonlocal "continue" or "break".  This should get fixed.
   return `{{
+      catch_name[0] = NULL;
       if(catch_freeptr[0] == CATCH_DIM)berror("catch stack exhausted");
       
       if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){

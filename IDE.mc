@@ -24,14 +24,16 @@ void IDE_loop(){
     push_memory_frame(); //stack memory
     
     catch{
-      expptr e=read_from_ide();
-      fprintf(stdout, "processing:\n");
-      pprint(e,stdout,0);
-      send_emacs_tag(print_tag);
-      
-      expptr result = eval_exp(e);
-      pprint(result,stdout,0);
-      send_emacs_tag(result_tag);
+      catch_value(NIDE(val)){
+	expptr e=read_from_ide();
+	fprintf(stdout, "processing:\n");
+	pprint(e,stdout,0);
+	send_emacs_tag(print_tag);
+	
+	expptr result = eval_exp(e);
+	pprint(result,stdout,0);
+	send_emacs_tag(result_tag);
+	}{}
       }{
       send_emacs_tag(uncaught_throw_tag);};
     

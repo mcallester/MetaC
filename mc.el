@@ -437,6 +437,7 @@
 	   (MC:execute-cell-internal)))
 
 	((string= tag "uncaught-throw")
+	 (beep)
 	 (MC:insert-value "uncaught throw"))
 
 	((string= tag "ignore"))
