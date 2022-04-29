@@ -13,7 +13,7 @@
 #include "mc.h"
 
 int main(int argc, char **argv){
-  if(argc != 3){fprintf(stdout,"wrong number of arguments to expandE"); return 1;}
+  if(argc != 3){fprintf(stdout,"wrong number of arguments to expandE"); return -1;}
   mcA_init();
   mcB_init();
   mcC_init();
@@ -21,5 +21,5 @@ int main(int argc, char **argv){
   mcE_init1();
   mcE_init2();
   in_expand = 1;
-  catch{mcexpand(argv[1], argv[2]);}{return -1;};
+  catch_all{mcexpand(argv[1],argv[2]);}{return -1;};
 }

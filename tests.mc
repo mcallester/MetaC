@@ -346,59 +346,90 @@ bar()
 dynamic linking of catch and throw
 ======================================================================== **/
 
-expptr value[0] = `a;
-
-value[0]
-
-void foo(){value[0] = `b;}
-
-void catch_test(){
-  catch{foo();}{value[0] = `a;};
-  }
-
-catch_test();
-
-value[0]
-
-void foo2(){value[0] = `b; throw();}
-
-void catch_test2(){
-  catch{foo2();}{value[0] = `a;};
-  }
-
-catch_test2();
-
-value[0]
-
-void catch_test3(){
-  catch_value(bar(e)){value[0]= `a;}{value[0]=e;};
-  }
-
-catch_test3();
-
-value[0]
-
-void foo3(){
-  throw_value(bar(`b));
-  }
-
-void catch_test4(){
-  catch_value(bar(e)){foo3();}{value[0]=e;};
-  }
-
-catch_test4(); //infinite loop
-
-value[0]
-
-throw();
+throw_primitive();
 /** uncaught throw **/
 
+throw_NIDE();
+/** c compilation error **/
+
+expptr value[0] = `a;
+/** 1:done **/
+
+value[0]
+/** 2:a **/
+
+void foo(){value[0] = `b;}
+/** 3:done **/
+
+void catch_test(){
+  catch_all{foo();}{value[0] = `a;};
+  }
+/** 4:done **/
+
+catch_test();
+/** 5:done **/
+
+value[0]
+/** 6:b **/
+
+void foo2(){value[0] = `b; throw_primitive();}
+/** 7:done **/
+
+void catch_test2(){
+  catch_all{foo2();}{value[0] = `a;};
+  }
+/** 8:done **/
+
+catch_test2();
+/** 9:done **/
+
+value[0]
+/** 10:a **/
+
+declare_exception{bar(expptr)};
+/** 11:done **/
+
+void catch_test3(){
+  catch{bar(e)}{value[0]= `a;}{value[0]=e;};
+  }
+/** 12:done **/
+
+catch_test3();
+/** 13:done **/
+
+value[0]
+/** 14:a **/
+
+void foo3(){
+  throw{bar(`b)};
+  }
+/** 15:done **/
+
+void catch_test4(){
+  catch{bar(e)}{foo3();}{value[0]=e;};
+  }
+/** 16:done **/
+
+catch_test4(); //infinite loop
+/** 17:done **/
+
+value[0]
+/** 18:b **/
+
 breakpt("");
+/** 19:done **/
 
-`a
-throw_value(NIDE(NULL))
-/**  **/
+declare_exception{gritch()};
+/** 20:done **/
 
+macroexpand(`{throw{gritch()}})
+/** 23:{catch_name[0]=string_atom("gritch");throw_primitive();}
+   **/
+throw{gritch(e)};
+/** c compilation error **/
+
+breakpt("");
+/** 21:done **/
 restart_undo_frame(0);
 
 pointer_exp(`a)

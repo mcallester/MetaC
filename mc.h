@@ -248,6 +248,9 @@ int occurs_in(expptr symbol, expptr exp);
 int catch_freeptr[1];
 jmp_buf catch_stack[CATCH_DIM];
 expptr catch_name[1];
-expptr catch_val[1];
+expptr catch_type[1];
+voidptr catch_val[1];
 
-void throw();
+void declare_except_fun(expptr name, expptr argtype);
+void throw_primitive();
+void throw_NIDE();

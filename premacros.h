@@ -24,7 +24,7 @@ we also include definitions shared by both the static and dynamic compilations
 
 #define catch_check() {if(catch_freeptr[0] == CATCH_DIM){berror("catch stack exhausted");}}
 
-#define catch(body1,body2){catch_check(); if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){body1; catch_freeptr[0]--;} else {body2;}}
+#define precatch(body1,body2){catch_check(); if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){body1; catch_freeptr[0]--;} else {body2;}}
 
 #define undo_set(pointer,value) undo_set_proc((void **) &(pointer),value)
 

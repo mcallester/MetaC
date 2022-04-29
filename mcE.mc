@@ -165,7 +165,6 @@ void mcE_init1(){
 
   }
 
-
 umacro{insert_base()}{
   expptr result = nil;
   dolist(f,procedures){
@@ -174,8 +173,6 @@ umacro{insert_base()}{
     push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);};
   return result;
 }
-
-init_fun(mcE_init2)  //the procedure mcE_init2() installs the macro insert_base (without calling it).
 
 void install_base(){
   dolist(sig,file_expressions(sformat("%sbase_decls.h", MetaC_directory))){
@@ -285,11 +282,11 @@ void eval_from_load(expptr e){
     {restart_undo_frame($any);}:{
       fprintf(stdout,"loaded file contains an undo restart");
       if(in_ide)send_emacs_tag(comp_error_tag);
-      throw_value(NIDE(NULL));};
+      throw_NIDE();};
     {load($sym);}.(atomp(sym)) : {
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
-      throw_value(NIDE(NULL));};
+      throw_NIDE();};
     {$any} : {simple_eval(e);}}
   }
 
@@ -469,7 +466,7 @@ void comp_error(){
   send_emacs_tag(comp_error_tag);
   else
   fprintf(stdout,"\n evaluation aborted\n\n");
-  throw_value(NIDE(NULL));
+  throw_NIDE();
 }
 
 voidptr compile_load_file(charptr fstring){
@@ -505,10 +502,14 @@ char *strip_quotes(char *input){
 
 void NIDE(){
   send_emacs_tag(continue_from_gdb_tag);
-  throw();
+  throw_NIDE();
   }
 
 expptr index_symbol(int i){
   return index_symbol_table[i];
   }
+
+declare_exception{NIDE()};
+
+init_fun(mcE_init2)
 

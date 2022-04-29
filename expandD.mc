@@ -18,5 +18,5 @@ int main(int argc, char **argv){
   mcC_init();
   mcD_init();
   in_expand = 1;
-  catch({mcexpand(argv[1], argv[2]);},{return -1;});
+  precatch({mcexpand(argv[1], argv[2]);},{return -1;});
 }

@@ -1,10 +1,13 @@
 #include "mc.h"
 
-umacro{catch{$body1}{$body2}}{ //body1 must not contain "return" or nonlocal "continue" or "break".  This should get fixed.
+/** ========================================================================
+versions of catch.
+========================================================================**/
+
+
+umacro{catch_all{$body1}{$body2}}{ //body1 must not contain "return" or nonlocal "continue" or "break".  This should get fixed.
   return `{{
-      catch_name[0] = NULL;
       if(catch_freeptr[0] == CATCH_DIM)berror("catch stack exhausted");
-      
       if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){
 	{$body1} catch_freeptr[0]--;
 	} else {
@@ -12,29 +15,67 @@ umacro{catch{$body1}{$body2}}{ //body1 must not contain "return" or nonlocal "co
       }};
   }
 
+
 umacro{unwind_protect{$body1}{$body2}}{
-  return `{catch{$body1}{{$body2} throw();}};
+  return `{catch_all{$body1}{{$body2} throw_primitive();}};
   }
 
-umacro{stop_throw{$body}}{
-  return `{catch{$body}{}};
+umacro{declare_exception{$name($argtype)}}{
+  add_init_form(`{declare_except_fun(`{$name},`{$argtype});});
+  return `{};
+  }
+  
+void declare_except_fun(expptr name, expptr argtype){
+  expptr oldtype = getprop(name,`exception_argtype,NULL);
+  if(oldtype && (argtype != oldtype))berror("attempt to change the argument type of exception");
+  setprop(name,`exception_argtype,argtype);
   }
 
-umacro{throw_value($name($value))}{
+umacro{throw{$name($value)}}{
+  expptr argtype = getprop(name,`exception_argtype,NULL);
+  if(!argtype)berror("undeclared exception");
+  
+  if(argtype == `{}){
+    if(value != `{})berror("ill typed throw");
+    return `{{
+	catch_name[0] = `{$name};
+	throw_primitive();}};}
+  
+  if(value == `{})berror("ill typed throw");
+  
+  expptr valvar = gensym(`val);
   return `{{
-    catch_name[0] = `{$name};
-    catch_val[0] = $value;
-    throw();}};
+      $argtype $valvar = $value;
+      catch_name[0] = `{$name};
+      catch_val[0] = $valvar;
+      throw_primitive();
+      }};
   }
-
-umacro{catch_value($name($val)){$body1}{$body2}}{
-  return `{
-    catch{$body1}{
-      if(catch_name[0] == `{$name}){
-	expptr $val = catch_val[0];
-	$body2
-	} else {
-	throw();}}};
+  
+umacro{catch{$name($arg)}{$body1}{$body2}}{
+  expptr argtype = getprop(name,`exception_argtype,NULL);
+  if(!argtype)berror("undeclared exception");
+  
+  if(argtype == `{}){
+    if(arg != `{})berror("ill-typed catch");
+    return `{
+      catch_all{
+	$body1}
+      {if(catch_name[0] == `{$name}){
+	  $body2
+	  } else {
+	  throw_primitive();}}};}
+  
+  if(arg == `{})berror("ill-typed catch");
+  expptr valvar = gensym(`val);
+  return `{{
+      catch_all{
+	$body1}
+      {if(catch_name[0] == `{$name}){
+	  $argtype $arg = ($argtype) catch_val[0];
+	  $body2
+	  } else {
+	  throw_primitive();}}}};
   }
   
 /** ========================================================================

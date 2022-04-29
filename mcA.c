@@ -1,16 +1,23 @@
 #include "mc.h"
 
 /** ========================================================================
-a call to berror in the expansion process of the makefile will cause the process to exit with error
-because there is catch for the throw.
+versions of throw, cbreak and berror.  Versions of catch are in premaros and mcD.mc.
 ========================================================================**/
 
-void throw(){
+void throw_primitive(){
   if(catch_freeptr[0] == 0){
-    fprintf(stdout,"uncatchable throw: c process fatal");
+    fprintf(stdout,"uncaught throw: c process fatal");
     exit(-1);}
   catch_freeptr[0]--;
   longjmp(catch_stack[catch_freeptr[0]], 1);
+}
+
+void throw_NIDE(){
+  if(in_ide){
+    catch_name[0]= string_atom("NIDE");
+    throw_primitive();}
+  fprintf(stdout,"unrecoverable_error: c process fatal");
+  exit(-1);
 }
 
 void cbreak(){};  //this procedure has a break set in gdb
@@ -30,9 +37,9 @@ void berror(char *s){
     if(in_doit) send_emacs_tag(exec_error_tag);
     else send_emacs_tag(expansion_error_tag);}
   cbreak();
-  if(in_ide){send_emacs_tag(continue_from_gdb_tag); throw();}
-  exit(-1);
-  }
+  if(in_ide){send_emacs_tag(continue_from_gdb_tag);}
+  throw_NIDE();
+}
 
 /** ========================================================================
 The permanent heap (not garbage collected or freed in any way)
@@ -919,15 +926,13 @@ expptr file_expressions(char * fname){
     berror("");}
   
   expptr exps;
-  catch({
+  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
       exps = file_expressions2();
       fclose(read_stream);
     },{
       fclose(read_stream);
-      throw();})
-
+      throw_NIDE();});
   return exps;
-
 }
 
 expptr file_expressions2(){
@@ -944,11 +949,11 @@ reader utilities
 
 void reader_error(){
   if(in_ide)send_emacs_tag(reader_error_tag);
-  if(in_file_exps)throw();
+  if(in_file_exps)throw_NIDE();
   if(from_ide){
     while(next != 0)next = fgetc(read_stream);
     fgetc(read_stream);
-    throw();}
+    throw_NIDE();}
 }
 
 int level_adjustment(char c){
