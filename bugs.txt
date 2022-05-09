@@ -1,6 +1,7 @@
 1. macro expansion to a procedure definition does not work.  You have to used "add_form".
 
-2. The catch-throw test cases now cause a segment fault.
+2. load can fail on a file where load-region on the whole file succeeds.  The problem involves consecutive cells with no space between them being executed together in the file load but no in the load region.
+
 
 
 

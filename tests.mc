@@ -3,27 +3,36 @@
 Hello world
 ======================================================================== **/
 
+string_atom("a")
+/** 1:a **/
 `a
+/** 2:a **/
 
 /** ========================================================================
 procedure definitions
 ========================================================================**/
 
 expptr f(expptr exp){return exp;}
+/** 3:done **/
 
 f(`a)
+/** 4:a **/
 
 /** ========================================================================
  Imperative Programming
 ======================================================================== **/
 
 int x[10];
+/** 5:done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
+/** 6:done **/
 
 int_exp(x[5])
+/** 7:5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
+/** 8:45 **/
 
 
 /** ========================================================================
@@ -31,8 +40,10 @@ int_exp(x[5])
 ======================================================================== **/
 
 mcpprint(`a);
+/** 9:done **/
 
 for(int i = 0; i < 10; i++)mcprint("%d",x[i]);
+/** 10:done **/
 
 /** ========================================================================
  C data types
@@ -43,6 +54,7 @@ typedef struct myexpstruct{
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
+/** 11:done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -50,13 +62,16 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
+/** 12:done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
   return `{${string_atom(x->label)} ${myexp_exp(x->car)} ${myexp_exp(x->cdr)}};
 }
+/** 13:done **/
 
 myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
+/** 14:foo bar nil nil nil **/
 
 
 /** ========================================================================
@@ -64,20 +79,28 @@ myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 ======================================================================== **/
 
 int y[0] = 2;
+/** 15:done **/
 
 y[0] += 1;
+/** 16:done **/
 
 int_exp(y[0])
+/** 17:3 **/
 
 expptr friend[0] = `{Bob Givan};
+/** 18:done **/
 
 int height[0] = 6;
+/** 19:done **/
 
 `{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
+/** 20:My friend Bob Givan is 6 feet tall. **/
 
 expptr e[0] = `{a+b};
+/** 21:done **/
 
 `{bar(${e[0]})}
+/** 22:bar(a+b) **/
 
 
 /** ========================================================================
@@ -343,93 +366,9 @@ bar()
 `{}
 
 /** ========================================================================
-dynamic linking of catch and throw
-======================================================================== **/
+checking for resetting of undo freeptr.
+========================================================================**/
 
-throw_primitive();
-/** uncaught throw **/
-
-throw_NIDE();
-/** c compilation error **/
-
-expptr value[0] = `a;
-/** 1:done **/
-
-value[0]
-/** 2:a **/
-
-void foo(){value[0] = `b;}
-/** 3:done **/
-
-void catch_test(){
-  catch_all{foo();}{value[0] = `a;};
-  }
-/** 4:done **/
-
-catch_test();
-/** 5:done **/
-
-value[0]
-/** 6:b **/
-
-void foo2(){value[0] = `b; throw_primitive();}
-/** 7:done **/
-
-void catch_test2(){
-  catch_all{foo2();}{value[0] = `a;};
-  }
-/** 8:done **/
-
-catch_test2();
-/** 9:done **/
-
-value[0]
-/** 10:a **/
-
-declare_exception{bar(expptr)};
-/** 11:done **/
-
-void catch_test3(){
-  catch{bar(e)}{value[0]= `a;}{value[0]=e;};
-  }
-/** 12:done **/
-
-catch_test3();
-/** 13:done **/
-
-value[0]
-/** 14:a **/
-
-void foo3(){
-  throw{bar(`b)};
-  }
-/** 15:done **/
-
-void catch_test4(){
-  catch{bar(e)}{foo3();}{value[0]=e;};
-  }
-/** 16:done **/
-
-catch_test4(); //infinite loop
-/** 17:done **/
-
-value[0]
-/** 18:b **/
-
-breakpt("");
-/** 19:done **/
-
-declare_exception{gritch()};
-/** 20:done **/
-
-macroexpand(`{throw{gritch()}})
-/** 23:{catch_name[0]=string_atom("gritch");throw_primitive();}
-   **/
-throw{gritch(e)};
-/** c compilation error **/
-
-breakpt("");
-/** 21:done **/
 restart_undo_frame(0);
 
 pointer_exp(`a)
@@ -455,3 +394,62 @@ expptr foo2(){return `b;}
 expptr foo(){return `a;}
 
 foo()
+
+
+/** ========================================================================
+catch and throw
+======================================================================== **/
+
+declare_exception{ex1()};
+
+throw{ex1()};
+/** uncaught throw **/
+
+expptr value[0];
+
+void foob(){value[0] = `b;}
+
+void catch_ex1_b(){
+  catch{ex1()}{foob();}{value[0] = `a;};
+  }
+
+catch_ex1_b();
+
+value[0]
+
+void foothrow(){throw{ex1()};}
+
+void catch_test_throw(){
+  catch{ex1()}{foothrow();}{value[0] = `a;};
+  }
+
+catch_test_throw();
+
+value[0]
+
+
+declare_exception{bar(expptr)};
+
+void catch_test3(){
+  catch{bar(e)}{value[0]= `a;}{value[0]=e;};
+  }
+
+catch_test3();
+
+value[0]
+
+void foo3(){
+  throw{bar(`b)};
+  }
+
+void catch_test4(){
+  catch{bar(e)}{foo3();}{value[0]=e;};
+  }
+
+catch_test4();
+
+value[0]
+
+throw{bar(1)};
+/** c compilation error **/
+

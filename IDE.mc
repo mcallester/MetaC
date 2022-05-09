@@ -12,7 +12,7 @@
 #include <string.h>
 #include "mc.h"
 
-voidptr symbol_value[SYMBOL_DIM];
+voidptr symbol_value[STRING_DIM];
 
 expptr eval_exp(expptr);
 

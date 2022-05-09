@@ -69,7 +69,7 @@ int string_key(char * s){
   for(i=0;s[i] != 0;i++){
     key = (1458*key + s[i]);
   }
-  key = key&(STRING_DIM-1);
+  key = key&(STRING_DIM-1); //fancy mod function for powers of 2.
 
   while(string_hash_table[key] != NULL
 	&& strcmp(string_hash_table[key], s) != 0){

@@ -53,9 +53,9 @@ umacro{exp_from_undo_frame($exp)}{
        })};
   }
 
-voidptr symbol_value[SYMBOL_DIM] = {0};
+voidptr symbol_value[STRING_DIM] = {0};
 
-expptr index_symbol_table[SYMBOL_DIM] = {NULL};
+expptr index_symbol_table[STRING_DIM] = {NULL};
 
 /** ========================================================================
 In this implementation all global data variables must be arrays.
@@ -85,7 +85,7 @@ the effect is done from inside do_it.
 int occurs_in(expptr symbol, expptr exp){
   if(atomp(exp))return (symbol == exp);
   ucase{exp;
-    {$e->$any}:{return occurs_in(symbol,e);};
+    {$e->$any}.(symbolp(any)):{return occurs_in(symbol,e);};
     {$any}:{
       if(cellp(exp))
 	return (occurs_in(symbol,car(exp)) || occurs_in(symbol,cdr(exp)));

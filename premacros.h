@@ -18,7 +18,7 @@ mc macros in the bootstrapping procecss.
 we also include definitions shared by both the static and dynamic compilations
 ========================================================================**/
 
-#define STRING_DIM 10000
+#define STRING_DIM (1<< 18)
 
 #define CATCH_DIM 1000
 

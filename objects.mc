@@ -88,6 +88,7 @@ umacro{deflists($type)}{ //for use with non-class types
 
 deflists(expptr);
 deflists(voidptr);
+/** mc to c dynamic-check error **/
 
 
 /** ========================================================================
@@ -254,6 +255,43 @@ umacro{pushprop($val, getprop($x, $prop))}{
       setprop($xval, $propval, voidptr_cons($val, (voidptr_list) getprop($xval, $propval, NULL)));}};
 }
 
+
+//    general exceptions  
+
+expptr exception[0] = NULL;
+
+expptr exception_value[0] = NULL;
+
+umacro{catch_excep{$exception}{$body}{$handler}}{
+  return `{
+    catch({$body})
+    if(exception[0]){
+	if(exception[0] == $exception){
+	  exception[0] = NULL;
+	  $handler}
+	else continue_throw();}};
+}
+
+umacro{throw_excep{$exception;$value}}{
+  return `{
+    exception[0] = $exception;
+    exception_value[0] = $value;
+    throw();};
+  }
+
+/** ========================================================================
+void foo(){
+  throw_excep{`bar;`a}
+  }
+
+expptr bar(){
+  catch_excep{`bar}{foo();}{return exception_value[0];};
+  return `b;
+  }
+
+bar()
+
+========================================================================**/
 
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars);
 
@@ -776,8 +814,12 @@ umacro{closure_type(($args)->$outtype)}{
 
 //macroexpand(`{closure_type(()->int)})
 
-umacro{closure_typedef($typename:($args)->$outtype)}{
+umacro{closure_typeexp($typename:($args)->$outtype)}{
   return (args== `{})? `{$outtype (**$typename)(void*)} : `{$outtype (**$typename)(void*,$args)};}
+
+umacro{closure_typedef($typename:($args)->$outtype)}{
+  return `{typedef closure_typeexp($typename: ($args)->$outtype)};
+  }
 
 //macroexpand(`{closure_typedef(foo:(int,int)->int)})
 
@@ -798,9 +840,10 @@ umacro{lambda $outtype($freevars)($args){$body}}{ // all free variables must be 
 	      void** $cname = undo_alloc(${int_exp(sizeof(void*)*(1 + comma_length(freevars)))});
 	      *$cname = $pname;
 	      {${install_vars(cname,freevars,1)}}
-	      closure_typedef($f:($args)->$outtype);
+	      closure_typeexp($f:($args)->$outtype);
 	      $f = (closure_type(($args)->$outtype)) $cname;
 	      $f;})};}
+/** 265:done **/
 
 
 //macroexpand(`{lambda void (expptr x)(expptr y){e[0]= `{\$x,\$y};}})
