@@ -2,6 +2,8 @@
 
 2. load can fail on a file where load-region on the whole file succeeds.  The problem involves consecutive cells with no space between them being executed together in the file load but no in the load region.
 
+3. The DLL loader keeps old definitions.  This is now handled for precedure redefinition but still causes problems when a signature is changed
+to a different number of arguments or different sizes of arguments even when undoing the original signature definition.
 
 
 

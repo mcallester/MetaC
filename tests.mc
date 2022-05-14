@@ -4,35 +4,27 @@ Hello world
 ======================================================================== **/
 
 string_atom("a")
-/** 1:a **/
 `a
-/** 2:a **/
 
 /** ========================================================================
 procedure definitions
 ========================================================================**/
 
 expptr f(expptr exp){return exp;}
-/** 3:done **/
 
 f(`a)
-/** 4:a **/
 
 /** ========================================================================
  Imperative Programming
 ======================================================================== **/
 
 int x[10];
-/** 5:done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
-/** 6:done **/
 
 int_exp(x[5])
-/** 7:5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-/** 8:45 **/
 
 
 /** ========================================================================
@@ -40,10 +32,8 @@ int_exp(x[5])
 ======================================================================== **/
 
 mcpprint(`a);
-/** 9:done **/
 
 for(int i = 0; i < 10; i++)mcprint("%d",x[i]);
-/** 10:done **/
 
 /** ========================================================================
  C data types
@@ -54,7 +44,6 @@ typedef struct myexpstruct{
   struct myexpstruct * car;
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
-/** 11:done **/
 
 myexp mycons(char * s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
@@ -62,16 +51,13 @@ myexp mycons(char * s, myexp x, myexp y){
       cell->car = x;
       cell->cdr = y;
       return cell;}
-/** 12:done **/
 
 expptr myexp_exp(myexp x){
   if(x == NULL) return string_atom("nil");
   return `{${string_atom(x->label)} ${myexp_exp(x->car)} ${myexp_exp(x->cdr)}};
 }
-/** 13:done **/
 
 myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
-/** 14:foo bar nil nil nil **/
 
 
 /** ========================================================================
@@ -79,28 +65,20 @@ myexp_exp(mycons("foo",mycons("bar",NULL,NULL),NULL))
 ======================================================================== **/
 
 int y[0] = 2;
-/** 15:done **/
 
 y[0] += 1;
-/** 16:done **/
 
 int_exp(y[0])
-/** 17:3 **/
 
 expptr friend[0] = `{Bob Givan};
-/** 18:done **/
 
 int height[0] = 6;
-/** 19:done **/
 
 `{My friend ${friend[0]} is ${int_exp(height[0])} feet tall.}
-/** 20:My friend Bob Givan is 6 feet tall. **/
 
 expptr e[0] = `{a+b};
-/** 21:done **/
 
 `{bar(${e[0]})}
-/** 22:bar(a+b) **/
 
 
 /** ========================================================================
@@ -451,5 +429,30 @@ catch_test4();
 value[0]
 
 throw{bar(1)};
-/** c compilation error **/
+
+/** ========================================================================
+The following is a test of dlopen(RTLD_NOW | RTDL_DEEPBIND) which
+causes the DLL to give top priority to its own symbol definitions when linking
+the DLL code.  with dlopen(RTDL_NOW | RTDL_GLOBAL) the last cell used to return `b
+because the procedure in the DLL linked to the previous version of bar which
+which fewer arguments.  This happened even though the DLL contained the correct
+version of bar for the new signature.
+========================================================================**/
+
+umacro{mention($x)}{
+  return `{if($x ? $x : $x){}};}
+
+restart_undo_frame(0);
+
+expptr bar(expptr x1, expptr x2);
+
+restart_undo_frame(0);
+
+expptr bar(expptr x1, expptr x2, expptr x3){
+  mention(x1);
+  mention(x2);
+  return x3;
+  }
+
+bar(`a,`b,`c)
 

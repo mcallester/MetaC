@@ -843,7 +843,6 @@ umacro{lambda $outtype($freevars)($args){$body}}{ // all free variables must be 
 	      closure_typeexp($f:($args)->$outtype);
 	      $f = (closure_type(($args)->$outtype)) $cname;
 	      $f;})};}
-/** 265:done **/
 
 
 //macroexpand(`{lambda void (expptr x)(expptr y){e[0]= `{\$x,\$y};}})
