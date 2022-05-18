@@ -20,6 +20,7 @@
   (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells) ;;will use region
   (define-key c-mode-map "\C-x`" 'MC:display-error)
   (define-key mc-mode-map "\C-x'"   'MC:last-compilation)
+  (define-key shell-mode-map "\C-x`" 'MC:display-gdb-source)
   (define-key mc-mode-map [?\r] 'MC:return)
   (define-key mc-mode-map [?\t] 'MC:tab)
 
@@ -347,6 +348,21 @@
 		  (find-file file)
 		  (goto-line line)
 		  (move-to-column (- c 1)))))))))))
+
+(defun MC:display-gdb-source ()
+  (interactive)
+  (re-search-backward "/")
+  (re-search-backward "/")
+  (let ((p1 (point)))
+    (search-forward ":")
+    (let ((p2 (point)))
+      (let ((file (buffer-substring p1 (- p2 1))))
+	(move-end-of-line nil)
+	(let ((p3 (point)))
+	  (let ((line (string-to-number (buffer-substring p2 p3))))
+	    (other-window 1)
+	    (find-file file)
+	    (goto-line line)))))))
 
 (defun tmp-buffer ()
   (get-buffer-create ""))
