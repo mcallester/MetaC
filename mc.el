@@ -375,15 +375,19 @@
   (end-of-buffer)
   (delete-other-windows))
 
-    
-
 (defun MC:goto-gdb (value)
-  (with-current-buffer (gdb-buffer)
-    (erase-buffer)
-    (insert (mc-fix value))
-    (set-marker (process-mark (mc-process)) (point))
-    (setq *gdb-mode* t))
-  (pop-to-buffer (gdb-buffer)))
+  (pop-to-buffer (gdb-buffer))
+  (erase-buffer)
+  (insert (mc-fix value))
+  (set-marker (process-mark (mc-process)) (point))
+  (setq *gdb-mode* t)
+)
+
+(defun MC:fixup-gdb ()
+  (newline)
+  (insert "(gdb)")
+  (set-marker (process-mark (mc-process)) (point)))
+
 
 (defun MC:continue-from-gdb ()
   (delete-windows-on (gdb-buffer))

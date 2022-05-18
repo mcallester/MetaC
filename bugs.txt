@@ -2,8 +2,8 @@
 
 2. load can fail on a file where load-region on the whole file succeeds.  The problem involves consecutive cells with no space between them being executed together in the file load but no in the load region.
 
-3. The DLL loader keeps old definitions.  This is now handled for precedure redefinition but still causes problems when a signature is changed
-to a different number of arguments or different sizes of arguments even when undoing the original signature definition.
+3. There is a mystrious bug which puts the gdb prompt in the source file cell in an expansion error.  This is a very tough one.  There is a
+work-around where one goes to the gdb buffer and evaluates (MC:fixup-gdb).  Quite bad.
 
 
 

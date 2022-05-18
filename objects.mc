@@ -17,69 +17,77 @@ void add_list_forms(expptr type){
   expptr append = string_atom(sformat("%s_append",cstring));
   expptr nth = string_atom(sformat("%s_nth",cstring));
   expptr member = string_atom(sformat("%s_member",cstring));
+  expptr delete = string_atom(sformat("%s_delete",cstring));
   
   add_form(`{
-      typedef struct $structtype{$type first; struct $structtype * rest;}$structtype, * $listtype;
-    });
+	     typedef struct $structtype{$type first; struct $structtype * rest;}$structtype, * $listtype;
+	     });
   add_form(`{
-      $listtype $consfun($type first, $listtype rest){
-	$listtype cell = ($listtype) undo_alloc(sizeof($structtype));
-	cell->first = first;
-	cell->rest = rest;
-	return cell;}
-    });
+	     $listtype $consfun($type first, $listtype rest){
+	       $listtype cell = ($listtype) undo_alloc(sizeof($structtype));
+	       cell->first = first;
+	       cell->rest = rest;
+	       return cell;}
+	     });
   add_form(`{
-      $listtype $append($listtype x, $listtype y){
-	if(!x)return y;
-	return $consfun(x->first,$append(x->rest,y));}
-    });
+	     $listtype $append($listtype x, $listtype y){
+	       if(!x)return y;
+	       return $consfun(x->first,$append(x->rest,y));}
+	     });
   add_form(`{
-      $type $nth($listtype x, int n){
-	if(!x)berror("list too short in nth");
-	if(n == 1){return x->first;}
-	return $nth(x->rest,n-1);}
-    });
+	     $type $nth($listtype x, int n){
+	       if(!x)berror("list too short in nth");
+	       if(n == 1){return x->first;}
+	       return $nth(x->rest,n-1);}
+	     });
   add_form(`{
-	int $member($type x, $listtype y){
-	  if(!y) return 0;
-	  if(y->first == x)return 1;
-	  return $member(x,y->rest);}
-    });
+	     int $member($type x, $listtype y){
+	       if(!y) return 0;
+	       if(y->first == x)return 1;
+	       return $member(x,y->rest);}
+	     });
   add_form(`{
-      umacro{$pusher(\$x,\$y)}{
-	return `{undo_set(\$y,$consfun(\$x,\$y))};}
-    });
+	     umacro{$pusher(\$x,\$y)}{
+	       return `{undo_set(\$y,$consfun(\$x,\$y))};}
+	     });
   add_form(`{
-      umacro{$iterator(\$x,\$y){\$body}}{
-	expptr yval = gensym(`yval);
-	return `{{
-	    $type \$x;
-	    for($listtype \$yval = \$y; \$yval; \$yval = \$yval ->rest){
-	      \$x = \$yval->first;
-	      \$body}
-	  }};}
-    });
+	     umacro{$iterator(\$x,\$y){\$body}}{
+	       expptr yval = gensym(`yval);
+	       return `{{
+		   $type \$x;
+		   for($listtype \$yval = \$y; \$yval; \$yval = \$yval ->rest){
+		     \$x = \$yval->first;
+		     \$body}
+		   }};}
+	     });
   add_form(`{
-      umacro{$mapper(\$x,\$y){\$body}}{
-	expptr yval = gensym(`yval);
-	expptr result = gensym(`result);
-	return `{
-	  ({
-	    $type \$x;
-	    $listtype \$result = NULL;
-	    for($listtype \$yval = \$y; \$yval; \$yval = \$yval ->rest){
-	      \$x = \$yval->first;
-	      \$result = $consfun(\$body,\$result);}
-	    \$result;
-	      })};
-      }});
+	     umacro{$mapper(\$x,\$y){\$body}}{
+	       expptr yval = gensym(`yval);
+	       expptr result = gensym(`result);
+	       return `{
+		 ({
+		    $type \$x;
+		    $listtype \$result = NULL;
+		    for($listtype \$yval = \$y; \$yval; \$yval = \$yval ->rest){
+		      \$x = \$yval->first;
+		      \$result = $consfun(\$body,\$result);}
+		    \$result;
+		    })};
+	       }});
   add_form(`{
-      umacro{$listfun(\$x)}{
-	ucase{x;
-	  {\$first,\$rest}:{return `{$consfun(\$first,$listfun(\$rest))};};
-	  {\$any}:{return `{$consfun(\$x,NULL)};}}}
-    });
-}
+	     umacro{$listfun(\$x)}{
+	       ucase{x;
+		 {\$first,\$rest}:{return `{$consfun(\$first,$listfun(\$rest))};};
+		 {\$any}:{return `{$consfun(\$x,NULL)};}}}
+	     });
+  add_form(`{
+	     $listtype $delete($type x, $listtype y){
+	       if(!y) return NULL;
+	       if(y->first == x)return y->rest;
+	       return $consfun(y->first,$delete(x,y->rest));}
+	     });
+
+  }
 
 umacro{deflists($type)}{ //for use with non-class types
   add_list_forms(type);
@@ -87,6 +95,7 @@ umacro{deflists($type)}{ //for use with non-class types
 }
 
 deflists(expptr);
+
 deflists(voidptr);
 /** mc to c dynamic-check error **/
 
@@ -795,18 +804,6 @@ expptr install_vars(expptr cname, expptr freevars, int offset){
 
 //install_vars(`c,`{expptr x, expptr y}, 1)
 
-umacro{lambda($freevars)($args){$body}}{ // all free variables must be pointers and the closure must not return a value
-  expptr pname = gensym(`lambda_proc);
-  expptr cname = gensym(`closure);
-  if(args == `{})add_form(`{void $pname(voidptrptr $cname){${wrap_body(freevars,cname,1,body)}}});
-  else
-  add_form(`{void $pname(voidptrptr $cname,$args){${wrap_body(freevars,cname,1,body)}}});
-  return `{({
-	      void** $cname = undo_alloc(${int_exp(sizeof(void*)*(1 + comma_length(freevars)))});
-	      *$cname = $pname;
-	      ${install_vars(cname,freevars,1)}
-	      $cname;})};}
-
 umacro{closure_type(($args)->$outtype)}{
   return(args == `{})? `{$outtype (**)(void*)} : `{$outtype (**)(void*,$args)};}
 
@@ -829,7 +826,7 @@ umacro{apply_closure($f)($args)}{
   if(args == `{}) return `{(* $f)($f)};
   return  `{(* $f)($f,$args)};}
 
-umacro{lambda $outtype($freevars)($args){$body}}{ // all free variables must be pointers and the closure must not return a value
+umacro{lambda $outtype($freevars)($args){$body}}{ // all free variables must be pointers
   expptr pname = gensym(`lambda_proc);
   expptr cname = gensym(`closure);
   expptr f = gensym(`f);
