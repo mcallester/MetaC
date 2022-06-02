@@ -1258,7 +1258,7 @@ void init_tags(){
   breakpoint_tag = "*#*#dsflsadk#*#*breakpoint*#*#dsflsadk#*#*";
   continue_from_gdb_tag = "*#*#dsflsadk#*#*continue-from-gdb*#*#dsflsadk#*#*";
   print_tag = "*#*#dsflsadk#*#*print*#*#dsflsadk#*#*";
-  running_tag = "*#*#dsflsadk#*#*running*#*#dsflsadk#*#*";
+  mc_ready_tag = "*#*#dsflsadk#*#*mc-ready*#*#dsflsadk#*#*";
 }
 
 void init_exp_constants(){

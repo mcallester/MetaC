@@ -198,7 +198,7 @@
 (defun MC:start-metac ()
   (interactive)
   (MC:clean-cells)
-  (setq *starting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
+  (setq *waiting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
   (setq *gdb-mode* nil)
   (setq *mc-accumulator* nil)
   (when (mc-process) (delete-process (mc-process)))
@@ -212,12 +212,6 @@
   (process-send-string (mc-process) "break cbreak\n")
   (process-send-string (mc-process) "run\n"))
 
-(defun MC:filter (proc string)
-  (let ((clean  (MC:clean-string string)))
-    ;(print (list '*starting* *starting* 'filter-receiving clean))
-    (setq *mc-accumulator* (concat *mc-accumulator* clean))
-    (MC:process-output)))
-
 (defun MC:execute-cell ()
   (interactive)
   (setq *source-buffer* (current-buffer))
@@ -226,61 +220,71 @@
 
 (defun MC:load-region ()
   (interactive)
-  (setq *source-buffer* (current-buffer))
-  (let ((top (region-beginning)))
-    (setq *load-count* (MC:num-cells-region))
-    (if (zerop *load-count*)
-        (message "Region contains no first cell")
-      (progn
-	(goto-char top)
-	(MC:next-cell)
-	(MC:execute-cell-internal)))))
+  (if *waiting* (progn (print "Meta-C not ready (is waiting)") (beep))
+    (progn
+      (setq *source-buffer* (current-buffer))
+      (let ((top (region-beginning)))
+	(setq *load-count* (MC:num-cells-region))
+	(if (zerop *load-count*)
+	    (message "Region contains no first cell")
+	  (progn
+	    (goto-char top)
+	    (MC:next-cell)
+	    (MC:execute-cell-internal)))))))
 
 (defun MC:execute-cell-internal ()
-  (when *gdb-mode* (error "attempt to use IDE while in gdb breakpoint"))
-  (while *starting*
-    ;(print '(wating for process)) 
-    (sleep-for 1))
-
-  (delete-other-windows)
-  (setq buffer-file-coding-system 'utf-8-unix)
-  (move-end-of-line nil)
-  (MC:beginning-of-cell)
-
-  (let ((top (point)))
-    (condition-case nil
-	(progn (move-end-of-line nil)
-	       (re-search-forward "\n[^] \n\t})]")
-	       (backward-char))
-      (error (end-of-buffer)))
-    (re-search-backward "[^ \n\t]")
-    (forward-char)
-    (when (= top (point)) (error "there is no cell"))
-
-    (let ((exp (buffer-substring top (point))))
-      (if (= (buffer-end 1) (point))
-	  (insert "\n")
-	(progn
-	  (move-end-of-line nil)
-	  (if (= (buffer-end 1) (point))
-	      (insert "\n")
-	    (forward-char))))
-
-      (if (string= (buffer-substring (point) (min (+ (point) 3) (point-max))) "/**")
-	  (let ((start (point)))
-	    (search-forward "*/")
-	    (delete-region start (point)))
-	(progn (newline) (backward-char)))
-
-      (insert "/**  **/")
-      (backward-char 4)
-      (setq *source-buffer* (current-buffer))
-      (setq *value-point* (point))
-      ;(print 'sending s)
-      (process-send-string (mc-process) (format "%s\0\n" exp))
-      ;; the above return seems needed to flush the buffer
-    )))
-
+  (cond (*waiting*
+	 (print "Meta-C not ready (is waiting for C to return)")
+	 (beep))
+	(*gdb-mode*
+	 (print "Meta-C not ready (is in gdb mode))")
+	 (beep))
+	(t
+	 (delete-other-windows)
+	 (setq buffer-file-coding-system 'utf-8-unix)
+	 (move-end-of-line nil)
+	 (MC:beginning-of-cell)
+	 
+	 (let ((top (point)))
+	   (condition-case nil
+	       (progn (move-end-of-line nil)
+		      (re-search-forward "\n[^] \n\t})]")
+		      (backward-char))
+	     (error (end-of-buffer)))
+	   (re-search-backward "[^ \n\t]")
+	   (forward-char)
+	   (when (= top (point)) (error "there is no cell"))
+	   
+	   (let ((exp (buffer-substring top (point))))
+	     (if (= (buffer-end 1) (point))
+		 (insert "\n")
+	       (progn
+		 (move-end-of-line nil)
+		 (if (= (buffer-end 1) (point))
+		     (insert "\n")
+		   (forward-char))))
+	     
+	     (if (string= (buffer-substring (point) (min (+ (point) 3) (point-max))) "/**")
+		 (let ((start (point)))
+		   (search-forward "*/")
+		   (delete-region start (point)))
+	       (progn (newline) (backward-char)))
+	     
+	     (insert "/**  **/")
+	     (backward-char 4)
+	     (setq *source-buffer* (current-buffer))
+	     (setq *value-point* (point))
+					;(print 'sending s)
+	     (process-send-string (mc-process) (format "%s\0\n" exp))
+	     ;; the above return seems needed to flush the buffer
+	     )))))
+	
+(defun MC:filter (proc string)
+  (let ((clean  (MC:clean-string string)))
+    ;(print (list '*waiting* *waiting* 'filter-receiving clean))
+    (setq *mc-accumulator* (concat *mc-accumulator* clean))
+    (MC:process-output)))
+	
 (defun MC:process-output ()
   (when (> (length *mc-accumulator*) 0)
     (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumulator*
@@ -296,6 +300,62 @@
 	  (insert *mc-accumulator*)
 	  (set-marker (process-mark (mc-process)) (point))
 	  (setq *mc-accumulator* nil))))))
+
+(defun MC:dotag (tag value)
+  (cond ((string= tag "mc-ready")
+	 (setq *mc-accumulator* nil)
+	 (setq *waiting* nil)
+	 (print '(kernel ready)))
+	((string= tag "reader-error")
+         (beep)
+	 (MC:insert-value "reader error")
+	 (MC:display-abort-message value))
+
+	((string= tag "expansion-error")
+         (beep)
+	 (MC:insert-value "mc to c dynamic-check error")
+	 (MC:goto-gdb value))
+
+	((string= tag "comp-error")
+         (beep)
+	 (MC:insert-value "c compilation error")
+	 (MC:display-abort-message value))
+
+	((string= tag "exec-error")
+         (beep)
+	 (MC:insert-value "dynamic-check error")
+	 (MC:goto-gdb value))
+	
+	((string= tag "gdb-exec-error")
+         (beep)
+	 (MC:insert-value "segment fault --- to resume type p NIDE()")
+	 (MC:goto-gdb value))
+
+	((string= tag "breakpoint")
+         (beep)
+	 (MC:goto-gdb value))
+
+	((string= tag "continue-from-gdb")
+	 (MC:continue-from-gdb))
+
+	((string= tag "result")
+	 (MC:insert-value (substring value 0 (- (length value) 1)))
+	 (setq *load-count* (- *load-count* 1))  ;;for load-region
+	 (MC:next-cell)
+
+	 (when (> *load-count* 0)
+	   (MC:execute-cell-internal)))
+
+	((string= tag "uncaught-throw")
+	 (beep)
+	 (MC:insert-value "uncaught throw"))
+
+	((string= tag "ignore"))
+
+	((string= tag "print")
+	 (print value))
+	
+	(t (error (format "unrecognized tag %s" tag)))))
 
 (defun mc-fix (msg)
   (replace-regexp-in-string "\n" "\n  " value))
@@ -410,62 +470,6 @@
   (pop-to-buffer *source-buffer*)
   (setq *gdb-mode* nil))
 
-(defun MC:dotag (tag value)
-  (cond (*starting*
-	 (when (string= tag "running")
-	  (setq *mc-accumulator* nil)
-	  (print '(kernel restarted))
-	  (setq *starting* nil)))
-	((string= tag "reader-error")
-         (beep)
-	 (MC:insert-value "reader error")
-	 (MC:display-abort-message value))
-
-	((string= tag "expansion-error")
-         (beep)
-	 (MC:insert-value "mc to c dynamic-check error")
-	 (MC:goto-gdb value))
-
-	((string= tag "comp-error")
-         (beep)
-	 (MC:insert-value "c compilation error")
-	 (MC:display-abort-message value))
-
-	((string= tag "exec-error")
-         (beep)
-	 (MC:insert-value "dynamic-check error")
-	 (MC:goto-gdb value))
-	
-	((string= tag "gdb-exec-error")
-         (beep)
-	 (MC:insert-value "segment fault --- to resume type p NIDE()")
-	 (MC:goto-gdb value))
-
-	((string= tag "breakpoint")
-         (beep)
-	 (MC:goto-gdb value))
-
-	((string= tag "continue-from-gdb")
-	 (MC:continue-from-gdb))
-
-	((string= tag "result")
-	 (MC:insert-value (substring value 0 (- (length value) 1)))
-	 (setq *load-count* (- *load-count* 1))  ;;for load-region
-	 (MC:next-cell)
-
-	 (when (> *load-count* 0)
-	   (MC:execute-cell-internal)))
-
-	((string= tag "uncaught-throw")
-	 (beep)
-	 (MC:insert-value "uncaught throw"))
-
-	((string= tag "ignore"))
-
-	((string= tag "print")
-	 (print value))
-	
-	(t (error (format "unrecognized tag %s" tag)))))
 
 (defun MC:clean-string (string)
   ;;removes carriage return chacters
@@ -508,7 +512,7 @@
 	    (cons tag value)))))))
 
 (defun MC:parse-output2 ()
-  (when (and (not *starting*)
+  (when (and (not *waiting*)
 	     (not *gdb-mode*)
 	     (eq t (compare-strings "(gdb)" nil nil *mc-accumulator* -6 -1)))
     (let ((value *mc-accumulator*))
