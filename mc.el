@@ -180,6 +180,11 @@
       (= c 125) ;;curly bracket
       (= c 93))) ;;brace
 
+(defun spacep (c)
+  (or (= c 32) ;space
+      (= c 9) ;tab
+      ))
+
 (defun close-for(paren)
   (cond ((= paren 40) 41) ;;paren
 	((= paren 123) 125) ;;curly bracket
@@ -201,6 +206,7 @@
   (setq *waiting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
   (setq *gdb-mode* nil)
   (setq *mc-accumulator* nil)
+  (setq *load-count* 0)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
   (shell-command "rm /tmp/TEMP*")
@@ -220,17 +226,15 @@
 
 (defun MC:load-region ()
   (interactive)
-  (if *waiting* (progn (print "Meta-C not ready (is waiting)") (beep))
-    (progn
-      (setq *source-buffer* (current-buffer))
-      (let ((top (region-beginning)))
-	(setq *load-count* (MC:num-cells-region))
-	(if (zerop *load-count*)
-	    (message "Region contains no first cell")
-	  (progn
-	    (goto-char top)
-	    (MC:next-cell)
-	    (MC:execute-cell-internal)))))))
+  (setq *source-buffer* (current-buffer))
+  (let ((top (region-beginning)))
+    (setq *load-count* (MC:num-cells-region))
+    (if (zerop *load-count*)
+	(message "Region contains no first cell")
+      (progn
+	(goto-char top)
+	(MC:next-cell)
+	(MC:execute-cell-internal)))))
 
 (defun MC:execute-cell-internal ()
   (cond (*waiting*
@@ -274,7 +278,9 @@
 	     (backward-char 4)
 	     (setq *source-buffer* (current-buffer))
 	     (setq *value-point* (point))
-					;(print 'sending s)
+					;(print 'sending exp)
+	     (setq *waiting* t)
+	     (setq *load-count* (- *load-count* 1))
 	     (process-send-string (mc-process) (format "%s\0\n" exp))
 	     ;; the above return seems needed to flush the buffer
 	     )))))
@@ -302,10 +308,15 @@
 	  (setq *mc-accumulator* nil))))))
 
 (defun MC:dotag (tag value)
+  (print (list '*load-count* *load-count*))
   (cond ((string= tag "mc-ready")
 	 (setq *mc-accumulator* nil)
 	 (setq *waiting* nil)
-	 (print '(kernel ready)))
+	 (cond ((= *load-count* 0)
+		(print '(kernel ready)))
+	       (t
+		(MC:execute-cell-internal))))
+	
 	((string= tag "reader-error")
          (beep)
 	 (MC:insert-value "reader error")
@@ -340,11 +351,7 @@
 
 	((string= tag "result")
 	 (MC:insert-value (substring value 0 (- (length value) 1)))
-	 (setq *load-count* (- *load-count* 1))  ;;for load-region
-	 (MC:next-cell)
-
-	 (when (> *load-count* 0)
-	   (MC:execute-cell-internal)))
+	 (MC:next-cell))
 
 	((string= tag "uncaught-throw")
 	 (beep)
