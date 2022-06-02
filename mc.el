@@ -238,10 +238,10 @@
 
 (defun MC:execute-cell-internal ()
   (cond (*waiting*
-	 (print "Meta-C not ready (is waiting for C to return)")
+	 (print "Meta-C not ready (emacs is waiting for kernel to return)")
 	 (beep))
 	(*gdb-mode*
-	 (print "Meta-C not ready (is in gdb mode))")
+	 (print "Meta-C not ready (emacs is waiting for gdb to return))")
 	 (beep))
 	(t
 	 (delete-other-windows)
@@ -316,7 +316,7 @@
 	       (t
 		(MC:execute-cell-internal))))
 	(t (MC:dotag_other tag value)
-	   (process_send_string (mc-process) "tag_done\0\n"))))
+	   (process-send-string (mc-process) "tag_done\0\n"))))
 
 (defun MC:dotag_other (tag value)
   (cond	((string= tag "reader-error")

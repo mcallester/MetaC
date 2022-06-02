@@ -956,11 +956,11 @@ reader utilities
 ========================================================================**/
 
 void reader_error(){
-  if(in_ide)send_emacs_tag(reader_error_tag);
   if(in_file_exps)throw_NIDE();
   if(from_ide){
     while(next != 0)next = fgetc(read_stream);
     fgetc(read_stream);
+    send_emacs_tag(reader_error_tag);
     throw_NIDE();}
 }
 
