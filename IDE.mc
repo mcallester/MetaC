@@ -24,7 +24,7 @@ void IDE_loop(){
     
     catch_all{
       catch{NIDE()}{
-	send_emacs_tag(mc_ready_tag);
+	send_ready();
 	expptr e=read_from_ide();
 	fprintf(stdout, "processing:\n");
 	pprint(e,stdout,0);

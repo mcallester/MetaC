@@ -308,7 +308,6 @@
 	  (setq *mc-accumulator* nil))))))
 
 (defun MC:dotag (tag value)
-  (print (list '*load-count* *load-count*))
   (cond ((string= tag "mc-ready")
 	 (setq *mc-accumulator* nil)
 	 (setq *waiting* nil)
@@ -316,8 +315,11 @@
 		(print '(kernel ready)))
 	       (t
 		(MC:execute-cell-internal))))
-	
-	((string= tag "reader-error")
+	(t (MC:dotag_other tag value)
+	   (process_send_string (mc-process) "tag_done\0\n"))))
+
+(defun MC:dotag_other (tag value)
+  (cond	((string= tag "reader-error")
          (beep)
 	 (MC:insert-value "reader error")
 	 (MC:display-abort-message value))

@@ -225,6 +225,7 @@ char * mc_ready_tag;
 void send_emacs_tag(char *);
 void send_result(char *);
 void send_print_tag();
+void send_ready();
 
 int in_ide_proc();
 FILE* read_stream_proc();

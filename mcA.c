@@ -24,11 +24,19 @@ void cbreak(){};  //this procedure has a break set in gdb
 
 void berror(char *);
 
+void send_ready(){
+  if(!in_ide)berror("sending to emacs while not in the IDE");
+  fflush(stderr); //this is needed for the ignore tag to operate on stderr.
+  fprintf(stdout,"%s",mc_ready_tag);
+  fflush(stdout); //without this stderr can later add to the input of the tag.
+}
+
 void send_emacs_tag(char * tag){
   if(!in_ide)berror("sending to emacs while not in the IDE");
   fflush(stderr); //this is needed for the ignore tag to operate on stderr.
   fprintf(stdout,"%s",tag);
   fflush(stdout); //without this stderr can later add to the input of the tag.
+  read_from_ide(); //we wait for emacs to acknowledge completion of tag task.
 }
 
 void berror(char *s){
