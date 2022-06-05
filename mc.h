@@ -249,7 +249,11 @@ jmp_buf catch_stack[CATCH_DIM];
 expptr catch_name[1];
 expptr catch_type[1];
 voidptr catch_val[1];
+char undo_heap[UNDO_HEAP_DIM];
+
+void* undo_freeptr();
 
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
 void throw_NIDE();
+

@@ -102,16 +102,18 @@ int intern_string(char * s){
 /** ========================================================================
 undo_alloc, undo_set_int and undo_set
 
-premacros.h (included form mc.h included above) contains
+premacros.h (included form mc.h included above) contains the declarations of the undo heap.
 
 #define undo_set_int(pointer,value) undo_set_int_proc((int *) &pointer,value)
 
 #define undo_set(pointer,value) undo_set_proc((void **) &pointer,value)
 ========================================================================**/
 
-#define UNDO_HEAP_DIM (1<<30)
-char undo_heap[UNDO_HEAP_DIM];
 int undo_heap_freeptr;
+
+void* undo_freeptr(){
+  return &undo_heap[undo_heap_freeptr];
+}
 
 void * undo_alloc(int size){
   if(undo_heap_freeptr + size > UNDO_HEAP_DIM)berror("undo heap exhausted");

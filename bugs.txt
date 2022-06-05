@@ -1,9 +1,12 @@
 1. macro expansion to a procedure definition does not work.  You have to used "add_form".
 
-2. load can fail on a file where load-region on the whole file succeeds.  The problem involves consecutive cells with no space between them being executed together in the file load but no in the load region.
+2. load can fail on a file where load-region on the whole file
+succeeds.  The problem involves consecutive cells with no space
+between them being executed together in the file load but no in the
+load region.  It seems that the procedure file_forms is failing to
+properly separate cells.
 
-3. There is a mystrious bug which puts the gdb prompt in the source file cell in an expansion error.  This is a very tough one.  There is a
-work-around where one goes to the gdb buffer and evaluates (MC:fixup-gdb).  Quite bad.
+3. errors during loading a file are not properly handled.
 
 
 
