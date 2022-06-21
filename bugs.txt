@@ -6,7 +6,7 @@ between them being executed together in the file load but no in the
 load region.  It seems that the procedure file_forms is failing to
 properly separate cells.
 
-3. errors during loading a file are not properly handled.
+3. loading a file then ends inside an open paren hangs. Probably another problem wth file-forms.
 
 
 
