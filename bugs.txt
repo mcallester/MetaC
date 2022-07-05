@@ -8,6 +8,17 @@ properly separate cells.
 
 3. loading a file then ends inside an open paren hangs. Probably another problem wth file-forms.
 
+4. a compilation error inside an load-region loops through the region repeateing the same error.
+
+Warts:
+
+5. making program variables pointers.
+
+6. the body of a catch or unwind protect must not contain a return or nonlocal control flow.  Otherwise the catch stack freeptr
+may not get reset (very bad).
+
+
+
 
 
 

@@ -23,7 +23,7 @@ void IDE_loop(){
     push_memory_frame(); //stack memory
     
     catch_all{
-      catch{NIDE()}{
+      catch(NIDE()){
 	send_ready();
 	expptr e=read_from_ide();
 	fprintf(stdout, "processing:\n");

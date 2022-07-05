@@ -264,10 +264,8 @@ e[0]->arg1
  load
 ======================================================================== **/
 load("include_test");
-/** 1:"include_test"provided **/
 
 included(`a)
-/** 2:a **/
 
 load("compile_error"); //this is still a bug in metac, see bugs.txt
 /**  **/
@@ -384,57 +382,73 @@ foo()
 catch and throw
 ======================================================================== **/
 
-declare_exception{ex1()};
+declare_exception(ex1());
+/** 1:done **/
 
-throw{ex1()};
+throw(ex1());
 /** uncaught throw **/
 
 expptr value[0];
+/** 2:done **/
 
 void foob(){value[0] = `b;}
+/** 3:done **/
 
 void catch_ex1_b(){
-  catch{ex1()}{foob();}{value[0] = `a;};
+  catch(ex1()){foob();}{value[0] = `a;};
   }
+/** 4:done **/
 
 catch_ex1_b();
+/** 5:done **/
 
 value[0]
+/** 6:b **/
 
-void foothrow(){throw{ex1()};}
+void foothrow(){throw(ex1());}
+/** 7:done **/
 
 void catch_test_throw(){
-  catch{ex1()}{foothrow();}{value[0] = `a;};
+  catch(ex1()){foothrow();}{value[0] = `a;};
   }
+/** 8:done **/
 
 catch_test_throw();
+/** 9:done **/
 
 value[0]
+/** 10:a **/
 
 
-declare_exception{bar(expptr)};
+declare_exception(bar(expptr));
+/** 11:done **/
 
 void catch_test3(){
-  catch{bar(e)}{value[0]= `a;}{value[0]=e;};
+  catch(bar(e)){value[0]= `a;}{value[0]=e;};
   }
+/** 12:done **/
 
 catch_test3();
+/** 13:done **/
 
 value[0]
+/** 14:a **/
 
 void foo3(){
-  throw{bar(`b)};
+  throw(bar(`b));
   }
+/** 15:done **/
 
 void catch_test4(){
-  catch{bar(e)}{foo3();}{value[0]=e;};
+  catch(bar(e)){foo3();}{value[0]=e;};
   }
+/** 16:done **/
 
 catch_test4();
+/** 17:done **/
 
 value[0]
-
-throw{bar(1)};
+/** 18:b **/
 
 /** ========================================================================
 The following is a test of dlopen(RTLD_NOW | RTDL_DEEPBIND) which

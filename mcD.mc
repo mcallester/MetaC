@@ -5,7 +5,8 @@ versions of catch.
 ========================================================================**/
 
 
-umacro{catch_all{$body1}{$body2}}{ //body1 must not contain "return" or nonlocal "continue" or "break".  This should get fixed.
+umacro{catch_all{$body1}{$body2}}{
+  //if body1 contains "return" or nonlocal "continue" or "break" then catch freeptr willnot get reset.  This should get fixed.
   return `{{
       if(catch_freeptr[0] == CATCH_DIM)berror("catch stack exhausted");
       if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){
@@ -20,7 +21,7 @@ umacro{unwind_protect{$body1}{$body2}}{
   return `{catch_all{$body1}{{$body2} throw_primitive();}};
   }
 
-umacro{declare_exception{$name($argtype)}}{
+umacro{declare_exception($name($argtype))}{
   add_init_form(`{declare_except_fun(`{$name},`{$argtype});});
   return `{};
   }
@@ -31,7 +32,7 @@ void declare_except_fun(expptr name, expptr argtype){
   setprop(name,`exception_argtype,argtype);
   }
 
-umacro{throw{$name($value)}}{
+umacro{throw($name($value))}{
   expptr argtype = getprop(name,`exception_argtype,NULL);
   if(!argtype)berror("undeclared exception");
   
@@ -52,7 +53,7 @@ umacro{throw{$name($value)}}{
       }};
   }
   
-umacro{catch{$name($arg)}{$body1}{$body2}}{
+umacro{catch($name($arg)){$body1}{$body2}}{
   expptr argtype = getprop(name,`exception_argtype,NULL);
   if(!argtype)berror("undeclared exception");
   

@@ -424,12 +424,6 @@ void pop_memory_frame(){
   stackheap_freeptr = stackmem_stack[--stack_frame_freeptr];
 }
 
-char * string_to_stack(char * s){
-  char * s2 = stack_alloc(strlen(s) + 1);
-  strcpy(s2,s);
-  return s2;
-}
-
 expptr stack_exp(char constr, expptr a1, expptr a2){
   if(constr == '\0')berror("bad constructuctor in stack_exp");
   expptr newexp = stack_alloc(sizeof(expstruct));
@@ -449,7 +443,7 @@ clean undo frame
 
 expptr expptr_to_stack(expptr exp){
   if(!exp)return NULL;
-  if (atomp(exp))return stack_exp('A', (expptr) string_to_stack((char *) exp->arg1), NULL);
+  if (atomp(exp))return stack_exp('A', exp->arg1, NULL);
   return stack_exp(exp->constructor,expptr_to_stack(exp->arg1),expptr_to_stack(exp->arg2));
 }
 

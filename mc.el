@@ -13,6 +13,7 @@
   
   (define-key mc-mode-map "\C-\M-s" 'MC:start-metac)
   (define-key mc-mode-map "\C-\M-x" 'MC:execute-cell)
+  (define-key mc-mode-map "\C-\M-z" 'MC:execute-cell-nomove)
   (define-key mc-mode-map "\C-\M-r" 'MC:load-region)
   (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
   (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell) ;;also used for end-of-cell
@@ -224,6 +225,14 @@
   (setq *load-count* 1)
   (MC:execute-cell-internal))
 
+(defun MC:execute-cell-nomove ()
+  (interactive)
+  (setq *origin* (point))
+  (MC:execute-cell)
+  (sleep-for .2)
+  (goto-char *origin*)
+  )
+
 (defun MC:load-region ()
   (interactive)
   (setq *source-buffer* (current-buffer))
@@ -239,9 +248,11 @@
 (defun MC:execute-cell-internal ()
   (cond (*waiting*
 	 (print "Meta-C not ready (emacs is waiting for kernel to return)")
+	 (setq *load-count* 0)
 	 (beep))
 	(*gdb-mode*
 	 (print "Meta-C not ready (emacs is waiting for gdb to return))")
+	 (setq *load-count* 0)
 	 (beep))
 	(t
 	 (delete-other-windows)
@@ -320,31 +331,37 @@
 
 (defun MC:dotag_other (tag value)
   (cond	((string= tag "reader-error")
+	 (setq *load-count* 0)
          (beep)
 	 (MC:insert-value "reader error")
 	 (MC:display-abort-message value))
 
 	((string= tag "expansion-error")
+	 (setq *load-count* 0)
          (beep)
 	 (MC:insert-value "mc to c dynamic-check error")
 	 (MC:goto-gdb value))
 
 	((string= tag "comp-error")
+	 (setq *load-count* 0)
          (beep)
 	 (MC:insert-value "c compilation error")
 	 (MC:display-abort-message value))
 
 	((string= tag "exec-error")
+	 (setq *load-count* 0)
          (beep)
 	 (MC:insert-value "dynamic-check error")
 	 (MC:goto-gdb value))
 	
 	((string= tag "gdb-exec-error")
+	 (setq *load-count* 0)
          (beep)
 	 (MC:insert-value "segment fault --- to resume type p NIDE()")
 	 (MC:goto-gdb value))
 
 	((string= tag "breakpoint")
+	 (setq *load-count* 0)
          (beep)
 	 (MC:goto-gdb value))
 
@@ -356,6 +373,7 @@
 	 (MC:next-cell))
 
 	((string= tag "uncaught-throw")
+	 (setq *load-count* 0)
 	 (beep)
 	 (MC:insert-value "uncaught throw"))
 
@@ -479,7 +497,6 @@
   (pop-to-buffer *source-buffer*)
   (setq *gdb-mode* nil))
 
-
 (defun MC:clean-string (string)
   ;;removes carriage return chacters
   (let ((i 0))
@@ -521,8 +538,7 @@
 	    (cons tag value)))))))
 
 (defun MC:parse-output2 ()
-  (when (and (not *waiting*)
-	     (not *gdb-mode*)
+  (when (and (not *gdb-mode*)
 	     (eq t (compare-strings "(gdb)" nil nil *mc-accumulator* -6 -1)))
     (let ((value *mc-accumulator*))
       (setq *mc-accumulator* nil)

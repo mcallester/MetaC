@@ -509,7 +509,7 @@ expptr index_symbol(int i){
   return index_symbol_table[i];
   }
 
-declare_exception{NIDE()};
+declare_exception(NIDE());
 
 init_fun(mcE_init2)
 
