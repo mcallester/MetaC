@@ -15,6 +15,16 @@ umacro{in_memory_frame{$body}}{
       {pop_memory_frame();}}};
   }
 
+umacro{in_undo_frame{$body}}{
+  return
+  `{unwind_protect{
+      push_undo_frame();
+      $body;
+      pop_undo_frame();
+      }{
+      {pop_undo_frame();}}};
+  }
+
 umacro{int_from_undo_frame($exp)}{
   expptr expvar = gensym(`expvar);
   expptr stackexp = gensym(`stack_exp);
