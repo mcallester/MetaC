@@ -471,9 +471,10 @@ int string_quotep(char x){return (x == '"' || x == '\'');}
 
 int alphap(char c){
   return  (c >= 'A' && c <= 'Z')
-    || (c >= 'a' && c <= 'z')
-    || (c >= '0' && c <= '9')
-    || (c == '_');
+  || (c >= 'a' && c <= 'z')
+  || (c >= '0' && c <= '9')
+  || (c == '_')
+  || (c > 127); //unicode byte
 }
 
 int connp(char c){
@@ -964,19 +965,36 @@ int level_adjustment(char c){
   if(openp(c))return 1;
   if(closep(c))return -1;
   return 0;
-}
+  }
 
 void simple_advance(){
   if(next == EOF){readchar = 0; return;}
   readchar = next;
   if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
-  if(next < EOF || next > 126 || (next > 0 && next < 32 && next != 10 && next != 9) ){
+  if(next < EOF || (next > 0 && next < 32 && next != 10 && next != 9) ){
+    fprintf(stdout,"illegal input character %d\n",next);
+    reader_error();
+    }
+  paren_level += level_adjustment(readchar);
+  }
+
+
+/** ========================================================================
+
+void simple_advance(){
+  if(next == EOF){readchar = 0; return;}
+  readchar = next;
+  next = fgetc(read_stream);
+  if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
+  if(next < EOF || (next > 0 && next < 32 && next != 10 && next != 9) ){
     fprintf(stdout,"illegal input character %d\n",next);
     reader_error();
   }
   paren_level += level_adjustment(readchar);
 }
 
+
+========================================================================**/
 
 
 /** ========================================================================
