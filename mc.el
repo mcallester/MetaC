@@ -1,6 +1,12 @@
 (setq *gdb* "/usr/bin/gdb")
 (setq *MetaC* "/home/david/MC/")
 
+(define-derived-mode greek
+  nil "greek"
+  "for greek characters")
+
+(global-unset-key "\M-\C-g")
+
 (require 'shell)
 
 
@@ -35,12 +41,8 @@
   (define-key mc-mode-map [?,] 'self-insert-command)
   (define-key mc-mode-map [?\;] 'self-insert-command))
 
-(define-derived-mode greek
-  nil "greek"
-  "for greek characters")
+(global-set-key "\C-\M-g" greek-map)
 
-(global-unset-key "\M-\C-g")
-(define-key mc-mode-map "\C-\M-g" greek-map)
 
 (define-key greek-map "b" 'insert-beta)
 (defun insert-beta () (interactive)
