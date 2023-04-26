@@ -474,7 +474,7 @@ int alphap(char c){
   || (c >= 'a' && c <= 'z')
   || (c >= '0' && c <= '9')
   || (c == '_')
-  || (c > 127); //unicode byte
+  || (c < 0); //unicode byte
 }
 
 int connp(char c){
@@ -908,7 +908,12 @@ void init_readvars(){
 }
 
 
+/** ========================================================================
+some procedures written for debugging file_expressions failure from the NIDE
+========================================================================**/
+
 FILE * read_stream;
+
 FILE* read_stream_proc(){return read_stream;}
   
 expptr read_from_ide(){
@@ -917,28 +922,17 @@ expptr read_from_ide(){
   read_stream = stdin;
   expptr e = mcread();
   return e;
-}
+  }
 
-expptr file_expressions2();
-
-expptr file_expressions(char * fname){
+void open_read_stream(char* fname){
   init_readvars();
   in_file_exps = 1;
   read_stream = fopen(fname, "r");
-
+  
   if(read_stream == NULL){
     fprintf(stdout,"attempt to open %s failed",fname);
     berror("");}
-  
-  expptr exps;
-  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
-      exps = file_expressions2();
-      fclose(read_stream);
-    },{
-      fclose(read_stream);
-      throw_NIDE();});
-  return exps;
-}
+  }
 
 expptr file_expressions2(){
   if(next == EOF)return nil;
@@ -947,6 +941,18 @@ expptr file_expressions2(){
   if(e == nil)return file_expressions2();
   return cons(e, file_expressions2());
 }
+
+expptr file_expressions(char * fname){
+  open_read_stream(fname);
+  expptr exps;
+  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
+	     exps = file_expressions2();
+	     fclose(read_stream);
+	     },{
+	     fclose(read_stream);
+	     throw_NIDE();});
+  return exps;
+  }
 
 /** ========================================================================
 reader utilities
@@ -971,13 +977,12 @@ void simple_advance(){
   if(next == EOF){readchar = 0; return;}
   readchar = next;
   if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
-  if(next < EOF || (next > 0 && next < 32 && next != 10 && next != 9) ){
+  if((next > 0 && next < 32 && next != 10 && next != 9) ){
     fprintf(stdout,"illegal input character %d\n",next);
     reader_error();
     }
   paren_level += level_adjustment(readchar);
   }
-
 
 /** ========================================================================
 
@@ -1207,7 +1212,8 @@ int precedence(char c){
   if(c=='.' || c == '#')return 13;
   berror("undefined precedence");
   return 14; //prevents compiler warning
-}
+  }
+
 
 #define LEFT_THRESHOLD 12
 

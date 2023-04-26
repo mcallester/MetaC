@@ -19,7 +19,6 @@
   
   (define-key mc-mode-map "\C-\M-s" 'MC:start-metac)
   (define-key mc-mode-map "\C-\M-x" 'MC:execute-cell)
-  (define-key mc-mode-map "\C-\M-z" 'MC:execute-cell-nomove)
   (define-key mc-mode-map "\C-\M-r" 'MC:load-region)
   (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
   (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell) ;;also used for end-of-cell
@@ -41,8 +40,8 @@
   (define-key mc-mode-map [?,] 'self-insert-command)
   (define-key mc-mode-map [?\;] 'self-insert-command))
 
-(global-set-key "\C-\M-g" greek-map)
-
+(global-set-key "\C-\M-z" greek-map)
+(define-key mc-mode-map "\C-\M-z" greek-map)
 
 (define-key greek-map "b" 'insert-beta)
 (defun insert-beta () (interactive)
@@ -72,6 +71,13 @@
 (defun insert-cap-pi () (interactive)
        (insert-char 928))
 
+(define-key greek-map "gγΓ" 'insert-small-gamma)
+(defun insert-small-gamma () (interactive)
+       (insert-char 947))
+
+(define-key greek-map "G" 'insert-cap-gamma)
+(defun insert-cap-gamma () (interactive)
+       (insert-char 915))
 
 (setq auto-mode-alist
       (append

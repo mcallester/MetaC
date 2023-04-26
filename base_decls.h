@@ -166,8 +166,12 @@ void pop_memory_frame();
 
 voidptr stack_alloc(int size);
 
-expptr file_expressions(char *name);
 
+/** ========================================================================
+misc.
+========================================================================**/
+
+expptr file_expressions(char *name);
 expptr read_from_ide();
 
 void send_print_tag();
