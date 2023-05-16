@@ -10,7 +10,7 @@ void throw_primitive(){
     exit(-1);}
   catch_freeptr[0]--;
   longjmp(catch_stack[catch_freeptr[0]], 1);
-}
+  }
 
 void throw_NIDE(){
   if(in_ide){
@@ -30,6 +30,8 @@ void send_ready(){
   fprintf(stdout,"%s",mc_ready_tag);
   fflush(stdout); //without this stderr can later add to the input of the tag.
   }
+
+char * string_from_NIDE();
 
 void send_emacs_tag(char * tag){
   if(!in_ide)berror("sending to emacs while not in the IDE");
@@ -669,7 +671,8 @@ explist explist_append(explist l1, explist l2){
   }
 
 expptr mcread(char* s);
-
+char* input_string();
+  
 strlist file_strings(char* fname);
 
 explist strlist_explist(strlist strings){ //preserves order
@@ -697,12 +700,6 @@ void advance_readchar();
 void init_read_stream(){
   next = fgetc(read_stream);
   advance_readchar();
-  }
-
-char * string_from_NIDE(){
-  read_stream = stdin;
-  init_read_stream();
-  return input_string();
   }
 
 strlist file_strings2(){ //preserves order
@@ -759,6 +756,21 @@ void advance_readchar(){
 void addchar(char c){
   if(stackheap_freeptr == STACKHEAP_DIM)berror("stack heap exhausted");
   stackheap[stackheap_freeptr++] = c;
+  }
+
+
+char * string_from_NIDE(){
+  read_stream = stdin;
+  init_read_stream();
+  return input_string();
+  }
+
+expptr read_from_NIDE(){
+  init_read_stream();
+  in_ide = 1;
+  read_stream = stdin;
+  expptr e = mcread(input_string());
+  return e;
   }
 
 char* input_string(){

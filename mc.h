@@ -168,9 +168,7 @@ explist explist_append(explist,explist);
 void open_input_file(char * s);
 void open_output_file(char * s);
 
-char* string_from_NIDE();
 expptr read_from_NIDE();
-char* input_string();
 
 explist file_expressions(char * fname);
 
