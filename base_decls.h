@@ -172,12 +172,7 @@ misc.
 expptr file_expressions(char *name);
 expptr read_from_NIDE();
 
-void send_print_tag();
 void send_result(char* result);
-
-int in_ide_proc();
-
-FILEptr read_stream_proc();
 
 void mcpprint(expptr e);
 
