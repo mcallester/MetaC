@@ -37,7 +37,9 @@ void send_emacs_tag(char * tag){
   fprintf(stdout,"%s",tag);
   fflush(stdout); //without this stderr can later add to the input of the tag.
   string_from_NIDE(); //we wait for emacs to acknowledge completion of tag task.
-}
+  }
+
+void send_print_tag(){send_emacs_tag(print_tag);}
 
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
