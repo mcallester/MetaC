@@ -1343,6 +1343,11 @@ void pprint(expptr e, FILE* f){
   fprintf(f,"%s\n\n",exp_pps(e));
   }
 
+void mcpprint(expptr e){
+  if(in_ide){pprint(e,stdout); send_print_tag();}
+  else pprint(e,stdout);
+}
+
 /** ========================================================================
 basic list procedures (dolist is defined as a macro in mc.D)
 ======================================================================== **/
