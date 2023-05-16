@@ -17,6 +17,7 @@ typedef struct expstruct{ //in undo memory
   struct expstruct * arg2;
 }expstruct,*expptr;
 
+
 /** ========================================================================
 push_memory_frame, pop_memory_frame, and stack_alloc
 ========================================================================**/
@@ -45,6 +46,15 @@ expptr expptr_to_undo(expptr exp);
 expptr clean_undo_frame(expptr exp);
 
 
+
+/** ========================================================================
+ephemeral memory  This is for the construction of strings.
+========================================================================**/
+
+#define EPHEMERAL_DIM (1<<10)
+char ephemeral_buffer[EPHEMERAL_DIM];
+int ephemeral_freeptr;
+
 /** ========================================================================
 cbreak, berror and macro_error
 
@@ -53,6 +63,8 @@ see berror and macro_error in mcA.mc
 
 void breakpt(char * s);
 
+void cbreak();
+
 void berror(char *s);
 
 /** ========================================================================
@@ -60,6 +72,7 @@ expressions
 ========================================================================**/
 
 expptr string_atom(char * s);
+expptr quote_char(char c);
 
 int atomp(expptr e);
 
@@ -76,6 +89,20 @@ int cellp(expptr e);
 expptr car(expptr x);
 
 expptr cdr(expptr x);
+
+expptr mk_connection(expptr connector, expptr leftarg, expptr rightarg);
+
+expptr mkspace(expptr leftarg, expptr rightarg);
+
+int connectionp(expptr e);
+
+int connofp(expptr e, expptr conn);
+
+expptr connector(expptr e);
+
+expptr leftarg(expptr e);
+
+expptr rightarg(expptr e);
 
 expptr intern_paren(char openchar, expptr arg);
 
@@ -122,18 +149,36 @@ io
 FILE * fileout;
 FILE * filein;
 
+typedef struct strlist_struct * strlist;
+
+typedef struct strlist_struct{
+  char* first;
+  strlist rest;}strlist_struct, *strlist;
+
+typedef struct explist_struct * explist;
+
+typedef struct explist_struct{
+  expptr first;
+  explist rest;}explist_struct, *explist;
+
+explist expcons(expptr, explist);
+
+explist explist_append(explist,explist);
+
 void open_input_file(char * s);
 void open_output_file(char * s);
 
-expptr read_from_repl();
-expptr read_from_ide();
-expptr read_from_file();
+char* string_from_NIDE();
+expptr read_from_NIDE();
+char* input_string();
 
-expptr file_expressions(char * fname);
+explist file_expressions(char * fname);
 
-void pprint(expptr e, FILE * f, int i);
+void pprint(expptr e, FILE * f);
 void pp(expptr e);
-char * exp_string(expptr);
+char* exp_string(expptr);
+char* exp_pps(expptr);
+expptr reparse(expptr);
 
 /** ========================================================================
 macros
@@ -142,10 +187,10 @@ void set_macro(expptr sym, expptr f(expptr));
 expptr macroexpand(expptr e);
 expptr macroexpand1(expptr e);
 
-expptr preamble;
+explist preamble;
 void add_preamble(expptr e);
 
-expptr init_forms;
+explist init_forms;
 void add_init_form(expptr e);
 
 void add_form(expptr e);
@@ -154,7 +199,7 @@ expptr args_variables(expptr args);
 
 void match_failure(expptr,expptr);
 
-expptr top_atom(expptr e);
+expptr head_symbol(expptr e);
 
 /** ========================================================================
 utilities
@@ -183,6 +228,7 @@ void mcA_init();
 void mcB_init();
 void mcC_init();
 void mcD_init();
+void mcD2_init();
 void mcE_init1();
 void mcE_init2();
 
@@ -193,15 +239,14 @@ int rep_column;
 expression_constants
 ======================================================================== **/
 
-expptr period, comma, colon, semi, backquote, dollar, backslash, exclam, question, any, nil, dot;
-expptr nil, macro, intern_noticers;
+expptr comma, colon, semi, backquote, dollar, backslash;
+expptr exclam, question, any, dot;
+expptr nil, macro, intern_noticers, space, tab;
 
-expptr bquote_code(expptr);
-expptr quote_code(expptr);
-expptr constructor_code(char);
+char leftbrace, leftparen, leftbracket;
 
-void uerror(expptr);
-
+expptr bqcode(expptr);
+expptr bqcode_ignore_dollar(expptr);
 
 /** ========================================================================
 The following "source flags" are currently used in berror and, to a very minor extent, in printing.
@@ -257,4 +302,3 @@ void* undo_freeptr();
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
 void throw_NIDE();
-

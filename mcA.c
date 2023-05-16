@@ -16,7 +16,7 @@ void throw_NIDE(){
   if(in_ide){
     catch_name[0]= string_atom("NIDE");
     throw_primitive();}
-  fprintf(stdout,"unrecoverable_error: c process fatal");
+  fprintf(stdout,"unrecoverable_error: c process fatal\n");
   exit(-1);
 }
 
@@ -29,25 +29,38 @@ void send_ready(){
   fflush(stderr); //this is needed for the ignore tag to operate on stderr.
   fprintf(stdout,"%s",mc_ready_tag);
   fflush(stdout); //without this stderr can later add to the input of the tag.
-}
+  }
 
 void send_emacs_tag(char * tag){
   if(!in_ide)berror("sending to emacs while not in the IDE");
   fflush(stderr); //this is needed for the ignore tag to operate on stderr.
   fprintf(stdout,"%s",tag);
   fflush(stdout); //without this stderr can later add to the input of the tag.
-  read_from_ide(); //we wait for emacs to acknowledge completion of tag task.
+  string_from_NIDE(); //we wait for emacs to acknowledge completion of tag task.
 }
 
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
   if(in_ide){
     if(in_doit) send_emacs_tag(exec_error_tag);
-    else send_emacs_tag(expansion_error_tag);}
+    else send_emacs_tag(expansion_error_tag);
+    cbreak();
+    send_emacs_tag(continue_from_gdb_tag);}
   cbreak();
-  if(in_ide){send_emacs_tag(continue_from_gdb_tag);}
   throw_NIDE();
-}
+  }
+
+void send_result(char * result){
+  berror("send_result undefined outside of NIDE");
+  fprintf(stdout,"%s",result);
+  send_emacs_tag(result_tag);}
+
+void breakpt(char *s){
+  fprintf(stdout,"breakpt: %s\n",s);
+  send_emacs_tag(breakpoint_tag);
+  cbreak();
+  send_emacs_tag(continue_from_gdb_tag);
+  }
 
 /** ========================================================================
 The permanent heap (not garbage collected or freed in any way)
@@ -455,19 +468,17 @@ expptr expptr_to_undo(expptr exp){
 
 expptr clean_undo_frame(expptr exp){
   //this is safe --- no user code.
-  push_memory_frame();
   expptr stack_exp = expptr_to_stack(exp);
   clear_undo_frame();
   expptr result = expptr_to_undo(stack_exp);
-  pop_memory_frame();
   return result;
-}
+  }
 
 /** ========================================================================
-character types
+character types and precedence
 ========================================================================**/
 
-int string_quotep(char x){return (x == '"' || x == '\'');}
+int quotecharp(char x){return (x == '"' || x == '\'');}
 
 int alphap(char c){
   return  (c >= 'A' && c <= 'Z')
@@ -501,17 +512,56 @@ int endp(char c){return c == EOF || c == '\0';}
 
 int terminatorp(char c){return closep(c) || endp(c);}
 
-int specialp(char c){return c == '`' || c == '$' || c == '\\';}
+int specialcharp(char c){return c == '`' || c == '$' || c == '\\';}
 
-//the characters \, $ and ` are treated explicitly in the grammar.
+int precedence(char c){
+  if(terminatorp(c))return -1;
+  if(c==';')return 1;
+  if(c==',')return 2;
+  if(c ==':')return 3;
+  if(c=='@')return 4;
+  if(c=='|')return 5;
+  if(c=='&')return 6;
+  if(c=='!')return 7;
+  if(c=='?')return 8;
+  if(c=='=' || c=='<' || c=='>' || c =='~') return 9;
+  if(c=='+' || c=='-')return 10;
+  if(c=='*' || c=='/')return 11;
+  if(c == '%' || c == '^' || c== '#')return 12;
+  if(c==' ')return 13;
+  if(c=='.')return 14;
+  berror("undefined precedence");
+  return 15; //prevents compiler warning
+  }
+
 
 /** ========================================================================
-cons-car-cdr interface to expressions.  conses into undo space.
+interface to expressions.  conses into undo space.  The concept of cons cell is
+depricated in favor of connection.
 ========================================================================**/
 
+//atoms
 int atomp(expptr e){return e && constructor(e) == 'A';}
 
-int symbolp(expptr e){return atomp(e) && alphap(atom_string(e)[0]);}
+int symbolp(expptr e){
+  return e && e->constructor == 'A' && alphap(atom_string(e)[0]);
+  }
+
+int connectorp(expptr e){
+  if(!e || e->constructor != 'A')return 0;
+  char c = atom_string(e)[0];
+  return connp(c) || whitep(c);
+  }
+
+int white_connectorp(expptr e){
+  if(!e || e->constructor != 'A')return 0;
+  char c = atom_string(e)[0];
+  return whitep(c);
+  }
+
+int specialp(expptr e){
+  return e && e->constructor == 'A' && specialcharp(atom_string(e)[0]);
+  }
 
 char * atom_string(expptr a){
   if(constructor(a) != 'A'){
@@ -520,271 +570,519 @@ char * atom_string(expptr a){
 
 expptr string_atom(char * s){
   return intern_exp('A', (expptr) (long int) intern_string(s),NULL);
-}
+  }
 
+void ephemeral_putc(char c){
+  if(ephemeral_freeptr == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
+  ephemeral_buffer[ephemeral_freeptr++]=c;
+  }
+
+//cells
 expptr cons(expptr x, expptr y){
-  if(!x || !y)berror("null argument given to cons");
   return intern_exp(' ',x,y);}
 
 int cellp(expptr e){return e && constructor(e) == ' ';}
 
 expptr car(expptr x){
-  if(constructor(x) != ' '){berror("taking car of non-cell");}
+  if(!x || constructor(x) != ' '){berror("taking car of non-cell");}
   return x->arg1;}
 
 expptr cdr(expptr x){
-  if(constructor(x) != ' '){berror("taking cdr of non-cell");}
+  if(!x || constructor(x) != ' '){berror("taking cdr of non-cell");}
   return x->arg2;}
 
+//parens
+
 expptr intern_paren(char openchar, expptr arg){
-  if(!arg)berror("null argument given to intern_paren");
   return intern_exp(openchar, arg, NULL);}
 
 int parenp(expptr e){return e && openp(constructor(e));}
+
+char open_char(expptr e){return constructor(e);}
 
 expptr paren_inside(expptr e){
   if(!openp(constructor(e)))berror("paren_inside applied to non-paren");
   return e->arg1;}
 
+//connections --- the parser produces expressions such that every expression
+//is either an atom, paren, or connection.
+
+
+expptr mk_connection(expptr connector, expptr leftarg, expptr rightarg){
+  return cons(cons(leftarg,connector),rightarg);
+  }
+
+int connectionp(expptr e){
+  return cellp(e) && cellp(car(e)) && connectorp(cdr(car(e)));
+  }
+
+int connofp(expptr e, expptr conn){return connectionp(e) && connector(e) == conn;}
+
+expptr connector(expptr e){
+  return cdr(car(e));
+  }
+
+expptr leftarg(expptr e){
+  return car(car(e));
+  }
+
+expptr rightarg(expptr e){
+  return cdr(e);
+  }
+
+
 /** ========================================================================
-basic list procedures (dolist is defined as a macro in mc.D)
-======================================================================== **/
-expptr nil;
+strlist file_strings(char* fname)
 
-expptr append(expptr l1, expptr l2){
-  if(cellp(l1))return cons(car(l1), append(cdr(l1),l2));
-  else return l2;
-}
+Reading a file as a list of strings defined by cell boundaries
+while removing comments.
 
-int member(expptr x, expptr l){
-  if(!cellp(l))return 0;
-  if(x == car(l))return 1;
-  return member(x,cdr(l));
-}
+expptr file_expressions(strlist strings)
 
-expptr reverse(expptr l){
-  expptr result = nil;
-  while(cellp(l)){
-    result = cons(car(l), result);
-    l = cdr(l);}
+parses a list of strings into a list of expressions
+========================================================================**/
+
+strlist strcons(char* first, strlist rest){
+  strlist result = (strlist) stack_alloc(sizeof(strlist_struct));
+  result->first = first;
+  result->rest = rest;
   return result;
-}
+  }
 
-expptr mapcar(expptr f(expptr), expptr l){
-  if(cellp(l))return cons(f(car(l)),mapcar(f,cdr(l)));
-  return nil;
-}
+int strlist_length(strlist s){
+  if(!s)return 0;
+  return 1+ strlist_length(s->rest);
+  }
 
-void mapc(void f(expptr), expptr l){
-  while (cellp(l)){f(car(l)); l = cdr(l);}
-}
+explist expcons(expptr first, explist rest){
+  explist result = (explist) undo_alloc(sizeof(explist_struct));
+  result->first = first;
+  result->rest = rest;
+  return result;
+  }
 
-int length(expptr l){
-  if(cellp(l))return length(cdr(l)) + 1;
-  else return 0;
-}
+explist explist_append(explist l1, explist l2){
+  if(!l1)return l2;
+  return expcons(l1->first,explist_append(l1->rest,l2));
+  }
+
+expptr mcread(char* s);
+
+strlist file_strings(char* fname);
+
+explist strlist_explist(strlist strings){ //preserves order
+  if(!strings) return NULL;
+  expptr e = mcread(strings->first);
+  if(!e)return strlist_explist(strings->rest);
+  return expcons(e, strlist_explist(strings->rest));
+  }
+
+char* exp_pps(expptr e);
+
+explist file_expressions(char* fname){
+  push_memory_frame();
+  explist exps = strlist_explist(file_strings(fname));
+  pop_memory_frame();
+  return exps;
+  }
+
+FILE * read_stream;
+char readchar;
+char next;
+
+void advance_readchar();
+
+void init_read_stream(){
+  next = fgetc(read_stream);
+  advance_readchar();
+  }
+
+char * string_from_NIDE(){
+  read_stream = stdin;
+  init_read_stream();
+  return input_string();
+  }
+
+strlist file_strings2(){ //preserves order
+  if(readchar == EOF)return NULL;
+  if(closep(readchar))berror("file contains unmatched close\n");
+  char * s = input_string();
+  if(!s)return file_strings2();
+  return strcons(s, file_strings2());
+  }
+
+strlist file_strings(char * fname){
+  read_stream = fopen(fname, "r");
+  if(read_stream == NULL){
+    fprintf(stdout,"attempt to open %s failed",fname);
+    berror("");}
+  init_read_stream();
+  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
+	     strlist strings = file_strings2();
+	     fclose(read_stream);
+	     return strings;
+	     },{
+	     fclose(read_stream);
+	     throw_NIDE();});
+  }
+
+void simple_advance(){
+  if(next == EOF){readchar = EOF; return;}
+  if(next == 0 || (next > 0 && next < 32 && next != 10 && next != 9) ){
+    berror("illegal input character");}
+  readchar = next;
+  next = fgetc(read_stream);
+  }
+
+void advance_readchar(){
+  simple_advance();
+  
+  if(readchar == '/' && next == '*'){
+    //replace comment with white space
+    while(!(readchar == '*' && next == '/')){
+      if(endp(readchar))return;
+      simple_advance();}
+    simple_advance();
+    readchar = ' ';}
+  
+  else if(readchar == '/' && next == '/'){
+    //replace comment with white space
+    while(readchar != '\n' && !endp(readchar))simple_advance();}
+  
+  else if(readchar == '\\' && next == '\n'){
+    //advance past quoted return --- needed for parsing #define from a file.
+    simple_advance(); advance_readchar();}
+  }
+
+void addchar(char c){
+  if(stackheap_freeptr == STACKHEAP_DIM)berror("stack heap exhausted");
+  stackheap[stackheap_freeptr++] = c;
+  }
+
+char* input_string(){
+  char* s = &stackheap[stackheap_freeptr];
+  while(!(readchar == '\n' && !whitep(next) && !closep(next) && next != '/')){
+    //end of cell
+    addchar(readchar);
+    advance_readchar();}
+  addchar('\0');
+  advance_readchar();
+  return s;}
 
 /** ========================================================================
-printing: exp_string
-======================================================================== **/
-void putexp(expptr);
-void putone(char);
+parsing a string.  This will be used for general reading and also
+for normalizing the result of a backquote.  Parsed expressions consists of
+atoms, connections, and parens only.  The parse tree of connectives respects
+precedence and associativity.  Arguments to connectives can be NULL.  The inside
+of a penthesis is always a null-terminated space list.
+========================================================================**/
 
-char print_lastchar;
+char* pps; //string being parsed
+int pprest; //pointer to current character
+
+void movechar(){
+  if(stackheap_freeptr == STACKHEAP_DIM)berror("stack heap exhausted");
+  stackheap[stackheap_freeptr++] = pps[pprest];
+  pprest++;
+  }
+
+void remove_white(){
+  while(whitep(pps[pprest]))pprest++;
+  }
+
+char* exp_pps(expptr e);
+
+void declare_unmatched(char openchar, expptr e, char closechar){
+  if(closechar)fprintf(stdout,"unmatched parentheses %c%c\n",openchar, closechar);
+  else fprintf(stdout,"unmatched parentheses %c%c\n",openchar, '-');
+  berror(exp_pps(e));
+  }
+
+expptr mcread_Ep(int);
+expptr mcread_arg();
+expptr mcread_conn();
+
+expptr mcread(char* s){
+  pps = s;
+  pprest = 0;
+  remove_white();
+  expptr e = mcread_Ep(-1);
+  if(closep(pps[pprest]))declare_unmatched('-',e,pps[pprest]);
+  return e;
+  }
+
+//subsec: mcread-Ep: The stack (held on the C stack) ends in a consumer
+//(open paren or connective) with precedence p_left.
+//mcread_Ep returns a (possibly phantom)
+//general expression to be consumed by the consumer.
+
+int right_precedence(){
+  if(connp(pps[pprest]))return precedence(pps[pprest]);
+  return precedence(' ');
+  }
+
+expptr mcread_Ep(int p_left){
+  expptr arg = mcread_arg();
+  int p_right = right_precedence();
+  while(!terminatorp(pps[pprest])
+	&& (p_left < p_right || (p_left == p_right && connp(pps[pprest]) != '.'))){
+    expptr conn = mcread_conn();
+    arg = mk_connection(conn,arg,mcread_Ep(p_right));
+    p_right = right_precedence();}
+  return arg;
+  }
+
+expptr mcread_quote();
+expptr mcread_open();
+expptr mcread_alpha_phrase();
+expptr mcread_dollar_phrase();
+expptr mcread_backquote_phrase();
+
+expptr mcread_arg(){//each line corresponds to a value of the character pps[pprest].
+  expptr s = mcread_quote();
+  if(s)return s;
+  s = mcread_open();
+  if(s)return s;
+  s = mcread_alpha_phrase();
+  if(s)return s;
+  s = mcread_dollar_phrase(); //includes backslash.
+  if(s)return s;
+  return mcread_backquote_phrase();
+  }
+
+//subsec the lexicalizer --- there is a procedure for each class of character
+
+expptr mcread_conn(){ //never returns NULL
+  if(!connp(pps[pprest]))return space;
+  char* result = &stackheap[stackheap_freeptr];
+  while(connp(pps[pprest])){movechar();}
+  addchar('\0');
+  remove_white();
+  return string_atom(result);
+  }
+
+expptr mcread_alpha(){
+  if(!alphap(pps[pprest]))return NULL;
+  char* result = &stackheap[stackheap_freeptr];
+  while(alphap(pps[pprest])){movechar();}
+  addchar('\0');
+  remove_white();
+  return string_atom(result);
+  }
+
+expptr mcread_open(){
+  if(!openp(pps[pprest]))return NULL;
+  char c = pps[pprest];
+  char cl = close_for(c);
+  movechar(); remove_white();
+  expptr e = mcread_Ep(-1);
+  if(pps[pprest] != cl)declare_unmatched(c,e,pps[pprest]);
+  movechar();remove_white();
+  return intern_paren(c,e);
+  }
+
+expptr mcread_quote(){
+  if(!quotecharp(pps[pprest]))return NULL;
+  char q = pps[pprest]; //remember the quote character
+  char * result = &stackheap[stackheap_freeptr];
+  movechar();
+  int quoted = 0;
+  while(1){
+    char next = pps[pprest];
+    if(next == '\0' || next == '\n'){//returns in strings not allowed
+      berror("unterminated string constant");
+      }
+    movechar();
+    if(next == q && quoted == 0)break;
+    if(next == '\\' && !quoted) quoted = 1; else quoted = 0;}
+  addchar('\0');
+  expptr e = string_atom(result);
+  remove_white();
+  return e;
+  }
+
+expptr mcread_dollar(){
+  if(pps[pprest] != '$')return NULL;
+  pprest++; remove_white(); return dollar;}
+
+expptr mcread_backslash(){
+  if(pps[pprest] != '\\')return NULL;
+  pprest++; remove_white(); return backslash;}
+
+expptr mcread_backquote(){
+  if(pps[pprest] != '`')return NULL;
+  pprest++; remove_white(); return backquote;}
+
+//subsec phrases
+expptr mkspace(expptr left, expptr right){
+  return mk_connection(space,left,right);}
+
+expptr mcread_open_sequence(){
+  expptr first = mcread_open();
+  if(!first)return NULL;
+  expptr rest = mcread_open_sequence();
+  if(!rest)return first;
+  return mkspace(first,rest);
+  }
+
+
+expptr mcread_alpha_phrase(){
+  expptr s = mcread_alpha();
+  if(!s)return NULL;
+  expptr seq = mcread_open_sequence();
+  if(seq)return mkspace(s,seq);
+  return s;
+  }
+
+expptr mcread_alpha_or_open(){
+  expptr s = mcread_alpha();
+  if(s) return s;
+  return mcread_open();
+  }
+
+expptr mcread_backquote_phrase(){
+  expptr b = mcread_backquote();
+  if(!b)return NULL;
+  expptr arg = mcread_alpha_or_open();
+  if(arg)return mkspace(b,arg);
+  return b;
+  }
+
+expptr mcread_dollar_seq(){//it is important to "hide" dollar under backslash
+  expptr s = mcread_dollar();
+  if(s) return s;
+  expptr first = mcread_backslash();
+  if(!first)return NULL;
+  expptr rest = mcread_dollar_seq();
+  if(!rest)return first;
+  return mkspace(first,rest);
+  }
+
+expptr mcread_dollar_phrase(){//backslashes must hide the dollar from backquote
+  expptr s = mcread_dollar_seq();
+  if(!s)return NULL;
+  expptr arg = mcread_alpha_or_open();
+  if(arg)return mkspace(s,arg);
+  return s;
+  }
+
+
+/** ========================================================================
+exp_string: this does not pretty print,
+======================================================================== **/
+char lastchar;  //used to insert a space between symbols or connectives
+
+void paddchar(char c){
+  if(stackheap_freeptr == STACKHEAP_DIM)berror("stack heap exhausted");
+  stackheap[stackheap_freeptr++] = c;
+  lastchar = c;
+  }
+
+void putexp(expptr);
 
 char * exp_string(expptr e){
   char * s = &(stackheap[stackheap_freeptr]);
-  print_lastchar = '\0';
+  lastchar = '\0';
   putexp(e);
-  putone('\0');
+  paddchar('\0');
   return s;
-}
-
-void putone(char c){
-  if(stackheap_freeptr == STACKHEAP_DIM)berror("stack heap exhausted");
-  stackheap[stackheap_freeptr++] = c;
-  print_lastchar=c;
 }
 
 void putstring(char * s){
   for(int i = 0;s[i] != '\0';i++){
-    putone(s[i]);}
+    paddchar(s[i]);}
 }
 
 void putexp(expptr w){
+  if(!w)return;
   if(atomp(w)){
     char * s = atom_string(w);
-    if((connp(s[0]) && connp(print_lastchar)) || (alphap(s[0]) && alphap(print_lastchar))) putone(' ');
+    if((connp(s[0]) && connp(lastchar)) ||
+       (alphap(s[0]) && alphap(lastchar))){
+      paddchar(' ');}
     putstring(s);}
-  else if(parenp(w)){char c = constructor(w); putone(c); putexp(paren_inside(w));putone(close_for(c));}
-  else if(cellp(w)){putexp(car(w)); putexp(cdr(w));}
-}
-     
+  else if(parenp(w)){
+    char c = constructor(w); paddchar(c);
+    putexp(paren_inside(w));paddchar(close_for(c));}
+  else if(connectionp(w)){
+    putexp(leftarg(w));
+    if(!white_connectorp(connector(w)))putexp(connector(w));
+    putexp(rightarg(w));}
+  else berror("illegal expptr");
+  }
+
+expptr reparse(expptr e){
+  push_memory_frame();
+  expptr e2 = mcread(exp_string(e));
+  pop_memory_frame();
+  return e2;
+  }
+
 /** ========================================================================
-pprint
+exp_pps this is like exp_string but inserts pretty printing white space.
 ======================================================================== **/
 
-FILE * pprint_stream;
-int pprint_paren_level;
-int pprint_indent_level;
+int paren_level;
 
-#define PPRINT_DEPTH_LIMIT 1000
+#define TEXT_WIDTH 50
 
-char pprint_newlinep[PPRINT_DEPTH_LIMIT];
+void putexp_pretty();
 
-#define PAREN_LENGTH_LIMIT 60
+char * exp_pps(expptr e){
+  char * s = &(stackheap[stackheap_freeptr]);
+  lastchar = '\0';
+  paren_level = 0;
+  putexp_pretty(e);
+  paddchar('\n');
+  paddchar('\0');
+  return s;
+  }
+	
+void add_newline(){
+  paddchar('\n');
+  for(int i = 0;i< paren_level;i++){paddchar(' ');paddchar(' ');}
+  }
 
-expptr semi;
-expptr comma;
-
-void writeone(char c){fputc(c,pprint_stream); print_lastchar = c;}
-
-void writestring(char * s){
-  for(int i = 0;s[i] != '\0';i++){
-    writeone(s[i]);}
-}
-
-void writeexp(expptr w){
-  if(atomp(w)){
-    char * s = atom_string(w);
-    if((connp(s[0]) && connp(print_lastchar)) || (alphap(s[0]) && alphap(print_lastchar))) writeone(' ');
-    writestring(s);}
-  else if(parenp(w)){char c = constructor(w); writeone(c); writeexp(paren_inside(w));writeone(close_for(c));}
-  else if(cellp(w)){writeexp(car(w)); writeexp(cdr(w));}
-}
-
-void maybe_newline(){
-  if(pprint_newlinep[pprint_paren_level]){
-    fprintf(pprint_stream, "\n");
-    for(int i=0;i< pprint_indent_level + pprint_paren_level; i++)fprintf(pprint_stream, "  ");}
-}
-
-int exp_length(expptr e){
+int expression_length(expptr e){
+  if(!e)return 0;
   if(atomp(e))return strlen(atom_string(e));
-  if(cellp(e))return exp_length(car(e)) + exp_length(cdr(e));
-  if(parenp(e))return 2+exp_length(paren_inside(e));
-  return 0;
-}
+  if(parenp(e))return expression_length(paren_inside(e));
+  return expression_length(car(e)) + expression_length(cdr(e));
+  }
 
-void pprint_exp(expptr w){
-  //pprinting formatting is determined by the represented string independent of tree structure.
-  //formatting is determined by the placement opf parantheses, semicolons and commas.
-  if(atomp(w)){
-    char * s = atom_string(w);
-    if((connp(s[0]) && connp(print_lastchar)) || (alphap(s[0]) && alphap(print_lastchar))) writeone(' ');
-    writestring(s);
-    if(w == semi || w == comma)maybe_newline();}
-  else if(parenp(w)){
-    if(pprint_paren_level == PPRINT_DEPTH_LIMIT-1)berror("pprint depth limit exceeded");
-    pprint_paren_level++;
-    pprint_newlinep[pprint_paren_level] = (exp_length(w) > PAREN_LENGTH_LIMIT);
-    maybe_newline();
-    char c = constructor(w);
-    writeone(c);
-    pprint_exp(paren_inside(w));
-    writeone(close_for(c));
-    pprint_paren_level--;
-    if(c == '{')maybe_newline();}
-  else if(cellp(w)){pprint_exp(car(w)); pprint_exp(cdr(w));}
-}
+void breaklines(expptr e){ //line breaks occur only at parens, semi and comma
+  if(!e)return;
+  if(atomp(e)){putexp(e); return;}
+  
+  if(parenp(e)){
+    if(expression_length(e)<TEXT_WIDTH){putexp(e);return;}
+    paddchar(constructor(e));
+    paren_level++;
+    add_newline();
+    putexp_pretty(paren_inside(e));
+    add_newline();
+    paddchar(close_for(constructor(e)));
+    paren_level--; return;}
+  
+  if(connectionp(e) && (connector(e) == semi || connector(e) == comma)){
+    putexp_pretty(leftarg(e));
+    paddchar(atom_string(connector(e))[0]);
+    if(rightarg(e)){
+	 add_newline();
+	 breaklines(rightarg(e));}
+    return;}
+  
+  putexp_pretty(leftarg(e));
+  expptr con = connector(e);
+  if(con != space)putexp(connector(e));
+  putexp_pretty(rightarg(e));
+  }
 
-void pprint(expptr w, FILE * f, int indent_level){
-  pprint_stream = f;
-  pprint_paren_level=0;
-  print_lastchar = '\0';
-  pprint_indent_level = indent_level;
-  pprint_newlinep[0] = (exp_length(w) + 2) > PAREN_LENGTH_LIMIT;
-  pprint_exp(w);
-  fprintf(f,"\n");
-}
-
-void pp(expptr e){
-  pprint(e,stdout,rep_column);}
-
-void mcpprint(expptr e){
-  if(in_ide_proc()){pprint(e,stdout,0); send_print_tag();}
-  else pprint(e,stdout,0);
-}
-
-/** ========================================================================
-section: backquote
-
-dollar variables (metavariables) should be viewed as "reverse deBruijn numbers" where
-number one (a naked dollar) refers to the OUTERMOST backquote and each backslash moves in one backquote.
-An expression is closed if every dollar is bound by some enclosing backquote.
-With reverse numbering, when a closed expression e is substituted into a context C[.] with an encolsing backquote
-the indeces in e should be incretmented.
-
-Macros generally place bodies in contexts with bound variables (inside lambda bindings).
-In such situations gensym is used to avoid capture.
-But I have never encountered a macro that places a body inside a backquote.
-========================================================================**/
-
-
-expptr app_code(char * proc, expptr arg_code){
-  return cons(string_atom(proc), intern_paren('(',arg_code));}
-
-expptr app_code2(char * proc, expptr arg1_code, expptr arg2_code){
-  return cons(string_atom(proc), intern_paren('(',cons(arg1_code, cons(comma, arg2_code))));
-}
-
-#define EPHEMERAL_DIM (1<<8)
-char ephemeral_buffer[EPHEMERAL_DIM];
-int ephemeral_freeptr;
-
-void ephemeral_putc(char c){
-  if(ephemeral_freeptr == EPHEMERAL_DIM)berror("ephemeral buffer exhausted");
-  ephemeral_buffer[ephemeral_freeptr++]=c;
-}
-
-expptr atom_quote_code(expptr a){
-  if(a == backslash){
-    return app_code("string_atom",string_atom("\"\\\\\""));}
-  char  * s = atom_string(a);
-  ephemeral_freeptr = 0;
-  ephemeral_putc('"');
-  if(string_quotep(s[0])) ephemeral_putc('\\');
-  for(int i = 0; s[i] != '\0'; i++)ephemeral_putc(s[i]);
-  if(string_quotep(s[0])){
-    ephemeral_buffer[ephemeral_freeptr-1] = '\\';
-    ephemeral_putc(s[0]);}
-  ephemeral_putc('"');
-  ephemeral_putc('\0');
-  return app_code("string_atom",string_atom(ephemeral_buffer));
-}
-
-expptr constructor_code(char c){
-  sprintf(ephemeral_buffer,"'%c'",c);
-  return string_atom(ephemeral_buffer);
-}
-
-expptr quote_code(expptr e){
-  //this is used mcB for quotting patterns containing dollar.
-  if(atomp(e))return atom_quote_code(e);
-  if(parenp(e))return app_code2("intern_paren",constructor_code(constructor(e)),quote_code(paren_inside(e)));
-  return app_code2("cons",quote_code(car(e)),quote_code(cdr(e)));
-}
-
-expptr bquote_code(expptr e){
-  if(atomp(e))return atom_quote_code(e);
-  if(parenp(e))return app_code2("intern_paren",constructor_code(constructor(e)),bquote_code(paren_inside(e)));
-  if(specialp(constructor(cdr(e))))berror("illegal use of special character in backquote");
-  if(car(e) == dollar){
-    if(parenp(cdr(e))){return paren_inside(cdr(e));}
-    if(symbolp(cdr(e)))return cdr(e);
-    berror("illegal use of dollar sign in backquote");}
-  if(car(e) == backslash){
-    if(parenp(cdr(e)))return quote_code(paren_inside(cdr(e)));
-    return quote_code(cdr(e));}
-  return app_code2("cons",bquote_code(car(e)),bquote_code(cdr(e)));
-}
-
-expptr bquote_macro(expptr e){ //this is the non-recursive entry point (the macro procedure) for backquote
-  if(parenp(cdr(e)))return bquote_code(paren_inside(cdr(e)));
-  if(symbolp(cdr(e)))return atom_quote_code(cdr(e));
-  berror("illegal backquote syntax");
-  return NULL;
-}
+void putexp_pretty(expptr w){
+  if(!w)return;
+  if(expression_length(w) <= TEXT_WIDTH) putexp(w);
+  else breaklines(w);
+  }
 
 /** ========================================================================
 section: macroexpand
@@ -792,55 +1090,189 @@ section: macroexpand
 
 void set_macro(expptr sym, expptr f(expptr)){
   setprop(sym, macro, (expptr) f);
-}
+  }
 
- expptr top_atom(expptr e){
-  if(!cellp(e))return NULL;
-  expptr ae = car(e);
-  if(atomp(ae))return ae;
+expptr head_symbol (expptr e){
+  if(!connofp(e,space))return NULL;
+  expptr h = leftarg(e);
+  if(atomp(h))return h;
   return NULL;
-}
-
+  }
+  
 expptr macroexpand1(expptr e){
-  if(!cellp(e))return e;
-  expptr s = car(e);
-  if(!atomp(s))return e;
-  expptr s2;
-  for(s2=cdr(e);cellp(s2);s2=cdr(s2)){
-    expptr s3 = car(s2);
-    if(!(symbolp(s3) || parenp(s3)))return e;}
-  if(!(symbolp(s2) || parenp(s2)))return e;
+  expptr head = head_symbol(e);
+  if(!head)return e;
   expptr (*f)(expptr);
-  f = (expptr (*)(expptr)) getprop(s,macro,NULL);
-  if(f == NULL){return e;}
-  return f(e);
-}
+  f = (expptr (*)(expptr)) getprop(head,macro,NULL);
+  if(f)return f(e);
+  return e;
+  }
+
+expptr macroexpand2(expptr e){
+  expptr e2 = macroexpand1(e);
+  if(e2 != e)return macroexpand2(e2);
+  if(parenp(e)) return intern_paren(constructor(e),macroexpand2(paren_inside(e)));
+  if(connectionp(e)) return mk_connection(connector(e),
+					  macroexpand2(leftarg(e)),
+					  macroexpand2(rightarg(e)));
+  return e;
+  }
 
 expptr macroexpand(expptr e){
-  if(atomp(e)) return e;
-  expptr e2 = macroexpand1(e);
-  if(e2 != e) return macroexpand(e2);
-  if(parenp(e)) return intern_paren(constructor(e),macroexpand(paren_inside(e)));
-  return intern_exp(constructor(e),macroexpand(car(e)),macroexpand(cdr(e)));
-}
+  expptr e2 = macroexpand2(e);
+  if(e2 != e)return reparse(e2);
+  return e2;
+  }
   
+
+/** ========================================================================
+section: backquote
+========================================================================**/
+expptr bqcode(expptr e);
+
+expptr bquote_macro(expptr e){ //e is a space connection applying backquote
+  expptr arg = rightarg(e);
+  if(atomp(arg))return bqcode(arg);
+  if(parenp(arg))return bqcode(paren_inside(arg));
+  berror("backquote applied to connective (not allowed)");
+  }
+
+expptr quote_quote(expptr);
+expptr quote_symbol(expptr);
+expptr quote_paren(expptr);
+expptr dollar_code(expptr);
+expptr quote_connection(expptr);
+expptr paren_code(expptr,expptr);
+expptr connection_code(expptr,expptr,expptr);
+expptr quote_char(char);
+
+int quotep(expptr e){
+  return e && e->constructor == 'A' && quotecharp(atom_string(e)[0]);
+  }
+
+
+expptr bqcode(expptr e){
+  if(!e) return string_atom("NULL");
+  if(quotep(e))return quote_quote(e);
+  if(atomp(e)) return quote_symbol(e);
+  if(parenp(e))return quote_paren(e);
+  expptr dcode = dollar_code(e);
+  if(dcode)return dcode;
+  return quote_connection(e);
+  }
+
+expptr bqcode_ignore_dollar(expptr e){
+  if(!e) return string_atom("NULL");
+  if(quotep(e))return quote_quote(e);
+  if(atomp(e)) return quote_symbol(e);
+  if(parenp(e)){
+    return paren_code(quote_char(open_char(e)),
+		      bqcode_ignore_dollar(paren_inside(e)));}
+  return connection_code(quote_symbol(connector(e)),
+			 bqcode_ignore_dollar(leftarg(e)),
+			 bqcode_ignore_dollar(rightarg(e)));
+  }
+
+//atoms
+
+expptr atom_code(expptr string_code){
+  return mkspace(string_atom("string_atom"),
+		intern_paren('(',string_code));}
+
+expptr quote_symbol(expptr a){
+  if(a == backslash)return atom_code(string_atom("\"\\\\\""));
+  sprintf(ephemeral_buffer,"\"%s\"",atom_string(a));
+  return atom_code(string_atom(ephemeral_buffer));
+  }
+
+expptr quote_quote(expptr a){
+  char* s_in = atom_string(a);
+  char* s_out = &stackheap[stackheap_freeptr];
+  addchar('\"');addchar('\\');addchar('\"');
+  for(int i = 1;s_in[i];i++){
+    if(!s_in[i+1]){addchar('\\'); addchar('\"');}
+    else if(quotecharp(s_in[i])){
+      addchar('\\');addchar('\\');addchar(s_in[i]);}
+    else addchar(s_in[i]);}
+  addchar('\"'); addchar('\0');
+  return atom_code(string_atom(s_out));
+  }
+
+//connections
+expptr connection_code(expptr connector_code, expptr left_code, expptr right_code){
+  return mkspace(string_atom("mk_connection"),
+		intern_paren('(',
+			       mk_connection(comma,
+					     connector_code,
+					     mk_connection(comma,
+							   left_code,
+							   right_code))));}
+
+expptr mkspace_code(expptr leftcode, expptr rightcode){
+  return mkspace(string_atom("mkspace"),
+	       intern_paren('(',mk_connection(comma,leftcode,rightcode)));}
+	       
+
+expptr quote_connection(expptr e){
+  if(connector(e) == space)return mkspace_code(bqcode(leftarg(e)),
+					       bqcode(rightarg(e)));
+  return connection_code(quote_symbol(connector(e)),
+			 bqcode(leftarg(e)),
+			 bqcode(rightarg(e)));
+  }
+
+//parens
+expptr paren_code(expptr char_code, expptr inside_code){
+  return mkspace(string_atom("intern_paren"),
+	       intern_paren('(',
+			      mk_connection(comma,
+					    char_code,
+					    inside_code)));}
+
+expptr quote_char(char c){
+  sprintf(ephemeral_buffer,"\'%c\'",c);
+  return string_atom(ephemeral_buffer);
+  }
+
+expptr quote_paren(expptr e){
+  return paren_code(quote_char(open_char(e)),bqcode(paren_inside(e)));
+  }
+
+//dollar
+
+expptr dollar_code(expptr e){
+  if(!connectionp(e) || connector(e) != space)return NULL;
+  expptr opseq = leftarg(e);
+  expptr arg = rightarg(e);
+  if(opseq == dollar){
+    if(!arg)berror("parser bug: impossible dollar expression");
+    if(atomp(arg))return arg;
+    if(parenp(arg))return paren_inside(arg);
+    berror("parser bug: impossible dollar expression");}
+  if(!connectionp(opseq) || connector(opseq) != space || leftarg(opseq) != backslash){
+    return NULL;}
+  return mkspace_code(bqcode(rightarg(opseq)),bqcode(arg));
+  }
 
 /** ========================================================================
 Preamble and init_forms can be added during macro expansion
 ======================================================================== **/
 
 void add_init_form(expptr form){
-  expptr form2 = macroexpand(form); //this can recursively add init_forms prior to the following.
-  init_forms = append(init_forms,cons(intern_paren('{',form2),nil));
+  //init forms are fullymacro expanded but in reverse order
+  expptr form2 = macroexpand(form); //can recursively add preambles and init_forms
+  init_forms = expcons(form2,init_forms);
 }
 
 void add_preamble(expptr e){
-  expptr e2 = macroexpand(e); //this macro expansion can add to the preamble first.
-  preamble = append(preamble, cons(e2,nil));}
+  //preambles are fullymacro expanded but in reverse order
+  expptr e2 = macroexpand(e); //this can recursively add preambles and init forms
+  preamble = expcons(e2,preamble);
+  }
 
 //in the NIDE there is no difference between init_forms and preamles so we use the following
 
-void add_form(expptr e){add_preamble(e);}
+void add_form(expptr e){add_preamble(e);} //used in the NIDE
 
 /** ========================================================================
 section: gensym
@@ -866,411 +1298,92 @@ int gensym_index[STRING_DIM] ={0};
 
 
 int symbol_index(expptr sym){
-  return (int) (long int) sym->arg1;
+  return (int) (long int)sym->arg1;
   }
 
 expptr gensym(expptr sym){
   while(1){
     int i = gensym_index[symbol_index(sym)]++;
-    int length = snprintf(ephemeral_buffer,EPHEMERAL_DIM,"%s__%d",atom_string(sym),i);
+    int length = snprintf(ephemeral_buffer,
+			  EPHEMERAL_DIM,
+			  "%s__%d",atom_string(sym),
+			  i);
     if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
     int key = string_key(ephemeral_buffer);
     if(string_hash_table[key]==NULL)break;}
   return string_atom(ephemeral_buffer);
-}
-
-/** ========================================================================
-read_from_ide and file_expressions.  File expressions must recognize cell boundaries
-
-file_expressions can be called from the ide so we need in_file_exps as an additional
-state variable to in_ide.
-
-file_expressions is also called in file exansion used in the makefile.
-In the expansions of the makefile any call to berror is process fatal
-because the throw called by berror has no catch.
-========================================================================**/
-
-int in_file_exps; //this turns on recognition of cell boundaries when reading a file.
-int from_ide;
-
-char readchar;
-int next;
-int paren_level; // this is the paren_level immediately after readchar.
-
-expptr mcread();;
-
-void init_readvars(){
-  in_file_exps = 0;
-  from_ide = 0;
-  paren_level = 0;
-  readchar = ' ';
-  next = ' ';
-}
-
-
-/** ========================================================================
-some procedures written for debugging file_expressions failure from the NIDE
-========================================================================**/
-
-FILE * read_stream;
-
-FILE* read_stream_proc(){return read_stream;}
-  
-expptr read_from_ide(){
-  init_readvars();
-  from_ide = 1;
-  read_stream = stdin;
-  expptr e = mcread();
-  return e;
-  }
-
-void open_read_stream(char* fname){
-  init_readvars();
-  in_file_exps = 1;
-  read_stream = fopen(fname, "r");
-  
-  if(read_stream == NULL){
-    fprintf(stdout,"attempt to open %s failed",fname);
-    berror("");}
-  }
-
-expptr file_expressions2(){
-  if(next == EOF)return nil;
-  if(closep(readchar))berror("file contains unmatched close\n");
-  expptr e = mcread();
-  if(e == nil)return file_expressions2();
-  return cons(e, file_expressions2());
-}
-
-expptr file_expressions(char * fname){
-  open_read_stream(fname);
-  expptr exps;
-  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
-	     exps = file_expressions2();
-	     fclose(read_stream);
-	     },{
-	     fclose(read_stream);
-	     throw_NIDE();});
-  return exps;
   }
 
 /** ========================================================================
-reader utilities
-========================================================================**/
-
-void reader_error(){
-  if(in_file_exps)throw_NIDE();
-  if(from_ide){
-    while(next != 0)next = fgetc(read_stream);
-    fgetc(read_stream);
-    send_emacs_tag(reader_error_tag);
-    throw_NIDE();}
-}
-
-int level_adjustment(char c){
-  if(openp(c))return 1;
-  if(closep(c))return -1;
-  return 0;
-  }
-
-void simple_advance(){
-  if(next == EOF){readchar = 0; return;}
-  readchar = next;
-  if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
-  if((next > 0 && next < 32 && next != 10 && next != 9) ){
-    fprintf(stdout,"illegal input character %d\n",next);
-    reader_error();
-    }
-  paren_level += level_adjustment(readchar);
-  }
-
-/** ========================================================================
-
-void simple_advance(){
-  if(next == EOF){readchar = 0; return;}
-  readchar = next;
-  next = fgetc(read_stream);
-  if(!(next == EOF || next == '\0'))next = fgetc(read_stream);
-  if(next < EOF || (next > 0 && next < 32 && next != 10 && next != 9) ){
-    fprintf(stdout,"illegal input character %d\n",next);
-    reader_error();
-  }
-  paren_level += level_adjustment(readchar);
-}
-
-
-========================================================================**/
-
-
-/** ========================================================================
-mcexpand
+mcexpand preamble elements and init_forms elements are fully macroexpanded
 ======================================================================== **/
 
 FILE * fileout;
-void process_def(expptr e);
+void write_preamble(explist pre);
 
 void mcexpand(char * source, char * destination){
-  preamble = nil;
-  init_forms = nil;
-  expptr exps = file_expressions(source);
+  init_forms = NULL;
   fileout = fopen(destination, "w");
   if(fileout == NULL)berror("attempt to open output file failed");
-  while(cellp(exps)){process_def(car(exps)); exps = cdr(exps);}
+  for(explist exps = file_expressions(source);exps;exps=exps->rest){
+    preamble = NULL;
+    expptr e2=macroexpand(exps->first);
+    write_preamble(preamble);
+    fprintf(fileout,"%s\n\n",exp_pps(e2));}
   fclose(fileout);
-}
+  }
+void write_preamble(explist defs){
+  //preamble elements are fully macro expanded but in reverse order.
+  if(defs){
+    write_preamble(defs->rest);
+    fprintf(fileout,"%s\n\n",exp_pps(defs->first));}
+  }
 
-void process_def(expptr e){
-  if(e==nil)return;
-  preamble = nil;
-  expptr e2 = macroexpand(e);
-  if(preamble != nil){
-    pprint(preamble,fileout,0);
-    fputc('\n',fileout);}
-  pprint(e2,fileout,0);
-}
-
-/** ========================================================================
-advance_readchar
-========================================================================**/
-
-void advance_readchar(){
-  simple_advance();
-
-  //readchar modifications
-  if(readchar == '/' && next == '*'){
-    //replace comment with white space
-    while(!(readchar == '*' && next == '/')){if(endp(readchar))return; simple_advance();}
-    simple_advance();
-    readchar = ' ';}
-
-  else if(readchar == '/' && next == '/'){
-    //replace comment with white space
-    while(readchar != '\n' && !endp(readchar))simple_advance();}
-
-  else if(readchar == '\\' && next == '\n'){
-    //advance past quoted return --- needed for parsing #define from a file.
-    simple_advance(); advance_readchar();}
-
-  else if(in_file_exps && readchar == '\n' && !whitep(next) && !closep(next)){
-    //file segmentation
-    readchar = '\0';}
-}
-
-void skipwhite(){
-  while(whitep(readchar))advance_readchar();
-}
-
-void advance_past_white(){
-  advance_readchar();
-  skipwhite();
-}
+void pprint(expptr e, FILE* f){
+  fprintf(f,"%s\n\n",exp_pps(e));
+  }
 
 /** ========================================================================
-The lexer --- Symbols, Connectives and Strings
-
-mcread_symbol and mcread_connective are white-space sensitive and use
-advance_readchar rather than advance_past_white.
-
-mcread_quote must avoid readchar modifications of advance_readchar
-and uses simple_advance directly.
-
-All three of these procedures advance past white before returning.
-
-All other reader procedures use only advance_past_white.
+basic list procedures (dolist is defined as a macro in mc.D)
 ======================================================================== **/
-
-expptr mcread_symbol(){
-  if(!alphap(readchar))return NULL;
-  ephemeral_freeptr = 0;
-  while(alphap(readchar)){ephemeral_putc(readchar); advance_readchar();}
-  ephemeral_putc('\0');
-  expptr e = string_atom(ephemeral_buffer);
-  skipwhite();
-  return e;
+expptr append(expptr l1, expptr l2){
+  if(cellp(l1))return cons(car(l1), append(cdr(l1),l2));
+  else return l2;
 }
 
-expptr mcread_connective(){
-  if(!connp(readchar))return NULL;
-  ephemeral_freeptr = 0;
-  while(connp(readchar)){ephemeral_putc(readchar); advance_readchar();}
-  ephemeral_putc('\0');
-  expptr e = string_atom(ephemeral_buffer);
-  skipwhite();
-  return e;
+int member(expptr x, expptr l){
+  if(!cellp(l))return 0;
+  if(x == car(l))return 1;
+  return member(x,cdr(l));
 }
 
-expptr mcread_quote(){
-  if(!string_quotep(readchar))return NULL;
-  //we must prevent an unterminated string from swalling all further input.
-  //we solve this by not allowing return characters in strings.
-  char q = readchar; //remember the quote character
-  ephemeral_freeptr = 0;
-  ephemeral_putc(q);
-  simple_advance();
-  int quoted = 0;
-  while(1){
-    if(readchar == EOF || readchar == '\0' || readchar == '\n'){
-      fprintf(stdout,"unterminated string constant");
-      reader_error();
-    }
-    ephemeral_putc(readchar);
-    if(readchar == q && quoted == 0)break;
-    if(readchar == '\\' && !quoted) quoted = 1; else quoted = 0;
-    simple_advance();}
-  ephemeral_putc('\0');
-  expptr e = string_atom(ephemeral_buffer);
-  advance_past_white();
-  return e;
+expptr reverse(expptr l){
+  expptr result = NULL;
+  while(cellp(l)){
+    result = cons(car(l), result);
+    l = cdr(l);}
+  return result;
 }
 
-expptr mcread_special(){
-  if(!specialp(readchar))return NULL;
-  ephemeral_freeptr = 0;
-  ephemeral_putc(readchar);
-  ephemeral_putc('\0');
-  expptr e = string_atom(ephemeral_buffer);
-  advance_past_white();
-  return e;
-}
-
-
-/** ========================================================================
-  The reader
-========================================================================**/
-// parens
-
-void declare_unmatched(char, expptr, char);
-
-expptr mcread_Ep(int);
-
-expptr mcread_open(){
-  if(!openp(readchar))return NULL;
-  char c = readchar;
-  char cl = close_for(c);
-  advance_past_white();
-  expptr e = mcread_Ep(0);
-  if(readchar != cl)declare_unmatched(c,e,readchar);
-  advance_past_white();
-  return intern_paren(c,e ? e : nil);
-}
-
-void declare_unmatched(char openchar, expptr e, char closechar){
-  fprintf(stdout,"unmatched parentheses %c%c\n",openchar, closechar);
-  pprint(e,stdout,rep_column);
-  reader_error();
-}
-
-// mcread_Einf
-
-expptr pcons(expptr x, expptr y){return x? (y? cons(x,y) : x) : y;}
-
-expptr mcread_B(){
-  if(readchar == '$')return mcread_special();
-  if(readchar == '\\'){
-    expptr s = mcread_special();
-    return pcons(s,mcread_B());}
-  return NULL;}
-
-expptr mcread_A(){
-  expptr s = mcread_open();
-  if(s)return s;
-  s = mcread_quote();
-  if(s)return s;
-  s = mcread_symbol();
-  if(s)return s;
-  if(readchar == '$' || readchar == '`'){
-    s = mcread_special();
-    return pcons(s, mcread_A());}
-  if(readchar == '\\'){
-    s = mcread_B();
-    return pcons(s,mcread_A());}
+expptr mapcar(expptr f(expptr), expptr l){
+  if(cellp(l))return cons(f(car(l)),mapcar(f,cdr(l)));
   return NULL;
 }
 
-expptr mcread_Einf(){
-  expptr s = mcread_A();
-  if(s)return pcons(s,mcread_Einf());
-  return NULL;
+void mapc(void f(expptr), expptr l){
+  while (cellp(l)){f(car(l)); l = cdr(l);}
 }
 
-// mcread
-
-int precedence(char c){
-  if(terminatorp(c))return 0;
-  if(c==';')return 1;
-  if(c==',')return 2;
-  if(c == ':')return 3;
-  if(c=='@')return 4;
-  if(c=='|')return 5;
-  if(c=='&')return 6;
-  if(c=='!')return 7;
-  if(c=='?')return 8;
-  if(c=='=' || c=='<' || c=='>' || c =='~') return 9;
-  if(c=='+' || c=='-')return 10;
-  if(c=='*' || c=='/')return 11;
-  if(c == '%' || c == '^' )return 12;
-  if(c=='.' || c == '#')return 13;
-  berror("undefined precedence");
-  return 14; //prevents compiler warning
-  }
-
-
-#define LEFT_THRESHOLD 12
-
-expptr mcread_Ep(int p_left){
-  //The stack (held on the C stack) ends in a consumer (open paren or connective) with precedence p_left
-  //This returns a (possibly phantom) general expression (category E) to be consumed by the stack.
-  expptr arg = mcread_Einf();
-  if(!arg)arg = nil;
-  //readchar must now be a connective or a terminator.
-  int p_right = precedence(readchar);
-  while(!terminatorp(readchar)
-	&& (p_left < p_right
-	    || (p_left == p_right
-		&& p_left < LEFT_THRESHOLD))){
-    expptr op = mcread_connective();
-    // op must be non-null
-    arg = pcons(pcons(arg,op),mcread_Ep(p_right));
-    p_right = precedence(readchar);}
-  return arg;
+int length(expptr l){
+  if(cellp(l))return length(cdr(l)) + 1;
+  else return 0;
 }
-
-expptr mcread(){//this is called from top level read functions only
-  advance_past_white();
-  expptr arg = mcread_Ep(0);
-  if(closep(readchar))declare_unmatched('-',arg,readchar);
-  return arg ? arg : nil;
-}
-
-/** ========================================================================
-breakpt, berror
-========================================================================**/
-
-void send_result(char * result){
-  if(!in_ide)berror("send_result undefined outside of NIDE");
-  fprintf(stdout,"%s",result);
-  send_emacs_tag(result_tag);}
-
-void send_print_tag(){send_emacs_tag(print_tag);}
-
-int in_ide_proc(){return in_ide;}
-
-void breakpt(char *s){
-  if(in_ide){
-    fprintf(stdout,"breakpt: %s\n",s);
-    send_emacs_tag(breakpoint_tag);
-    cbreak();
-    send_emacs_tag(continue_from_gdb_tag);
-  }
-}
-
 
 /** ========================================================================
 section: initialization
 ========================================================================**/
 
 void init_source(){
-  in_expand = 0;
   in_ide = 0;
   in_doit = 0;
 }
@@ -1287,34 +1400,42 @@ void init_tags(){
   continue_from_gdb_tag = "*#*#dsflsadk#*#*continue-from-gdb*#*#dsflsadk#*#*";
   print_tag = "*#*#dsflsadk#*#*print*#*#dsflsadk#*#*";
   mc_ready_tag = "*#*#dsflsadk#*#*mc-ready*#*#dsflsadk#*#*";
-}
+  }
 
 void init_exp_constants(){
-  period = string_atom(".");
+  //connectives
   comma = string_atom(",");
   colon = string_atom(":");
   semi = string_atom(";");
-  backquote = string_atom("`");
-  dollar = string_atom("$");
-  backslash = string_atom("\\");
   exclam = string_atom("!");
   question = string_atom("?");
-  any = cons(dollar,string_atom("any"));
   dot = string_atom(".");
-
-  nil = string_atom("");
+  space = string_atom(" ");
+  
+  //specials
+  backslash = string_atom("\\");
+  dollar = string_atom("$");
+  backquote = string_atom("`");
+  
   macro = string_atom("macro");
-}
+  nil = string_atom("");
+
+  //openchars
+  leftbrace = '{';
+  leftparen = '(';
+  leftbracket = '[';
+  }
 
 void mcA_init(){
-
+  
   catch_freeptr[0] = 0;
   init_undo_memory();
   init_stack_memory();
   init_exp_constants();
   init_source();
   init_tags();
-  
   set_macro(backquote, bquote_macro);
+  
+  MetaC_directory = "/home/david/MC/";
+  }
 
-  MetaC_directory = "/home/david/MC/";}

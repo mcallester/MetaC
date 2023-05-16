@@ -1,68 +1,5 @@
 #include "mc.h"
 
-
-/** ========================================================================
-Stack discipline for stack memory and undo frames.
-========================================================================**/
-
-umacro{in_memory_frame{$body}}{
-  return
-  `{unwind_protect{
-      push_memory_frame();
-      $body;
-      pop_memory_frame();
-      }{
-      {pop_memory_frame();}}};
-  }
-
-umacro{in_undo_frame{$body}}{
-  return
-  `{unwind_protect{
-      push_undo_frame();
-      $body;
-      pop_undo_frame();
-      }{
-      {pop_undo_frame();}}};
-  }
-
-umacro{int_from_undo_frame($exp)}{
-  expptr expvar = gensym(`expvar);
-  expptr stackexp = gensym(`stack_exp);
-  expptr result = gensym(`result);
-  return
-  `{({
-       int $result;
-       unwind_protect{
-	 push_undo_frame();
-	 expptr $result = $exp; //unsafe.
-	 pop_undo_frame();
-	 }{
-	 pop_undo_frame();}
-       $result;
-       })};
-  }
-
-umacro{exp_from_undo_frame($exp)}{
-  expptr expvar = gensym(`expvar);
-  expptr stackexp = gensym(`stack_exp);
-  expptr newexp = gensym(`new_exp);
-  return
-  `{({
-       expptr $newexp;
-       unwind_protect{
-	 push_undo_frame();
-	 expptr $expvar = $exp; //unsafe.  The rest is safe which is required for proper stack memory management.
-	 push_memory_frame();
-	 expptr $stackexp = expptr_to_stack($expvar);
-	 pop_undo_frame();
-	 $newexp = expptr_to_undo($stackexp);
-	 pop_memory_frame();
-	 }{
-	 pop_undo_frame();}
-       $newexp;
-       })};
-  }
-
 voidptr symbol_value[STRING_DIM] = {0};
 
 expptr index_symbol_table[STRING_DIM] = {NULL};
@@ -94,14 +31,14 @@ the effect is done from inside do_it.
 
 int occurs_in(expptr symbol, expptr exp){
   if(atomp(exp))return (symbol == exp);
-  ucase{exp;
+  ucase(exp){
     {$e->$any}.(symbolp(any)):{return occurs_in(symbol,e);};
     {$any}:{
       if(cellp(exp))
-	return (occurs_in(symbol,car(exp)) || occurs_in(symbol,cdr(exp)));
+      return (occurs_in(symbol,car(exp)) || occurs_in(symbol,cdr(exp)));
       else
-	return occurs_in(symbol,paren_inside(exp));}}
-}
+      return occurs_in(symbol,paren_inside(exp));};}
+  }
 
 expptr file_preamble; // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
 expptr procedures;
@@ -150,13 +87,18 @@ expptr eval_internal(expptr);
 void print_preamble(expptr);
 
 /** ========================================================================
-The REPL inserts base procedures into the symbol_value table (the linking table) by calling the macro insert_base.
-This macro is expanded by ExpandE on REPL.  Before doing any expansion, ExpandE sets the symbol indeces of the base symbols by calling install_base().
-install_base must be run again by the REPL so that indeces used by the REPL match those used
-by expandE (the indeces used at REPL load time must be syncronized with those used at REPL compile time).
-mcE_init1 establishes base procedure indeces so that all executables built on mcE have the same base procedure indeces.
+The NIDE inserts base procedures into the symbol_value table (the
+linking table) by calling the macro insert_base.  This macro is
+expanded by expandE on IDE.mc.  Before doing any expansion, expandE sets
+the symbol indeces of the base symbols by calling install_base().
+install_base must be run again by the NIDE so that indeces used by the
+NIDE match those used by expandE (the indeces used at NIDE load time
+must be syncronized with those used at NIDE compile time).  mcE_init1
+establishes base procedure indeces so that all executables built on
+mcE have the same base procedure indeces.
 
-Becasue of REPL compile and load syncronization, install_base cannot be cleanly replaced with calls to install.
+Becasue of NIDE compile and load syncronization, install_base cannot
+be cleanly replaced with calls to install.
 ======================================================================== **/
 
 void mcE_init1(){
@@ -176,28 +118,30 @@ void mcE_init1(){
   }
 
 umacro{insert_base()}{
-  expptr result = nil;
+  expptr result = `{};
   dolist(f,procedures){
-    push(`{symbol_value[${symbol_index_exp(f)}] = $f;}, result);};
+    result = `{symbol_value[${symbol_index_exp(f)}] = $f ; $result};}
   dolist(X,arrays){
-    push(`{symbol_value[${symbol_index_exp(X)}] = $X;}, result);};
+    result = `{symbol_value[${symbol_index_exp(X)}] = $X ; $result};}
   return result;
-}
+  }
 
 void install_base(){
-  dolist(sig,file_expressions(sformat("%sbase_decls.h", MetaC_directory))){
-    ucase{sig;
+  for(explist sigs = file_expressions(sformat("%sbase_decls.h", MetaC_directory));
+      sigs;sigs=sigs->rest){
+    expptr sig = sigs->first;
+    ucase(sig){
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
 	setprop(f,`{base},`{true});
 	push(f,procedures);
 	setprop(f,`{signature},sig);
-      };
+	};
       {$type $x[$dim];}.(symbolp(type) && symbolp(x)):{
 	push(x,arrays);
 	setprop(x,`{signature},sig);};
-      {$e}:{push(e,file_preamble);} //typedefs
-    }}
-}
+      {$e}:{push(e,file_preamble);};} //typedefs
+    }
+  }
 
 /** ========================================================================
 insertion is the process of filling values in the symbol_value array.
@@ -218,35 +162,35 @@ expptr new_procedure_insertion (expptr f){
 }
 
 expptr new_array_insertion (expptr x){
-  ucase{getprop(x,`{signature},nil);
+  ucase(getprop(x,`{signature},nil)){
     {$type $x[$dim];}:{return `{undo_set(symbol_value[${symbol_index_exp(x)}],
-					 undo_alloc($dim*sizeof($type)));};}};
+					 undo_alloc($dim*sizeof($type)));};};};
   return nil; //avoids compiler warning
-}
+  }
 
 expptr array_extraction (expptr x){
   if(occurs_in(x,current_forms)) return `{$x = symbol_value[${symbol_index_exp(x)}];};
   return `{};     
-}
+  }
 
 expptr strip_type(expptr arg){
-  ucase{arg;
+  ucase(arg){
     {$type1 $var($type2)}.(symbolp(var)):{return var;};
     {$type $var}.(symbolp(var)):{return var;};
-    {$any}:{berror("illegal function signature --variable names must be provided");}};
+    {$any}:{berror("illegal function signature --variable names must be provided");};};
   return NULL;
-}
+  }
 
 expptr args_variables(expptr args){
   if(args == nil)return nil;
-  ucase{args;
+  ucase(args){
     {$first, $rest}:{return `{${strip_type(first)} , ${args_variables(rest)}};};
-    {$any}:{return strip_type(args);}};
+    {$any}:{return strip_type(args);};};
   return NULL;
-}
+  }
 
 void install_link_def(expptr f){
-  ucase{getprop(f,`{signature},NULL);
+  ucase(getprop(f,`{signature},NULL)){
     {$type $f($args);}:{
       pprint(
 	     `{$type $f($args){
@@ -258,9 +202,8 @@ void install_link_def(expptr f){
 		 ${(type == `{void} ?
 		    `{(* _mc_f)(${args_variables(args)});}
 		    : `{return (* _mc_f)(${args_variables(args)});})}}},
-	     fileout,
-	     0);};
-    {$any}:{}}
+	     fileout);};
+    {$any}:{};}
   }
 
 void install_link_def_sparsely(expptr f){
@@ -274,21 +217,27 @@ void install_link_def_sparsely(expptr f){
     
     install_link_def(f);}
   }
-  
+
 /** ========================================================================
- eval_exp
+eval_exp
 ======================================================================== **/
 
+expptr explist_exp(explist l){
+  if(!l)return nil;
+  return cons(l->first, explist_exp(l->rest));
+  }
+
 expptr simple_eval(expptr exp){
-  preamble = nil;  //this is the preamble of add_premble in mcA.c
-  init_forms = nil;
+  preamble = NULL;  //this is the preamble of add_premble in mcA.c
+  init_forms = NULL;
   in_doit = 0;
   expptr e = macroexpand(exp);
-  return eval_internal(append(preamble,append(init_forms,cons(e,nil))));
-}
+  return eval_internal(append(explist_exp(preamble),
+			      append(explist_exp(init_forms),cons(e,nil))));
+  }
 
 void eval_from_load(expptr e){
-  ucase{e;
+  ucase(e){
     {restart_undo_frame($any);}:{
       fprintf(stdout,"loaded file contains an undo restart");
       if(in_ide)send_emacs_tag(comp_error_tag);
@@ -297,25 +246,25 @@ void eval_from_load(expptr e){
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
       throw_NIDE();};
-    {$any} : {simple_eval(e);}}
+    {$any} : {simple_eval(e);};}
   }
 
 expptr eval_exp(expptr exp){
-  ucase{exp;
+  ucase(exp){
     {load($sym);}.(atomp(sym)) : {
       char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
-      mapc(eval_from_load,file_expressions(require_file));
+      mapc(eval_from_load,explist_exp(file_expressions(require_file)));
       return `{${int_exp(cellcount)}: $sym provided};};
     {$any}:{
-      return simple_eval(exp);}}
-}
+      return simple_eval(exp);};}
+  }
 
 void write_signature(expptr sym){
   expptr sig =getprop(sym,`{signature},NULL);
   if(!sig)berror(sformat("MCbug: %s has no signature", atom_string(sym)));
-  ucase{sig;
-    {$type $x[$dim];}:{pprint(`{${type} * ${x};},fileout,0);};
-    {$any}:{pprint(sig,fileout,0);}}
+  ucase(sig){
+    {$type $x[$dim];}:{pprint(`{${type} * ${x};},fileout);};
+    {$any}:{pprint(sig,fileout);};}
   }
 
 void write_signature_sparsely(expptr sym){
@@ -341,7 +290,7 @@ expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
   fputc('\n',fileout);
   mapc(print_preamble,reverse(new_preambles));
   fputc('\n',fileout);
-  pprint(`{void * * symbol_value_copy;},fileout,0);
+  pprint(`{void * * symbol_value_copy;},fileout);
   fputc('\n',fileout);
   mapc(write_signature_sparsely, procedures);
   fputc('\n',fileout);
@@ -370,7 +319,7 @@ expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
 	     ${mapcar(array_extraction, new_arrays)} // procedure extractions are done by install_link_def above
 	     ${reverse(doit_statements)}
 	     return string_atom("done");}},
-	 fileout,0);
+	 fileout);
   fclose(fileout);
   
   void * header = compile_load_file(sformat("/tmp/TEMP%d",compilecount));
@@ -400,7 +349,7 @@ void preinstall(expptr statement){
   if(leftexp == `typedef)
   {if(!getprop(statement,`installed,NULL)) push(statement, new_preambles);}
   else
-    ucase{statement;
+    ucase(statement){
       {}:{};
       {#include <$any>}:{push(statement, new_preambles);};
       {return $e;}:{push(statement,doit_statements);};
@@ -411,13 +360,13 @@ void preinstall(expptr statement){
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, NULL);};
       {$e;}:{push(statement,doit_statements)};
       {{$e}}:{push(statement,doit_statements)};
-      {$any}:{push(`{return $statement;},doit_statements)}}
+      {$any}:{push(`{return $statement;},doit_statements)};}
 }
 
 void print_preamble(expptr e){
-  ucase{e;
+  ucase(e){
     {#include <$f>}:{fprintf(fileout,"#include <%s>\n", exp_string(f));};
-    {$any}:{pprint(e,fileout,rep_column);}}
+    {$any}:{pprint(e,fileout);};}
 }
 
 void check_signature(expptr sym, expptr sig){
@@ -462,13 +411,13 @@ expptr symbol_index_exp(expptr sym){
 expptr symbolcount(){return int_exp(symbol_count);}
 
 void install_proc_def(expptr f){
-  ucase{getprop(f,`{signature},NULL);
+  ucase(getprop(f,`{signature},NULL)){
     {$type $f($args);}:{
       pprint(
 	     `{$type ${getprop(f,`{gensym_name},NULL)}($args){
 		 ${getprop(f,`{body},NULL)}}},
-	     fileout, 0);};
-    {$e}:{}}
+	     fileout);};
+    {$e}:{};}
 }
 
 void comp_error(){

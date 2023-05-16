@@ -110,8 +110,6 @@ void pprint(expptr e, FILEptr f, int i);
 macros
 ========================================================================**/
 
-expptr top_atom(expptr e);
-
 void set_macro(expptr sym, expptr f(expptr));
 
 expptr macroexpand(expptr e);
@@ -172,7 +170,7 @@ misc.
 ========================================================================**/
 
 expptr file_expressions(char *name);
-expptr read_from_ide();
+expptr read_from_NIDE();
 
 void send_print_tag();
 void send_result(char* result);

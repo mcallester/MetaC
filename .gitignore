@@ -9,28 +9,33 @@
 *.toc
 *.gz
 
-expandA.c
 expandA
+testA.c
 
 mcB.c
 expandB.c
 expandB
+testB.c
 
 mcC.c
 expandC.c
 expandC
-
-mcC2.c
-expandC2.c
-expandC2
+testC.c
 
 mcD.c
 expandD.c
 expandD
+testD.c
+
+mcD2.c
+expandD2.c
+expandD2
+testD2.c
 
 mcE.c
 expandE.c
 expandE
+testE.c
 
 IDE.c
 NIDE

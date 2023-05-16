@@ -3,33 +3,20 @@
 misc MetaC extentions
 ========================================================================**/
 
-void expptr_error(expptr x, char* s){
-  berror(sformat("%s %s",exp_string(x),s));
-  }
 
-void expptr_breakpt(expptr x, char* s){
-  breakpt(sformat("%s %s", exp_string(x), s));
-  }
-
-umacro{debug{$exp}}{
-  return `{{
-      push_undo_frame();
-      unwind_protect{
-	$exp
-	pop_undo_frame();
-	}{
-	pop_undo_frame();
-	}
-      }
-    };
-  }
-/** 319:done **/
-      
 /** ========================================================================
-  LIST operations on arbitrary types
+deflists: LIST operations on arbitrary types
 ========================================================================**/
 
-// define_lists defines list types and list operations over a given c type.
+expptr combine_atoms(expptr a1, expptr a2){
+  char* s1 = atom_string(a1);
+  char* s2 = atom_string(a2);
+  return string_atom(sformat("%s_%s",s1,s2));
+  }
+
+umacro {declare_pointer($typename)}{
+  return `{typedef struct ${combine_atoms(typename, `struct)} * $typename};
+  }
 
 void add_list_forms(expptr type){
   char * cstring = atom_string(type);
@@ -118,17 +105,12 @@ void add_list_forms(expptr type){
 umacro{deflists($type)}{ //for use with non-class types
   add_list_forms(type);
   return `{{}};
-}
+  }
+
 
 deflists(expptr);
 
-expptr list_exp(expptr_list l){
-  if(!l)return `{};
-  return cons(l->first,list_exp(l->rest));
-  }
-
 deflists(voidptr);
-/** mc to c dynamic-check error **/
 
 
 /** ========================================================================

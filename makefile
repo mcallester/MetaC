@@ -52,7 +52,14 @@ expandC.c : expandB expandC.mc
 expandC : mcC.o expandC.c
 	${gcc} -g -o expandC mcA.o mcB.o mcC.o expandC.c -ldl -lm
 
-#the compilation of expandD is a simple enough test of expandC.
+#testC
+
+testC.c : expandC testC.mc
+	./expandC testC.mc testC.c
+
+testC.o : testC.c
+	${gcc} -g testC.c -c
+
 
 #expandD  expandD expands some additional generic macros --- push, dolist and sformat.
 
@@ -76,43 +83,33 @@ testD.c : expandD testD.mc
 testD.o : testD.c
 	${gcc} -g testD.c -c
 
+#expandD2
+
+mcD2.c :  expandD mcD2.mc
+	./expandD mcD2.mc mcD2.c
+
+mcD2.o : mcD2.c
+	${gcc} -g mcD2.c -c
+
+expandD2.c :  expandD expandD.mc
+	./expandD expandD2.mc expandD2.c
+
+expandD2 : mcD2.o expandD2.c
+	${gcc} -g -o expandD2 mcA.o mcB.o mcC.o mcD.o mcD2.o expandD2.c -ldl -lm
+
 #expandE mcE provides code for the REPL aand dynamic linking.  expandE only provides one additional macro, install_base, for installing the base symbols.
 
-mcE.c :  expandD mcE.mc
-	./expandD mcE.mc mcE.c
+mcE.c :  expandD2 mcE.mc
+	./expandD2 mcE.mc mcE.c
 
 mcE.o : mcE.c
 	${gcc} -g mcE.c -c
 
-expandE.c :  expandD expandE.mc
-	./expandD expandE.mc expandE.c
+expandE.c :  expandD2 expandE.mc
+	./expandD2 expandE.mc expandE.c
 
 expandE : mcE.o expandE.c base_decls.h
-	${gcc} -g -o expandE mcA.o mcB.o mcC.o mcD.o mcE.o expandE.c -ldl -lm
-
-#testE
-
-testE.c : expandE testE.mc
-	./expandE ./ testE.mc testE.c
-
-testE.o : testE.c
-	${gcc} -g testE.c -c
-
-#REPL  --- the REPL is depricated and has not been maintained
-
-REPL.c : REPL.mc expandE
-	./expandE REPL.mc REPL.c
-
-MC : REPL.c
-	${gcc} -g -o MC mcA.o mcB.o mcC.o mcD.o mcE.o REPL.c -ldl -lm
-
-#testREPL
-
-testREPL.c : testREPL.mc expandE
-	./expandE testREPL.mc testREPL.c
-
-testREPL : testREPL.c
-	${gcc} -g -o testREPL mcA.o mcB.o mcC.o mcD.o mcE.o testREPL.c -ldl -lm
+	${gcc} -g -o expandE mcA.o mcB.o mcC.o mcD.o mcD2.o mcE.o expandE.c -ldl -lm
 
 #IDE
 

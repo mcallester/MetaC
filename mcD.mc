@@ -25,7 +25,7 @@ umacro{declare_exception($name($argtype))}{
   add_init_form(`{declare_except_fun(`{$name},`{$argtype});});
   return `{};
   }
-  
+
 void declare_except_fun(expptr name, expptr argtype){
   expptr oldtype = getprop(name,`exception_argtype,NULL);
   if(oldtype && (argtype != oldtype))berror("attempt to change the argument type of exception");
@@ -33,16 +33,16 @@ void declare_except_fun(expptr name, expptr argtype){
   }
 
 umacro{throw($name($value))}{
-  expptr argtype = getprop(name,`exception_argtype,NULL);
-  if(!argtype)berror("undeclared exception");
+  expptr argtype = getprop(name,`exception_argtype,`none);
+  if(argtype == `none)berror("undeclared exception");
   
-  if(argtype == `{}){
-    if(value != `{})berror("ill typed throw");
+  if(!argtype){
+    if(value)berror("ill typed throw");
     return `{{
 	catch_name[0] = `{$name};
 	throw_primitive();}};}
   
-  if(value == `{})berror("ill typed throw");
+  if(!value)berror("ill typed throw");
   
   expptr valvar = gensym(`val);
   return `{{
@@ -54,11 +54,11 @@ umacro{throw($name($value))}{
   }
   
 umacro{catch($name($arg)){$body1}{$body2}}{
-  expptr argtype = getprop(name,`exception_argtype,NULL);
-  if(!argtype)berror("undeclared exception");
+  expptr argtype = getprop(name,`exception_argtype,`none);
+  if(argtype == `none)berror("undeclared exception");
   
-  if(argtype == `{}){
-    if(arg != `{})berror("ill-typed catch");
+  if(!argtype){
+    if(arg)berror("ill-typed catch");
     return `{
       catch_all{
 	$body1}
@@ -67,7 +67,7 @@ umacro{catch($name($arg)){$body1}{$body2}}{
 	  } else {
 	  throw_primitive();}}};}
   
-  if(arg == `{})berror("ill-typed catch");
+  if(!arg)berror("ill-typed catch");
   expptr valvar = gensym(`val);
   return `{{
       catch_all{
@@ -97,6 +97,7 @@ umacro{dolist($x,$y){$body}}{
 	$body}}};
 }
 
+
 /** ========================================================================
 sformat is like sprintf but stack-allocates the buffer rather than take a buffer argument.
 It returns the string pointer.
@@ -107,11 +108,12 @@ this is hard to fix because the argument types are very difficult to determine.
 
 umacro{sformat($args)}{
   return `{({
-	int needed_size = snprintf(NULL,0,$args);
-	char * buffer = (char *) stack_alloc(needed_size+1);
-	sprintf(buffer,$args);
-	buffer;})};
-}
+	      int needed_size = snprintf(NULL,0,$args);
+	      char * buffer = (char *) stack_alloc(needed_size+1);
+	      sprintf(buffer,$args);
+	      buffer;})};
+  }
+
 
 umacro{mcprint($args)}{
   return
@@ -122,8 +124,9 @@ umacro{mcprint($args)}{
 
 
 umacro{orcase{$valexp;{$firstpattern}{$secondpattern}:{$body}}}{
-  return `{ucase{$valexp;{$firstpattern}:{$body}; {$secondpattern}:{$body}}};
-}
+  return `{ucase
+    ($valexp){$firstpattern}:{$body}; {$secondpattern}:{$body};};
+  }
 
 init_fun(mcD_init)
 

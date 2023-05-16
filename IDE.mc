@@ -25,13 +25,13 @@ void IDE_loop(){
     catch_all{
       catch(NIDE()){
 	send_ready();
-	expptr e=read_from_ide();
+	expptr e=read_from_NIDE();
 	fprintf(stdout, "processing:\n");
-	pprint(e,stdout,0);
+	pprint(e,stdout);
 	send_emacs_tag(print_tag);
 	
 	expptr result = eval_exp(e);
-	pprint(result,stdout,0);
+	pprint(result,stdout);
 	send_emacs_tag(result_tag);
 	}{}
       }{
