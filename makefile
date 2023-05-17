@@ -124,7 +124,7 @@ REPL : REPL.c
 NIDE.c : NIDE.mc expandE
 	./expandE NIDE.mc NIDE.c
 
-NNIDE : NIDE.c
+NIDE : NIDE.c
 	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o mcD2.o mcE.o NIDE.c -ldl -lm
 
 

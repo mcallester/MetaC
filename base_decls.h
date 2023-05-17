@@ -169,10 +169,10 @@ voidptr stack_alloc(int size);
 misc.
 ========================================================================**/
 
-expptr file_expressions(char *name);
+expptr file_expressions(charptr name);
 expptr read_from_NIDE();
 
-void send_result(char* result);
+void send_result(charptr result);
 
 void mcpprint(expptr e);
 
@@ -199,4 +199,3 @@ char undo_heap[UNDO_HEAP_DIM];
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
 
-voidptr undo_freeptr();

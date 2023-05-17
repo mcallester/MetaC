@@ -169,7 +169,7 @@ void open_input_file(char * s);
 void open_output_file(char * s);
 
 expptr read_from_NIDE();
-
+expptr mcread(char*);
 explist file_expressions(char * fname);
 
 void pprint(expptr e, FILE * f);

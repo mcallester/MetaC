@@ -43,7 +43,7 @@ int main(int argc, char **argv){
   expandE_init();
   install_value_properties();
   NIDE_init();
-  in_ide =1;
+  in_ide =0;
   read_eval_print();
   return 0;
 }

@@ -310,7 +310,6 @@ void write_signature_sparsely(expptr sym){
   }
 
 expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
-  cbreak();
   compilecount++; //this needs to be here becasue sformat duplicates the second argument
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");

@@ -127,10 +127,6 @@ premacros.h (included form mc.h included above) contains the declarations of the
 
 int undo_heap_freeptr;
 
-void* undo_freeptr(){
-  return &undo_heap[undo_heap_freeptr];
-}
-
 void * undo_alloc(int size){
   if(undo_heap_freeptr + size > UNDO_HEAP_DIM)berror("undo heap exhausted");
   void * result = &undo_heap[undo_heap_freeptr];
@@ -766,7 +762,7 @@ char * string_from_NIDE(){
 
 expptr read_from_NIDE(){
   init_read_stream();
-  in_ide = 1;
+  if(!in_ide)berror("calling read_from_NIDE while not in NIDE");
   read_stream = stdin;
   expptr e = mcread(input_string());
   return e;
