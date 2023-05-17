@@ -47,12 +47,11 @@ void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
   if(in_ide){
     if(in_doit) send_emacs_tag(exec_error_tag);
-    else send_emacs_tag(expansion_error_tag);
-    cbreak();
-    send_emacs_tag(continue_from_gdb_tag);}
+    else send_emacs_tag(expansion_error_tag);}
   cbreak();
+  if(in_ide){send_emacs_tag(continue_from_gdb_tag);}
   throw_NIDE();
-  }
+}
 
 void send_result(char * result){
   berror("send_result undefined outside of NIDE");
@@ -87,7 +86,7 @@ void * perm_alloc(int size){
 char * string_hash_table[STRING_DIM] = {0};  //STRING_DIM is defined in premacros.h.  It is needed in mcE.mc for string property tables.
 int string_count;
 
-int string_key(char * s){
+int string_key(char* s){
   int i, key;
 
   key=0;
@@ -1308,23 +1307,13 @@ expptr pointer_exp(void* p){
   return string_atom(ephemeral_buffer);
   }
 
-int gensym_index[STRING_DIM] ={0};
-
-
-int symbol_index(expptr sym){
-  return (int) (long int)sym->arg1;
-  }
-
 expptr gensym(expptr sym){
-  while(1){
-    int i = gensym_index[symbol_index(sym)]++;
-    int length = snprintf(ephemeral_buffer,
-			  EPHEMERAL_DIM,
-			  "%s__%d",atom_string(sym),
-			  i);
-    if(length >= EPHEMERAL_DIM)berror("ephemeral buffer exauhsted");
-    int key = string_key(ephemeral_buffer);
-    if(string_hash_table[key]==NULL)break;}
+  if(strlen(atom_string(sym))+100 >= EPHEMERAL_DIM)berror("ephemeral buffer overflow");
+  int i = 0;
+  sprintf(ephemeral_buffer,"%s__%d",atom_string(sym),i);
+  while(string_hash_table[string_key(ephemeral_buffer)]){
+    i++;
+    sprintf(ephemeral_buffer,"%s__%d",atom_string(sym),i);}
   return string_atom(ephemeral_buffer);
   }
 

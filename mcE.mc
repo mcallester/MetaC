@@ -1,9 +1,5 @@
 #include "mc.h"
 
-voidptr symbol_value[STRING_DIM] = {0};
-
-expptr index_symbol_table[STRING_DIM] = {NULL};
-
 /** ========================================================================
 In this implementation all global data variables must be arrays.
 We can replace a declaration
@@ -71,7 +67,6 @@ void install_procedure(expptr e){
 
 int compilecount;
 int cellcount;
-int symbol_count;
 
 expptr args_variables(expptr args);
 void preinstall(expptr sig);
@@ -87,44 +82,42 @@ expptr eval_internal(expptr);
 void print_preamble(expptr);
 
 /** ========================================================================
-The NIDE inserts base procedures into the symbol_value table (the
-linking table) by calling the macro insert_base.  This macro is
-expanded by expandE on IDE.mc.  Before doing any expansion, expandE sets
-the symbol indeces of the base symbols by calling install_base().
-install_base must be run again by the NIDE so that indeces used by the
-NIDE match those used by expandE (the indeces used at NIDE load time
-must be syncronized with those used at NIDE compile time).  mcE_init1
-establishes base procedure indeces so that all executables built on
-mcE have the same base procedure indeces.
+install_base and install_value_properties, and install_values
 
-Becasue of NIDE compile and load syncronization, install_base cannot
-be cleanly replaced with calls to install.
+install_value_properties must be a macro because each installation needs to be
+a seperately compiled line of code.
+
+install_base must be called before inatall_value_properties is macro expanded.
+Hence intall_base must be called in ExpandE main and ExpandE must depend on
+base_decls.h in the makefile.
+
+ExpandE main is
+
+
+int main(int argc, char **argv){
+  ...
+  install_base();
+  in_expand = 1;
+  catch_all{mcexpand(argv[1],argv[2]);}{return -1;};
+  }
+
+NIDE main is
+
+int main(int argc, char **argv){
+  ...
+  install_value_properties();
+  NIDE_init(); //this does install_base
+  in_ide = 1;
+  IDE_loop();
+}
+
+NIDE.mc is expanded by expandE.  The install_value_properties macro
+in NIDE main will be expanded peoperly because
+ExpandE has done inatall_base prior to expansion.  The resulting
+installed procedure and array
+pointers are the values they have in the NIDE executable.
 ======================================================================== **/
 
-void mcE_init1(){
-  file_preamble = nil;  // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
-  add_undone_pointer((void**) &file_preamble);
-  arrays = nil;
-  add_undone_pointer((void**) &arrays);
-  procedures = nil;
-  add_undone_pointer((void**) &procedures);
-  symbol_count = 0;
-  add_undone_int(&symbol_count);
-  install_base();  //the procedure install_base is different from the macro insert_base.
-  compilecount = 0;
-  cellcount = 0;
-  add_undone_int(&cellcount);
-
-  }
-
-umacro{insert_base()}{
-  expptr result = `{};
-  dolist(f,procedures){
-    result = `{symbol_value[${symbol_index_exp(f)}] = $f ; $result};}
-  dolist(X,arrays){
-    result = `{symbol_value[${symbol_index_exp(X)}] = $X ; $result};}
-  return result;
-  }
 
 void install_base(){
   for(explist sigs = file_expressions(sformat("%sbase_decls.h", MetaC_directory));
@@ -134,13 +127,58 @@ void install_base(){
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
 	setprop(f,`{base},`{true});
 	push(f,procedures);
-	setprop(f,`{signature},sig);
-	};
+	setprop(f,`{signature},sig);};
       {$type $x[$dim];}.(symbolp(type) && symbolp(x)):{
 	push(x,arrays);
 	setprop(x,`{signature},sig);};
-      {$e}:{push(e,file_preamble);};} //typedefs
+      {$e}:{push(e,file_preamble);};}; //typedefs
     }
+  }
+
+umacro{install_value_properties()}{
+  expptr result = `{};
+  dolist(f,procedures){
+    result = `{setprop(`{$f},`symbol_value,$f) ; $result};}
+  dolist(X,arrays){
+    result = `{setprop(`{$X},`symbol_value,$X) ; $result};}
+  return result;
+  }
+
+int symbol_index_freeptr = 0;
+
+int symbol_index(expptr sym){
+  int i = getprop_int(sym,`symbol_index,-1);
+  if(i >0)return i;
+  i = symbol_index_freeptr++;
+  setprop_int(sym,`symbol_index,i);
+  return i;
+  }
+
+voidptr symbol_value[STRING_DIM] = {0};
+
+void install_value(expptr f){
+  expptr fval = getprop(f,`symbol_value,NULL);
+  if(!fval)berror(sformat("%s failed to have its value installed",exp_string(f)));
+  symbol_value[symbol_index(f)] = fval;
+  }
+
+void install_values(){
+  dolist(f,procedures){install_value(f);}
+  dolist(X,arrays){install_value(X);}
+  }
+
+void NIDE_init(){
+  file_preamble = nil;  // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
+  add_undone_pointer((void**) &file_preamble);
+  arrays = nil;
+  add_undone_pointer((void**) &arrays);
+  procedures = nil;
+  add_undone_pointer((void**) &procedures);
+  install_base();
+  install_values();
+  compilecount = 0;
+  cellcount = 0;
+  add_undone_int(&cellcount);
   }
 
 /** ========================================================================
@@ -272,6 +310,7 @@ void write_signature_sparsely(expptr sym){
   }
 
 expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
+  cbreak();
   compilecount++; //this needs to be here becasue sformat duplicates the second argument
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
@@ -408,8 +447,6 @@ expptr symbol_index_exp(expptr sym){
   return int_exp(symbol_index(sym));
 }
 
-expptr symbolcount(){return int_exp(symbol_count);}
-
 void install_proc_def(expptr f){
   ucase(getprop(f,`{signature},NULL)){
     {$type $f($args);}:{
@@ -464,11 +501,7 @@ void NIDE(){
   throw_NIDE();
   }
 
-expptr index_symbol(int i){
-  return index_symbol_table[i];
-  }
-
 declare_exception(NIDE());
 
-init_fun(mcE_init2)
+init_fun(expandE_init)
 

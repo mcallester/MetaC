@@ -111,12 +111,20 @@ expandE.c :  expandD2 expandE.mc
 expandE : mcE.o expandE.c base_decls.h
 	${gcc} -g -o expandE mcA.o mcB.o mcC.o mcD.o mcD2.o mcE.o expandE.c -ldl -lm
 
-#IDE
+#REPL the REPL is simpler than the NIDE for debugging with GDB
 
-IDE.c : IDE.mc expandE
-	./expandE IDE.mc IDE.c
+REPL.c : REPL.mc expandE
+	./expandE REPL.mc REPL.c
 
-NIDE : IDE.c
-	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o mcE.o IDE.c -ldl -lm
+REPL : REPL.c
+	${gcc} -g -o REPL mcA.o mcB.o mcC.o mcD.o mcD2.o mcE.o REPL.c -ldl -lm
+
+#NIDE
+
+NIDE.c : NIDE.mc expandE
+	./expandE NIDE.mc NIDE.c
+
+NNIDE : NIDE.c
+	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o mcD2.o mcE.o NIDE.c -ldl -lm
 
 

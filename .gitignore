@@ -37,6 +37,9 @@ expandE.c
 expandE
 testE.c
 
-IDE.c
+REPL.c
+REPL
+
+NIDE.c
 NIDE
 

@@ -227,8 +227,9 @@ void mcB_init();
 void mcC_init();
 void mcD_init();
 void mcD2_init();
-void mcE_init1();
-void mcE_init2();
+void expandE_init();
+void install_base();
+void NIDE_init();
 
 int rep_column;
 
@@ -300,3 +301,4 @@ void* undo_freeptr();
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
 void throw_NIDE();
+
