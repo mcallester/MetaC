@@ -17,6 +17,7 @@ void throw_NIDE(){
     catch_name[0]= string_atom("NIDE");
     throw_primitive();}
   fprintf(stdout,"unrecoverable_error: c process fatal\n");
+  cbreak();
   exit(-1);
 }
 
@@ -184,8 +185,6 @@ void add_undone_pointer(voidptr * loc){
   if(undoneptr_freeptr == 100)berror("too many undone pointers");
   undone_pointer[undoneptr_freeptr++] = loc;
 }
-
-
 
 typedef struct undo_frame{
   int undo_trail_freeptr;
@@ -445,10 +444,6 @@ expptr stack_exp(char constr, expptr a1, expptr a2){
   return newexp;
 }
 
-expptr stack_cons(expptr x, expptr y){
-  if(!x || !y)berror("null argument given to cons");
-  return stack_exp(' ',x,y);}
-
 /** ========================================================================
 clean undo frame
 ======================================================================== **/
@@ -629,6 +624,53 @@ expptr rightarg(expptr e){
   return cdr(e);
   }
 
+/** ========================================================================
+lists of expressions
+
+the do_explist macro is defined in mcD.mc
+========================================================================**/
+
+explist expcons(expptr first, explist rest){
+  explist result = (explist) undo_alloc(sizeof(explist_struct));
+  result->first = first;
+  result->rest = rest;
+  return result;
+  }
+
+explist explist_append(explist l1, explist l2){
+  if(!l1)return l2;
+  return expcons(l1->first,explist_append(l1->rest,l2));
+  }
+
+explist explist_reverse(explist lst){
+  explist r = NULL;
+  while(lst){
+    r = expcons(lst->first,r);
+    lst = lst->rest;}
+  return r;
+  }
+
+int explist_member(expptr x, explist lst){
+  if(!lst)return 0;
+  if(x == lst->first)return 1;
+  return explist_member(x,lst->rest);
+}
+
+explist explist_mapcar(expptr f(expptr), explist lst){
+  if(lst)return expcons(f(lst->first),explist_mapcar(f,lst->rest));
+  return NULL;
+}
+
+void explist_mapc(void f(expptr), explist lst){
+  while(lst){
+    f(lst->first);
+    lst = lst->rest;}  
+}
+
+int explist_length(explist lst){
+  if(lst)return explist_length(lst->rest) + 1;
+  else return 0;
+}
 
 /** ========================================================================
 strlist file_strings(char* fname)
@@ -651,18 +693,6 @@ strlist strcons(char* first, strlist rest){
 int strlist_length(strlist s){
   if(!s)return 0;
   return 1+ strlist_length(s->rest);
-  }
-
-explist expcons(expptr first, explist rest){
-  explist result = (explist) undo_alloc(sizeof(explist_struct));
-  result->first = first;
-  result->rest = rest;
-  return result;
-  }
-
-explist explist_append(explist l1, explist l2){
-  if(!l1)return l2;
-  return expcons(l1->first,explist_append(l1->rest,l2));
   }
 
 expptr mcread(char* s);
@@ -1020,11 +1050,43 @@ void putexp(expptr w){
   else berror("illegal expptr");
   }
 
-expptr reparse(expptr e){
-  push_memory_frame();
-  expptr e2 = mcread(exp_string(e));
-  pop_memory_frame();
-  return e2;
+/** ========================================================================
+exp_string_safe: this does not pretty print and does not generate an error
+for non-expression
+======================================================================== **/
+
+void putexp_safe(expptr);
+
+char * exp_string_safe(expptr e){
+  char * s = &(stackheap[stackheap_freeptr]);
+  lastchar = '\0';
+  putexp_safe(e);
+  paddchar('\0');
+  return s;
+}
+
+void putexp_safe(expptr w){
+  if(!w)return;
+  if(atomp(w)){
+    char * s = atom_string(w);
+    if((connp(s[0]) && connp(lastchar)) ||
+       (alphap(s[0]) && alphap(lastchar))){
+      paddchar(' ');}
+    putstring(s);}
+  else if(parenp(w)){
+    char c = constructor(w); paddchar(c);
+    putexp_safe(paren_inside(w));paddchar(close_for(c));}
+  else if(connectionp(w)){
+    putexp_safe(leftarg(w));
+    if(!white_connectorp(connector(w)))putexp_safe(connector(w));
+    putexp_safe(rightarg(w));}
+  else{
+    paddchar('<');
+    putexp_safe(car(w));
+    paddchar(',');
+    putexp_safe(cdr(w));
+    paddchar('>');
+    }
   }
 
 /** ========================================================================
@@ -1125,6 +1187,14 @@ expptr macroexpand2(expptr e){
 					  macroexpand2(leftarg(e)),
 					  macroexpand2(rightarg(e)));
   return e;
+  }
+
+
+expptr reparse(expptr e){
+  push_memory_frame();
+  expptr e2 = mcread(exp_string(e));
+  pop_memory_frame();
+  return e2;
   }
 
 expptr macroexpand(expptr e){
@@ -1314,7 +1384,9 @@ expptr gensym(expptr sym){
   }
 
 /** ========================================================================
-mcexpand preamble elements and init_forms elements are fully macroexpanded
+mcexpand:
+
+preamble elements and init_forms elements get fully macroexpanded
 ======================================================================== **/
 
 FILE * fileout;
@@ -1345,42 +1417,6 @@ void pprint(expptr e, FILE* f){
 void mcpprint(expptr e){
   if(in_ide){pprint(e,stdout); send_print_tag();}
   else pprint(e,stdout);
-}
-
-/** ========================================================================
-basic list procedures (dolist is defined as a macro in mc.D)
-======================================================================== **/
-expptr append(expptr l1, expptr l2){
-  if(cellp(l1))return cons(car(l1), append(cdr(l1),l2));
-  else return l2;
-}
-
-int member(expptr x, expptr l){
-  if(!cellp(l))return 0;
-  if(x == car(l))return 1;
-  return member(x,cdr(l));
-}
-
-expptr reverse(expptr l){
-  expptr result = NULL;
-  while(cellp(l)){
-    result = cons(car(l), result);
-    l = cdr(l);}
-  return result;
-}
-
-expptr mapcar(expptr f(expptr), expptr l){
-  if(cellp(l))return cons(f(car(l)),mapcar(f,cdr(l)));
-  return NULL;
-}
-
-void mapc(void f(expptr), expptr l){
-  while (cellp(l)){f(car(l)); l = cdr(l);}
-}
-
-int length(expptr l){
-  if(cellp(l))return length(cdr(l)) + 1;
-  else return 0;
 }
 
 /** ========================================================================

@@ -1,5 +1,7 @@
 typedef char * charptr;
 
+typedef int * intptr;
+
 typedef void * voidptr;
 
 typedef voidptr * voidptrptr;
@@ -39,7 +41,7 @@ interning (procedures called by the expansion of backquote)
 and destructuring pro
 ========================================================================**/
 
-expptr string_atom(char * s);
+expptr string_atom(charptr s);
 
 int atomp(expptr e);
 
@@ -47,17 +49,9 @@ charptr atom_string(expptr a);
 
 charptr exp_string(expptr e);
 
-expptr cons(expptr x, expptr y);
-
-int cellp(expptr e);
-
-expptr car(expptr x);
-
-expptr stack_cons(expptr x, expptr y);
-
-expptr cdr(expptr x);
-
 expptr intern_paren(char openchar, expptr arg);
+
+expptr mkspace(expptr left, expptr right);
 
 int parenp(expptr e);
 
@@ -78,7 +72,7 @@ properties of expressions
 ========================================================================**/
 
 voidptr getprop(expptr e, expptr key, expptr defaultval);
-void setprop(expptr e, expptr key, void * val);
+void setprop(expptr e, expptr key, voidptr val);
 int getprop_int(expptr e, expptr key, int defaultval);
 void setprop_int (expptr e, void * key, int val);
 
@@ -119,33 +113,14 @@ expptr macroexpand1(expptr e);
 int symbolp(expptr e);
 
 /** ========================================================================
-cons and nil 
-========================================================================**/
-
-expptr append(expptr l1, expptr l2);
-
-int member(expptr x, expptr l);
-
-expptr reverse(expptr l);
-
-typedef  expptr exp_to_exp(expptr);
-typedef  void exp_to_void(expptr);
-
-expptr mapcar(exp_to_exp f, expptr l);
-
-void mapc(exp_to_void f, expptr l);
-
-int length(expptr l);
-
-/** ========================================================================
 undo frames
 ========================================================================**/
 
 voidptr undo_alloc(int size);
-void undo_set_proc(void ** loc, void * val);
-void undo_set_int_proc(int * loc, int val);
-void add_undone_int(int * loc);
-void add_undone_pointer(voidptr * loc);
+void undo_set_proc(voidptrptr loc, voidptr val);
+void undo_set_int_proc(intptr loc, int val);
+void add_undone_int(intptr loc);
+void add_undone_pointer(voidptrptr loc);
 
 void push_undo_frame();
 void pop_undo_frame();
@@ -185,9 +160,6 @@ void add_init_form(expptr form);
 void add_preamble(expptr form);
 
 void add_form(expptr form);
-
-int occurs_in(expptr symbol, expptr exp);
-
 
 int catch_freeptr[1];
 jmp_buf catch_stack[CATCH_DIM];

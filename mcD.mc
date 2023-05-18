@@ -83,17 +83,17 @@ umacro{catch($name($arg)){$body1}{$body2}}{
 primitive list operations --- depricated in favor of deflists in objects.mc
 ========================================================================**/
 
-umacro{push($x,$y)}{
-  return `{undo_set($y,cons($x,$y));};
+umacro{explist_push($x,$y)}{
+  return `{undo_set($y,expcons($x,$y));};
 }
 
-umacro{dolist($x,$y){$body}}{
+umacro{explist_do($x,$y){$body}}{
   //we need make "break" and "continue" work from inside iteration macros.
   expptr yval = gensym(`yval);
   return `{{
       expptr $x;
-      for(expptr $yval = $y; cellp($yval); $yval = cdr($yval)){
-	$x = car($yval);
+      for(explist $yval = $y; $yval; $yval = $yval->rest){
+	$x = $yval->first;
 	$body}}};
 }
 

@@ -25,43 +25,49 @@ This can be achieved by performing all effects with the add_form construct so th
 the effect is done from inside do_it.
 ======================================================================== **/
 
-int occurs_in(expptr symbol, expptr exp){
+int occurs_in_exp(expptr symbol, expptr exp){
+  if(!exp)return 0;
   if(atomp(exp))return (symbol == exp);
   ucase(exp){
-    {$e->$any}.(symbolp(any)):{return occurs_in(symbol,e);};
+    {$e->$any}.(symbolp(any)):{return occurs_in_exp(symbol,e);};
     {$any}:{
       if(cellp(exp))
-      return (occurs_in(symbol,car(exp)) || occurs_in(symbol,cdr(exp)));
+      return (occurs_in_exp(symbol,car(exp)) || occurs_in_exp(symbol,cdr(exp)));
       else
-      return occurs_in(symbol,paren_inside(exp));};}
+      return occurs_in_exp(symbol,paren_inside(exp));};}
   }
 
-expptr file_preamble; // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
-expptr procedures;
-expptr arrays;
+int occurs_in_explist(expptr symbol, explist lst){
+  if(!lst)return 0;
+  return occurs_in_exp(symbol,lst->first) || occurs_in_explist(symbol,lst->rest);
+  }
 
-expptr new_body_procedures;
-expptr new_sig_procedures;
-expptr new_arrays;
-expptr doit_statements;
-expptr new_preambles;
-expptr current_forms;
+explist file_preamble; // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
+explist procedures;
+explist arrays;
+
+explist new_body_procedures;
+explist new_sig_procedures;
+explist new_arrays;
+explist doit_statements;
+explist new_preambles;
+explist current_forms;
 
 void install_preamble(expptr e){
   if(!getprop_int(e,`{installed},0)){
-    push(e,file_preamble);
+    explist_push(e,file_preamble);
     setprop_int(e,`{installed},1);}
 }
 
 void install_array(expptr e){
   if(!getprop_int(e,`{installed},0)){
-    push(e,arrays);
+    explist_push(e,arrays);
     setprop_int(e,`{installed},1);}
 }
 
 void install_procedure(expptr e){
   if(!getprop_int(e,`{installed},0)){
-    push(e,procedures);
+    explist_push(e,procedures);
     setprop_int(e,`{installed},1);}
 }
 
@@ -77,8 +83,8 @@ void install_proc_def(expptr f);
 void install_link_def(expptr f);
 expptr symbol_index_exp(expptr);
 void install_base();
-char * strip_quotes(char *);
-expptr eval_internal(expptr);
+charptr strip_quotes(charptr);
+expptr eval_internal(explist);
 void print_preamble(expptr);
 
 /** ========================================================================
@@ -126,20 +132,20 @@ void install_base(){
     ucase(sig){
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
 	setprop(f,`{base},`{true});
-	push(f,procedures);
+	explist_push(f,procedures);
 	setprop(f,`{signature},sig);};
       {$type $x[$dim];}.(symbolp(type) && symbolp(x)):{
-	push(x,arrays);
+	explist_push(x,arrays);
 	setprop(x,`{signature},sig);};
-      {$e}:{push(e,file_preamble);};}; //typedefs
+      {$e}:{explist_push(e,file_preamble);};}; //typedefs
     }
   }
 
 umacro{install_value_properties()}{
   expptr result = `{};
-  dolist(f,procedures){
+  explist_do(f,procedures){
     result = `{setprop(`{$f},`symbol_value,$f) ; $result};}
-  dolist(X,arrays){
+  explist_do(X,arrays){
     result = `{setprop(`{$X},`symbol_value,$X) ; $result};}
   return result;
   }
@@ -163,16 +169,16 @@ void install_value(expptr f){
   }
 
 void install_values(){
-  dolist(f,procedures){install_value(f);}
-  dolist(X,arrays){install_value(X);}
+  explist_do(f,procedures){install_value(f);}
+  explist_do(X,arrays){install_value(X);}
   }
 
 void NIDE_init(){
-  file_preamble = nil;  // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
+  file_preamble = NULL;  // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
   add_undone_pointer((void**) &file_preamble);
-  arrays = nil;
+  arrays = NULL;
   add_undone_pointer((void**) &arrays);
-  procedures = nil;
+  procedures = NULL;
   add_undone_pointer((void**) &procedures);
   install_base();
   install_values();
@@ -200,14 +206,14 @@ expptr new_procedure_insertion (expptr f){
 }
 
 expptr new_array_insertion (expptr x){
-  ucase(getprop(x,`{signature},nil)){
+  ucase(getprop(x,`{signature},NULL)){
     {$type $x[$dim];}:{return `{undo_set(symbol_value[${symbol_index_exp(x)}],
 					 undo_alloc($dim*sizeof($type)));};};};
-  return nil; //avoids compiler warning
+  return NULL; //avoids compiler warning
   }
 
 expptr array_extraction (expptr x){
-  if(occurs_in(x,current_forms)) return `{$x = symbol_value[${symbol_index_exp(x)}];};
+  if(occurs_in_explist(x,current_forms)) return `{$x = symbol_value[${symbol_index_exp(x)}];};
   return `{};     
   }
 
@@ -220,7 +226,7 @@ expptr strip_type(expptr arg){
   }
 
 expptr args_variables(expptr args){
-  if(args == nil)return nil;
+  if(!args)return NULL;
   ucase(args){
     {$first, $rest}:{return `{${strip_type(first)} , ${args_variables(rest)}};};
     {$any}:{return strip_type(args);};};
@@ -251,7 +257,7 @@ void install_link_def_sparsely(expptr f){
      f == `cbreak ||
      f == `string_atom ||
      f == `undo_alloc ||
-     occurs_in(f,current_forms)){
+     occurs_in_explist(f,current_forms)){
     
     install_link_def(f);}
   }
@@ -261,8 +267,8 @@ eval_exp
 ======================================================================== **/
 
 expptr explist_exp(explist l){
-  if(!l)return nil;
-  return cons(l->first, explist_exp(l->rest));
+  if(!l)return NULL;
+  return mkspace(l->first, explist_exp(l->rest));
   }
 
 expptr simple_eval(expptr exp){
@@ -270,8 +276,9 @@ expptr simple_eval(expptr exp){
   init_forms = NULL;
   in_doit = 0;
   expptr e = macroexpand(exp);
-  return eval_internal(append(explist_exp(preamble),
-			      append(explist_exp(init_forms),cons(e,nil))));
+  return eval_internal(explist_append(preamble,
+				      explist_append(init_forms,
+						     expcons(e,NULL))));
   }
 
 void eval_from_load(expptr e){
@@ -291,7 +298,7 @@ expptr eval_exp(expptr exp){
   ucase(exp){
     {load($sym);}.(atomp(sym)) : {
       char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
-      mapc(eval_from_load,explist_exp(file_expressions(require_file)));
+      explist_mapc(eval_from_load,file_expressions(require_file));
       return `{${int_exp(cellcount)}: $sym provided};};
     {$any}:{
       return simple_eval(exp);};}
@@ -306,56 +313,63 @@ void write_signature(expptr sym){
   }
 
 void write_signature_sparsely(expptr sym){
-  if(sym == `berror || sym == `undo_set_proc || sym == `string_atom || occurs_in(sym, current_forms))write_signature(sym);
+  if(sym == `berror ||
+     sym == `undo_set_proc ||
+     sym == `string_atom ||
+     occurs_in_explist(sym, current_forms)){
+    write_signature(sym);}
   }
 
-expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
-  compilecount++; //this needs to be here becasue sformat duplicates the second argument
+expptr eval_internal(explist forms){ // forms must be fully macro expanded.
+  compilecount++; //sformat duplicates the second argument
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");
   fprintf(fileout,"#include \"%spremacros.h\"\n", MetaC_directory);
   
-  new_body_procedures = nil;
-  new_sig_procedures = nil;
-  new_arrays = nil;
-  doit_statements = nil;
-  new_preambles = nil;
+  new_body_procedures = NULL;
+  new_sig_procedures = NULL;
+  new_arrays = NULL;
+  doit_statements = NULL;
+  new_preambles = NULL;
   current_forms = forms;
   
-  mapc(preinstall,forms);
+  explist_mapc(preinstall,forms);
   
-  mapc(print_preamble,reverse(file_preamble));
+  explist_mapc(print_preamble,explist_reverse(file_preamble));
   fputc('\n',fileout);
-  mapc(print_preamble,reverse(new_preambles));
+  explist_mapc(print_preamble,explist_reverse(new_preambles));
   fputc('\n',fileout);
   pprint(`{void * * symbol_value_copy;},fileout);
   fputc('\n',fileout);
-  mapc(write_signature_sparsely, procedures);
+  explist_mapc(write_signature_sparsely, procedures);
   fputc('\n',fileout);
-  mapc(write_signature, new_sig_procedures);
+  explist_mapc(write_signature, new_sig_procedures);
   fputc('\n',fileout);
-  mapc(write_signature_sparsely, arrays);
+  explist_mapc(write_signature_sparsely, arrays);
   fputc('\n',fileout);
-  mapc(write_signature, new_arrays);
+  explist_mapc(write_signature, new_arrays);
   fputc('\n',fileout);
   
   //procedure value extractions.  array extractions are done in doit.
   
-  mapc(install_link_def_sparsely,procedures);
+  explist_mapc(install_link_def_sparsely,procedures);
   fputc('\n',fileout);
-  mapc(install_link_def,new_sig_procedures);
+  explist_mapc(install_link_def,new_sig_procedures);
   fputc('\n',fileout);
-  mapc(install_proc_def,new_body_procedures);
+  explist_mapc(install_proc_def,new_body_procedures);
   fputc('\n',fileout);
   
   pprint(`{
 	   expptr _mc_doit(voidptr * symbol_value){
 	     symbol_value_copy = symbol_value;
-	     ${mapcar(array_extraction, arrays)} // procedure extractions are done by install_link_def above
-	     ${mapcar(new_procedure_insertion, new_body_procedures)}
-	     ${mapcar(new_array_insertion, new_arrays)}
-	     ${mapcar(array_extraction, new_arrays)} // procedure extractions are done by install_link_def above
-	     ${reverse(doit_statements)}
+	     ${explist_exp(explist_mapcar(array_extraction, arrays))}
+	     // procedure extractions are done by install_link_def above
+	     ${explist_exp(explist_mapcar(new_procedure_insertion,
+					  new_body_procedures))}
+	     ${explist_exp(explist_mapcar(new_array_insertion, new_arrays))}
+	     ${explist_exp(explist_mapcar(array_extraction, new_arrays))}
+	     // procedure extractions are done by install_link_def above
+	     ${explist_exp(explist_reverse(doit_statements))}
 	     return string_atom("done");}},
 	 fileout);
   fclose(fileout);
@@ -370,9 +384,9 @@ expptr eval_internal(expptr forms){ // forms must be fully macro expanded.
   in_doit = 1;
   expptr e = (*_mc_doit)(symbol_value);
   
-  mapc(install_preamble,reverse(new_preambles));
-  mapc(install_array,reverse(new_arrays));
-  mapc(install_procedure,reverse(new_sig_procedures));
+  explist_mapc(install_preamble,explist_reverse(new_preambles));
+  explist_mapc(install_array,explist_reverse(new_arrays));
+  explist_mapc(install_procedure,explist_reverse(new_sig_procedures));
   if(!e)e = `{};
   return `{${int_exp(++cellcount)}: $e};
   }
@@ -384,22 +398,29 @@ expptr left_atom(expptr e){
 
 void preinstall(expptr statement){
   expptr leftexp = left_atom(statement);
-  if(leftexp == `typedef)
-  {if(!getprop(statement,`installed,NULL)) push(statement, new_preambles);}
+  if(leftexp == `typedef){
+    if(!getprop(statement,`installed,NULL)){
+      explist_push(statement, new_preambles);}}
   else
-    ucase(statement){
-      {}:{};
-      {#include <$any>}:{push(statement, new_preambles);};
-      {return $e;}:{push(statement,doit_statements);};
-      {$type $X[0];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1});};
-      {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,`{1}); push(`{$X[0] = $e;},doit_statements);};
-      {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{preinstall_array(type,X,dim);};
-      {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, body);};
-      {$type $f($args);}.(symbolp(type) && symbolp(f)):{preinstall_proc(type, f, args, NULL);};
-      {$e;}:{push(statement,doit_statements)};
-      {{$e}}:{push(statement,doit_statements)};
-      {$any}:{push(`{return $statement;},doit_statements)};}
-}
+  ucase(statement){
+    {}:{};
+    {#include <$any>}:{explist_push(statement, new_preambles);};
+    {return $e;}:{explist_push(statement,doit_statements);};
+    {$type $X[0];}.(symbolp(type) && symbolp(X)):{
+      preinstall_array(type,X,`{1});};
+    {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{
+      preinstall_array(type,X,`{1});
+      explist_push(`{$X[0] = $e;},doit_statements);};
+    {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{
+      preinstall_array(type,X,dim);};
+    {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{
+      preinstall_proc(type, f, args, body);};
+    {$type $f($args);}.(symbolp(type) && symbolp(f)):{
+      preinstall_proc(type, f, args, NULL);};
+    {$e;}:{explist_push(statement,doit_statements)};
+    {{$e}}:{explist_push(statement,doit_statements)};
+    {$any}:{explist_push(`{return $statement;},doit_statements)};}
+  }
 
 void print_preamble(expptr e){
   ucase(e){
@@ -421,7 +442,7 @@ void preinstall_array(expptr type, expptr X, expptr dim){
   expptr sig = `{$type $X[$dim];};
   if(getprop_int(X,`{installed},0) == 0){
     setprop(X,`{signature},sig);
-    push(X,new_arrays);}
+    explist_push(X,new_arrays);}
   else
     check_signature(X, sig);
 }
@@ -431,12 +452,12 @@ void preinstall_proc(expptr type,  expptr f, expptr args, expptr body){
   expptr sig = `{$type $f($args);};
   if(getprop_int(f,`{installed},0) == 0){
     setprop(f,`{signature},sig);
-    push(f,new_sig_procedures);}
+    explist_push(f,new_sig_procedures);}
   else{
     check_signature(f, sig);}
   if(body){
     if (getprop(f,`{base},NULL))berror(sformat("attempt to change base function %s",atom_string(f)));
-    push(f, new_body_procedures);
+    explist_push(f, new_body_procedures);
     setprop(f,`{gensym_name},gensym(f));
     setprop(f,`{body},body);
   }

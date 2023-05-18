@@ -161,10 +161,6 @@ typedef struct explist_struct{
   expptr first;
   explist rest;}explist_struct, *explist;
 
-explist expcons(expptr, explist);
-
-explist explist_append(explist,explist);
-
 void open_input_file(char * s);
 void open_output_file(char * s);
 
@@ -205,12 +201,14 @@ utilities
 
 int containsp(expptr e1, expptr e2);
 
-void mapc(void f(expptr), expptr l);
-expptr mapcar(expptr f(expptr), expptr l);
-int length(expptr);
-expptr append(expptr,expptr);
-int member(expptr,expptr);
-expptr reverse(expptr);
+explist expcons(expptr, explist);
+
+explist explist_append(explist,explist);
+void explist_mapc(void f(expptr), explist l);
+explist explist_mapcar(expptr f(expptr), explist l);
+int explist_length(explist);
+int explist_member(expptr,explist);
+explist explist_reverse(explist);
 
 FILE * writestrm;
 
@@ -287,7 +285,8 @@ expptr index_symbol(int i);
 
 int symbol_index(expptr e);
 
-int occurs_in(expptr symbol, expptr exp);
+int occurs_in_exp(expptr symbol, expptr exp);
+int occurs_in_explist(expptr symbol, explist lst);
 
 int catch_freeptr[1];
 jmp_buf catch_stack[CATCH_DIM];
