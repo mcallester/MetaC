@@ -347,12 +347,13 @@
 	
 (defun MC:process-output ()
   (when (> (length *mc-accumulator*) 0)
+    ;(print (list "the accumulator is" *mc-accumulator*))
     (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumulator*
       (if cell
 	(let ((tag (car cell))
 	      (value (cdr cell)))
-	  (print (list '**** 'doing tag))
-	  (print value)
+	  ;(print (list '**** 'doing tag))
+	  ;(print value)
 	  (MC:dotag tag value)
 	  ;(print '(**** done))
 	  (MC:process-output))

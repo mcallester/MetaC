@@ -751,9 +751,14 @@ strlist file_strings(char * fname){
   }
 
 void simple_advance(){
-  if(next == EOF){readchar = EOF; return;}
+  if(next == EOF || (in_ide && next == 0)){
+    if(readchar == next)
+      berror("failure of advance_readchar termination");
+    else
+      readchar = next; return;}
   if(next == 0 || (next > 0 && next < 32 && next != 10 && next != 9) ){
     berror("illegal input character");}
+
   readchar = next;
   next = fgetc(read_stream);
   }
@@ -785,17 +790,14 @@ void addchar(char c){
 
 
 char * string_from_NIDE(){
+  if(!in_ide)berror("calling string_from_NIDE while not in NIDE");
   read_stream = stdin;
   init_read_stream();
   return input_string();
   }
 
 expptr read_from_NIDE(){
-  init_read_stream();
-  if(!in_ide)berror("calling read_from_NIDE while not in NIDE");
-  read_stream = stdin;
-  expptr e = mcread(input_string());
-  return e;
+  return mcread(string_from_NIDE());
   }
 
 char* input_string(){
