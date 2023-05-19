@@ -35,11 +35,11 @@ void send_ready(){
 char * string_from_NIDE();
 
 void send_emacs_tag(char * tag){
-  if(!in_ide)berror("sending to emacs while not in the IDE");
+  if(!in_ide)berror("sending to emacs while not in the NIDE");
   fflush(stderr); //this is needed for the ignore tag to operate on stderr.
   fprintf(stdout,"%s",tag);
   fflush(stdout); //without this stderr can later add to the input of the tag.
-  string_from_NIDE(); //we wait for emacs to acknowledge completion of tag task.
+  read_from_NIDE(); //we wait for emacs to acknowledge completion of tag task.
   }
 
 void send_print_tag(){send_emacs_tag(print_tag);}
@@ -673,81 +673,70 @@ int explist_length(explist lst){
 }
 
 /** ========================================================================
-strlist file_strings(char* fname)
+expptr file_expressions(char* fname)
 
-Reading a file as a list of strings defined by cell boundaries
-while removing comments.
-
-expptr file_expressions(strlist strings)
-
-parses a list of strings into a list of expressions
+reads the cells of a file.
 ========================================================================**/
-
-strlist strcons(char* first, strlist rest){
-  strlist result = (strlist) stack_alloc(sizeof(strlist_struct));
-  result->first = first;
-  result->rest = rest;
-  return result;
-  }
-
-int strlist_length(strlist s){
-  if(!s)return 0;
-  return 1+ strlist_length(s->rest);
-  }
-
-expptr mcread(char* s);
-char* input_string();
-  
-strlist file_strings(char* fname);
-
-explist strlist_explist(strlist strings){ //preserves order
-  if(!strings) return NULL;
-  expptr e = mcread(strings->first);
-  if(!e)return strlist_explist(strings->rest);
-  return expcons(e, strlist_explist(strings->rest));
-  }
-
-char* exp_pps(expptr e);
-
-explist file_expressions(char* fname){
-  push_memory_frame();
-  explist exps = strlist_explist(file_strings(fname));
-  pop_memory_frame();
-  return exps;
-  }
 
 FILE * read_stream;
 char readchar;
 char next;
-
+void init_read_stream();
 void advance_readchar();
+void addchar(char c);
+expptr read_from_file();
+expptr mcread(char* s);
+
+explist file_expressions(char * fname){
+  read_stream = fopen(fname, "r");
+  if(read_stream == NULL){
+    fprintf(stdout,"attempt to open %s failed",fname); //no sformat yet
+    berror("");}
+  init_read_stream();
+  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
+	     explist exps = NULL;
+	     while(readchar != EOF){exps = expcons(read_from_file(),exps);}
+	     fclose(read_stream);
+	     return explist_reverse(exps);
+	     },{
+	     fclose(read_stream);
+	     throw_NIDE();});
+  }
+
+expptr read_from_file(){ //reads one cell a file input_stream
+  char* s = &stackheap[stackheap_freeptr];
+  push_memory_frame();
+  while(!(readchar == '\n' && !whitep(next) && !closep(next) && next != '/')){
+    //end of cell
+    addchar(readchar);
+    advance_readchar();}
+  addchar('\0');
+  advance_readchar();
+  expptr e = mcread(s);
+  pop_memory_frame();
+  return e;}
+
+expptr read_from_NIDE(){ //reads a string from stdin
+  if(!in_ide)berror("calling read_from_NIDE while not in NIDE");
+  read_stream = stdin;
+  init_read_stream();
+  char* s = &stackheap[stackheap_freeptr];
+  push_memory_frame();
+  while(readchar){addchar(readchar); advance_readchar();}
+  addchar('\0');
+  expptr e = mcread(s);
+  pop_memory_frame();
+  return e;
+  }
+
+void addchar(char c){
+  if(stackheap_freeptr == STACKHEAP_DIM)berror("stack heap exhausted");
+  stackheap[stackheap_freeptr++] = c;
+  }
 
 void init_read_stream(){
   next = fgetc(read_stream);
   advance_readchar();
-  }
-
-strlist file_strings2(){ //preserves order
-  if(readchar == EOF)return NULL;
-  if(closep(readchar))berror("file contains unmatched close\n");
-  char * s = input_string();
-  if(!s)return file_strings2();
-  return strcons(s, file_strings2());
-  }
-
-strlist file_strings(char * fname){
-  read_stream = fopen(fname, "r");
-  if(read_stream == NULL){
-    fprintf(stdout,"attempt to open %s failed",fname);
-    berror("");}
-  init_read_stream();
-  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
-	     strlist strings = file_strings2();
-	     fclose(read_stream);
-	     return strings;
-	     },{
-	     fclose(read_stream);
-	     throw_NIDE();});
   }
 
 void simple_advance(){
@@ -782,33 +771,6 @@ void advance_readchar(){
     //advance past quoted return --- needed for parsing #define from a file.
     simple_advance(); advance_readchar();}
   }
-
-void addchar(char c){
-  if(stackheap_freeptr == STACKHEAP_DIM)berror("stack heap exhausted");
-  stackheap[stackheap_freeptr++] = c;
-  }
-
-
-char * string_from_NIDE(){
-  if(!in_ide)berror("calling string_from_NIDE while not in NIDE");
-  read_stream = stdin;
-  init_read_stream();
-  return input_string();
-  }
-
-expptr read_from_NIDE(){
-  return mcread(string_from_NIDE());
-  }
-
-char* input_string(){
-  char* s = &stackheap[stackheap_freeptr];
-  while(!(readchar == '\n' && !whitep(next) && !closep(next) && next != '/')){
-    //end of cell
-    addchar(readchar);
-    advance_readchar();}
-  addchar('\0');
-  advance_readchar();
-  return s;}
 
 /** ========================================================================
 parsing a string.  This will be used for general reading and also

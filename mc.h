@@ -149,12 +149,6 @@ io
 FILE * fileout;
 FILE * filein;
 
-typedef struct strlist_struct * strlist;
-
-typedef struct strlist_struct{
-  char* first;
-  strlist rest;}strlist_struct, *strlist;
-
 typedef struct explist_struct * explist;
 
 typedef struct explist_struct{

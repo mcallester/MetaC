@@ -1,4 +1,4 @@
-/* comment test*/
+#include "mc.h"
 
 `a
 
