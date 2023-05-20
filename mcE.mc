@@ -152,7 +152,7 @@ int symbol_index_freeptr = 0;
 
 int symbol_index(expptr sym){
   int i = getprop_int(sym,`symbol_index,-1);
-  if(i > 0)return i;
+  if(i >= 0)return i;
   i = symbol_index_freeptr++;
   setprop_int(sym,`symbol_index,i);
   return i;
