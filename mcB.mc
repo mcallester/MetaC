@@ -68,6 +68,7 @@ expptr casecode2(expptr rule, expptr topvar, expptr donelabel){
   }
 
 expptr casecode3(expptr pattern, expptr valexp , expptr body){
+  if(pattern == `{\$any}) return body;
   expptr valvar = gensym(`x);
   return `{{expptr $valvar = $valexp; ${casecode4(pattern,valvar,body)}}};
   }
@@ -79,12 +80,10 @@ expptr casecode4(expptr pattern, expptr valvar , expptr body){
     return
     `{if(parenp($valvar) &&
 	 constructor($valvar) == ${quote_char(constructor(pattern))}){
-	
 	${casecode3(paren_inside(pattern), `{paren_inside($valvar)}, body)}}};}
   if(connofp(pattern,space) &&
      leftarg(pattern) == dollar &&
      symbolp(rightarg(pattern))){
-    if(rightarg(pattern) == `any)return body;
     return `{{expptr ${rightarg(pattern)} = $valvar; $body}};}
   if(connectionp(pattern)){
     return

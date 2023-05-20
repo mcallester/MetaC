@@ -31,6 +31,7 @@ undo
 ======================================================================== **/
 
 void * undo_alloc(int size);
+int in_ide_proc();
 void undo_set_proc(void ** loc, void * val);
 void undo_set_int_proc(int * loc, int val);
 void add_undone_int(int * loc);
@@ -244,7 +245,6 @@ The following "source flags" are currently used in berror and, to a very minor e
 ======================================================================== **/
 
 int in_doit;
-int in_expand;
 int in_ide;
 
 char *  ignore_tag;
@@ -270,6 +270,7 @@ FILE* read_stream_proc();
 void return_to_NIDE();
 
 void mcpprint(expptr);
+void send_print_tag();
 
 char * MetaC_directory;
 

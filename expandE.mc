@@ -21,6 +21,6 @@ int main(int argc, char **argv){
   mcD2_init();
   expandE_init(); //defines install_value_proerties macro
   install_base();
-  in_expand = 1;
+  in_ide = 0;
   catch_all{mcexpand(argv[1],argv[2]);}{return -1;};
 }

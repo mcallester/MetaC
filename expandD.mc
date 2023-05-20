@@ -17,6 +17,6 @@ int main(int argc, char **argv){
   mcB_init();
   mcC_init();
   mcD_init();
-  in_expand = 1;
+  in_ide = 0;
   precatch({mcexpand(argv[1], argv[2]);},{return -1;});
 }

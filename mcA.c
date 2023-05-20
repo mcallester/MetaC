@@ -3,6 +3,7 @@
 /** ========================================================================
 versions of throw, cbreak and berror.  Versions of catch are in premaros and mcD.mc.
 ========================================================================**/
+int in_ide_proc(){return in_ide;}
 
 void throw_primitive(){
   if(catch_freeptr[0] == 0){
@@ -393,9 +394,8 @@ void setprop_int(expptr e, void * key, int val){
   if(e == NULL)berror("attempt to set a property of the null expression");
   plistptr cell = getprop_cell(e, key);
   if(cell != NULL){
-    int * y = (int *) &(cell->value);
-      undo_set_int(y,val);
-      return;}
+    undo_set_int(cell->value,val);
+    return;}
   addprop_int(e,key,val);
 }
 
@@ -1375,7 +1375,7 @@ void write_preamble(explist defs){
   }
 
 void pprint(expptr e, FILE* f){
-  fprintf(f,"%s\n\n",exp_pps(e));
+  fprintf(f,"%s",exp_pps(e));
   }
 
 void mcpprint(expptr e){

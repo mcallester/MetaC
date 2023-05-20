@@ -52,6 +52,11 @@ charptr exp_string(expptr e);
 expptr intern_paren(char openchar, expptr arg);
 
 expptr mkspace(expptr left, expptr right);
+expptr mk_connection(expptr connector, expptr leftarg, expptr rightarg);
+int connectionp(expptr e);
+expptr connector(expptr e);
+expptr leftarg(expptr e);
+expptr rightarg(expptr e);
 
 int parenp(expptr e);
 
@@ -85,7 +90,7 @@ expptr int_exp(int i);
 
 int exp_int(expptr s);
 
-expptr pointer_exp(void* p);
+expptr pointer_exp(voidptr p);
 
 /** ========================================================================
 gensym
@@ -117,6 +122,7 @@ undo frames
 ========================================================================**/
 
 voidptr undo_alloc(int size);
+int in_ide_proc();
 void undo_set_proc(voidptrptr loc, voidptr val);
 void undo_set_int_proc(intptr loc, int val);
 void add_undone_int(intptr loc);
@@ -150,6 +156,7 @@ expptr read_from_NIDE();
 void send_result(charptr result);
 
 void mcpprint(expptr e);
+void send_print_tag();
 
 expptr expptr_to_undo(expptr stack_exp);
 

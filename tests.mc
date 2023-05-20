@@ -1,3 +1,4 @@
+there are still bugs in MetaC mostly involving load.  see bugs .txt
 
 /** ========================================================================
 Hello world
@@ -6,6 +7,8 @@ Hello world
 string_atom("a")
 
 `a
+
+pointer_exp(`a)
 
 /** ========================================================================
 procedure definitions
@@ -36,6 +39,7 @@ mcpprint(`a);
 
 for(int i = 0; i < 10; i++)mcprint("%d",x[i]);
 
+
 /** ========================================================================
  C data types
 ======================================================================== **/
@@ -46,7 +50,7 @@ typedef struct myexpstruct{
   struct myexpstruct * cdr;
 } myexpstruct, *myexp;
 
-myexp mycons(char * s, myexp x, myexp y){
+myexp mycons(charptr s, myexp x, myexp y){
       myexp cell = malloc(sizeof(myexpstruct));
       cell->label = s;
       cell->car = x;
@@ -138,9 +142,9 @@ macroexpand(`{mydolist(item,list){f(item);}})
  the "any" variable in patters
 ======================================================================== **/
 
-macroexpand(`{ucase{`{a;b};{\$a;\$any}:{return a;}}})
+macroexpand(`{ucase(`{a;b}){{\$a;\$any}:{return a;};}})
 
-ucase{`{a;b};{$a;$any}:{return a;}}
+ucase(`{a;b}){{$a;$any}:{return a;};}
 
 /** ========================================================================
  various
@@ -155,23 +159,16 @@ int numeralp(expptr x){
 }
 
 int value(expptr e){
-  ucase{e;
+  ucase(e){
     {$x+$y}:{return value(x)+value(y);};
     {$x*$y}:{return value(x)*value(y);};
     {($x)}:{return value(x);};
-    {$z}.(numeralp(z)):{return atoi(atom_string(z));}};
+    {$z}.(numeralp(z)):{return atoi(atom_string(z));};};
   return 0;
 }
 
 int_exp(value(`{5+2*10}))
-/** c compilation error **/
 
-
-/* /\** ======================================================================== */
-/*  the following errors are intentional */
-/* ======================================================================== **\/ */
-/* inc compilation errort_exp(value(`foo)) */
-/* /\**  */ **/
 
 /** ========================================================================
  breakpoints 
@@ -184,7 +181,7 @@ expptr barf(){
 barf()
 
 /** ========================================================================
- no arguments
+no arguments
 ======================================================================== **/
 
 expptr foobar(){return `a;}
@@ -237,24 +234,6 @@ int y[0]; //a comment here used to cause a problem
 
 
 /** ========================================================================
- file_expressions
-======================================================================== **/
-
-expptr parenthesize(expptr l){
-  if(!cellp(l))return l;
-  return cons(`{(${car(l)})}, parenthesize(cdr(l)));
-}
-
-parenthesize(file_expressions("file-expressions-test-file.mc"))
-
-/** ========================================================================
- printing
-======================================================================== **/
-
-mcpprint(`{foo});
-
-
-/** ========================================================================
  segment fault
 ======================================================================== **/
 expptr e[0];
@@ -272,16 +251,9 @@ load("include_test");
 
 included(`a)
 
-load("compile_error"); //this is still a bug in metac, see bugs.txt
-/**  **/
-
-
-/** ========================================================================
- expansion error
-======================================================================== **/
-
-dolist{}{}
-/** mc to c dynamic-check error **/
+//this is still a bug in metac, see bugs.txt.
+//EXECUTING THIS CAN KILL THE C PROCESS AND MAKES A MESS IN EMACS.
+//load("compile_error");
 
 
 /** ========================================================================
@@ -308,10 +280,10 @@ reader errors
 ======================================================================== **/
 
 foo(lkj)))`{foo bar}
-/** reader error **/
+/** dynamic-check error **/
 
 expptr friend[0] = ‘{Bob Givan};
-/** reader error **/
+/** c compilation error **/
 
 
 /** ========================================================================
@@ -325,11 +297,13 @@ test()
 
 
 /** ========================================================================
- This example failed to behave in some version.
+This example failed to behave in some version.
 
- compilation error expected for foo() because of intexp rather than int_exp
- bar() has the bug fixed.
+compilation error expected for foo() because of intexp rather than int_exp
+bar() has the bug fixed.
 ======================================================================== **/
+
+restart_undo_frame(0);
 
 umacro{foo()}{
   add_preamble(`{int z[0]=0;});
@@ -358,11 +332,13 @@ checking for resetting of undo freeptr.
 
 restart_undo_frame(0);
 
-pointer_exp(`a)
+setprop(`a,`b,`c);
+
+getprop(`a,`b,NULL)
 
 restart_undo_frame(0);
 
-pointer_exp(`a)
+getprop(`a,`b,NULL)
 
 
 /** ========================================================================
@@ -389,6 +365,7 @@ catch and throw
 
 declare_exception(ex1());
 
+//the following should generate "uncaught throw".
 throw(ex1());
 /** uncaught throw **/
 
@@ -449,11 +426,11 @@ version of bar for the new signature.
 umacro{mention($x)}{
   return `{if($x ? $x : $x){}};}
 
-restart_undo_frame(0);
+restart_undo_frame(1);
 
 expptr bar(expptr x1, expptr x2);
 
-restart_undo_frame(0);
+restart_undo_frame(1);
 
 expptr bar(expptr x1, expptr x2, expptr x3){
   mention(x1);
@@ -462,4 +439,6 @@ expptr bar(expptr x1, expptr x2, expptr x3){
   }
 
 bar(`a,`b,`c)
+
+
 

@@ -103,7 +103,7 @@ ExpandE main is
 int main(int argc, char **argv){
   ...
   install_base();
-  in_expand = 1;
+  in_ide = 0;
   catch_all{mcexpand(argv[1],argv[2]);}{return -1;};
   }
 
@@ -126,9 +126,7 @@ pointers are the values they have in the NIDE executable.
 
 
 void install_base(){
-  for(explist sigs = file_expressions(sformat("%sbase_decls.h", MetaC_directory));
-      sigs;sigs=sigs->rest){
-    expptr sig = sigs->first;
+  explist_do(sig,file_expressions(sformat("%sbase_decls.h", MetaC_directory))){
     ucase(sig){
       {$type $f($args);}.(symbolp(type) && symbolp(f)):{
 	setprop(f,`{base},`{true});
@@ -154,7 +152,7 @@ int symbol_index_freeptr = 0;
 
 int symbol_index(expptr sym){
   int i = getprop_int(sym,`symbol_index,-1);
-  if(i >0)return i;
+  if(i > 0)return i;
   i = symbol_index_freeptr++;
   setprop_int(sym,`symbol_index,i);
   return i;
@@ -169,6 +167,7 @@ void install_value(expptr f){
   }
 
 void install_values(){
+  if(in_ide)breakpt("install values breakpt");
   explist_do(f,procedures){install_value(f);}
   explist_do(X,arrays){install_value(X);}
   }
