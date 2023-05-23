@@ -98,6 +98,20 @@ void NIDE_init(){
   add_undone_int(&cellcount);
   }
 
+int symbol_index_freeptr = 0;
+
+voidptr symbol_value[STRING_DIM] = {0};
+
+int symbol_index(expptr sym){
+  int i = getprop_int(sym,`symbol_index,-1);
+  if(i >= 0)return i;
+  i = symbol_index_freeptr++;
+  if(symbol_index_freeptr = STRING_DIM)berror("symbol indeces exhausted");
+  setprop_int(sym,`symbol_index,i);
+  return i;
+  }
+
+
 /** ========================================================================
 insertion is the process of filling values in the symbol_value array.
 extraction is the process of extracting values from the symbol_value array.
