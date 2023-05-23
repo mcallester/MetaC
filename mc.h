@@ -219,10 +219,8 @@ void mcA_init();
 void mcB_init();
 void mcC_init();
 void mcD_init();
-void mcD2_init();
-void expandE_init();
+void expandF_init();
 void install_base();
-void NIDE_init();
 
 int rep_column;
 
@@ -295,4 +293,8 @@ void* undo_freeptr();
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
 void throw_NIDE();
+
+void expptr_error(expptr x, char* s);
+void expptr_breakpt(expptr x, char* s);
+expptr combine_atoms(expptr a1, expptr a2);
 

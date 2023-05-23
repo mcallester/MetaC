@@ -122,11 +122,5 @@ umacro{mcprint($args)}{
       else fprintf(stdout,$args);}};
 }
 
-
-umacro{orcase{$valexp;{$firstpattern}{$secondpattern}:{$body}}}{
-  return `{ucase
-    ($valexp){$firstpattern}:{$body}; {$secondpattern}:{$body};};
-  }
-
 init_fun(mcD_init)
 

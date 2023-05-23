@@ -53,24 +53,6 @@ explist doit_statements;
 explist new_preambles;
 explist current_forms;
 
-void install_preamble(expptr e){
-  if(!getprop_int(e,`{installed},0)){
-    explist_push(e,file_preamble);
-    setprop_int(e,`{installed},1);}
-}
-
-void install_array(expptr e){
-  if(!getprop_int(e,`{installed},0)){
-    explist_push(e,arrays);
-    setprop_int(e,`{installed},1);}
-}
-
-void install_procedure(expptr e){
-  if(!getprop_int(e,`{installed},0)){
-    explist_push(e,procedures);
-    setprop_int(e,`{installed},1);}
-}
-
 int compilecount;
 int cellcount;
 
@@ -86,91 +68,6 @@ void install_base();
 charptr strip_quotes(charptr);
 expptr eval_internal(explist);
 void print_preamble(expptr);
-
-/** ========================================================================
-install_base and install_value_properties, and install_values
-
-install_value_properties must be a macro because each installation needs to be
-a seperately compiled line of code.
-
-install_base must be called before inatall_value_properties is macro expanded.
-Hence intall_base must be called in ExpandE main and ExpandE must depend on
-base_decls.h in the makefile.
-
-ExpandE main is
-
-
-int main(int argc, char **argv){
-  ...
-  install_base();
-  in_ide = 0;
-  catch_all{mcexpand(argv[1],argv[2]);}{return -1;};
-  }
-
-NIDE main is
-
-int main(int argc, char **argv){
-  ...
-  install_value_properties();
-  NIDE_init(); //this does install_base
-  in_ide = 1;
-  IDE_loop();
-}
-
-NIDE.mc is expanded by expandE.  The install_value_properties macro
-in NIDE main will be expanded peoperly because
-ExpandE has done inatall_base prior to expansion.  The resulting
-installed procedure and array
-pointers are the values they have in the NIDE executable.
-======================================================================== **/
-
-
-void install_base(){
-  explist_do(sig,file_expressions(sformat("%sbase_decls.h", MetaC_directory))){
-    ucase(sig){
-      {$type $f($args);}.(symbolp(type) && symbolp(f)):{
-	setprop(f,`{base},`{true});
-	explist_push(f,procedures);
-	setprop(f,`{signature},sig);};
-      {$type $x[$dim];}.(symbolp(type) && symbolp(x)):{
-	explist_push(x,arrays);
-	setprop(x,`{signature},sig);};
-      {$e}:{explist_push(e,file_preamble);};}; //typedefs
-    }
-  }
-
-umacro{install_value_properties()}{
-  expptr result = `{};
-  explist_do(f,procedures){
-    result = `{setprop(`{$f},`symbol_value,$f) ; $result};}
-  explist_do(X,arrays){
-    result = `{setprop(`{$X},`symbol_value,$X) ; $result};}
-  return result;
-  }
-
-int symbol_index_freeptr = 0;
-
-int symbol_index(expptr sym){
-  int i = getprop_int(sym,`symbol_index,-1);
-  if(i >= 0)return i;
-  i = symbol_index_freeptr++;
-  setprop_int(sym,`symbol_index,i);
-  return i;
-  }
-
-voidptr symbol_value[STRING_DIM] = {0};
-
-void install_value(expptr f){
-  expptr fval = getprop(f,`symbol_value,NULL);
-  if(!fval)berror(sformat("%s failed to have its value installed",exp_string(f)));
-  symbol_value[symbol_index(f)] = fval;
-  }
-
-void install_values(){
-  if(in_ide)breakpt("install values breakpt");
-  explist_do(f,procedures){install_value(f);}
-  explist_do(X,arrays){install_value(X);}
-  }
 
 void NIDE_init(){
   file_preamble = NULL;  // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
@@ -520,7 +417,4 @@ void NIDE(){
   throw_NIDE();
   }
 
-declare_exception(NIDE());
-
-init_fun(expandE_init)
 

@@ -83,48 +83,46 @@ testD.c : expandD testD.mc
 testD.o : testD.c
 	${gcc} -g testD.c -c
 
-#expandD2
+#mcE defines REPL and NIDE procedures but does not define macros.
+#No new expansion executable is needed.
 
-mcD2.c :  expandD mcD2.mc
-	./expandD mcD2.mc mcD2.c
-
-mcD2.o : mcD2.c
-	${gcc} -g mcD2.c -c
-
-expandD2.c :  expandD expandD.mc
-	./expandD expandD2.mc expandD2.c
-
-expandD2 : mcD2.o expandD2.c
-	${gcc} -g -o expandD2 mcA.o mcB.o mcC.o mcD.o mcD2.o expandD2.c -ldl -lm
-
-#expandE mcE provides code for the REPL aand dynamic linking.  expandE only provides one additional macro, install_base, for installing the base symbols.
-
-mcE.c :  expandD2 mcE.mc
-	./expandD2 mcE.mc mcE.c
+mcE.c :  expandD mcE.mc
+	./expandD mcE.mc mcE.c
 
 mcE.o : mcE.c
 	${gcc} -g mcE.c -c
 
-expandE.c :  expandD2 expandE.mc
-	./expandD2 expandE.mc expandE.c
 
-expandE : mcE.o expandE.c base_decls.h
-	${gcc} -g -o expandE mcA.o mcB.o mcC.o mcD.o mcD2.o mcE.o expandE.c -ldl -lm
+#mcF defines install_base_properties macro.  Note the dependence on base_decls.h
+
+mcF.c :  expandD mcF.mc
+	/expandD mcF.mc mcF.c
+
+mcF.o : mcF.c
+	${gcc} -g mcF.c -c
+
+expandF.c :  expandD expandF.mc
+	./expandD expandF.mc expandF.c
+
+expandF : mcF.o expandF.c base_decls.h
+	${gcc} -g -o expandF mcA.o mcB.o mcC.o mcD.o mcF.o expandF.c -ldl -lm
+
 
 #REPL the REPL is simpler than the NIDE for debugging with GDB
 
-REPL.c : REPL.mc expandE
-	./expandE REPL.mc REPL.c
+REPL.c : REPL.mc expandF
+	./expandF REPL.mc REPL.c
 
 REPL : REPL.c
-	${gcc} -g -o REPL mcA.o mcB.o mcC.o mcD.o mcD2.o mcE.o REPL.c -ldl -lm
+	${gcc} -g -o REPL mcA.o mcB.o mcC.o mcD.o mcE.o mcF.o REPL.c -ldl -lm
+
 
 #NIDE
 
-NIDE.c : NIDE.mc expandE
-	./expandE NIDE.mc NIDE.c
+NIDE.c : NIDE.mc expandF
+	./expandD2 NIDE.mc NIDE.c
 
-NIDE : NIDE.c
-	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o mcD2.o mcE.o NIDE.c -ldl -lm
+NIDE : NIDE.c 
+	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o  NIDE.c mcF.o -ldl -lm
 
 

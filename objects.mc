@@ -1,18 +1,95 @@
 
 /** ========================================================================
-misc MetaC extentions
+Debugging and code maintenance is is eaier in the NIDE.
+
+Therefore we want as much code as possible written in the NIDE rather than the
+code required to bootstrap the NIDE.
+
+So the following procedures, while very general, are written in the NIDE and
+not placed in the NIDE kernel.
+
+The efficiency of loading a file into the NIDE needsto be improved.
 ========================================================================**/
 
+umacro{mention($x)}{
+  return `{if($x ? $x : $x){}};}
 
-/** ========================================================================
-deflists: LIST operations on arbitrary types
-========================================================================**/
+void expptr_error(expptr x, char* s){
+  berror(sformat("%s %s",exp_string(x),s));
+  }
+
+void expptr_breakpt(expptr x, char* s){
+  breakpt(sformat("%s %s", exp_string(x), s));
+  }
 
 expptr combine_atoms(expptr a1, expptr a2){
   char* s1 = atom_string(a1);
   char* s2 = atom_string(a2);
   return string_atom(sformat("%s_%s",s1,s2));
   }
+
+umacro{in_memory_frame{$body}}{
+  return
+  `{unwind_protect{
+      push_memory_frame();
+      $body;
+      pop_memory_frame();
+      }{
+      {pop_memory_frame();}}};
+  }
+
+umacro{in_undo_frame{$body}}{
+  return
+  `{unwind_protect{
+      push_undo_frame();
+      $body;
+      pop_undo_frame();
+      }{
+      {pop_undo_frame();}}};
+  }
+
+umacro{int_from_undo_frame($exp)}{
+  expptr expvar = gensym(`expvar);
+  expptr stackexp = gensym(`stack_exp);
+  expptr result = gensym(`result);
+  return
+  `{({
+       int $result;
+       unwind_protect{
+	 push_undo_frame();
+	 expptr $result = $exp; //unsafe.
+	 pop_undo_frame();
+	 }{
+	 pop_undo_frame();}
+       $result;
+       })};
+  }
+
+umacro{exp_from_undo_frame($exp)}{
+  expptr expvar = gensym(`expvar);
+  expptr stackexp = gensym(`stack_exp);
+  expptr newexp = gensym(`new_exp);
+  return
+  `{({
+       expptr $newexp;
+       unwind_protect{
+	 push_undo_frame();
+	 expptr $expvar = $exp; //unsafe.  The rest is safe which is required for proper stack memory management.
+	 push_memory_frame();
+	 expptr $stackexp = expptr_to_stack($expvar);
+	 pop_undo_frame();
+	 $newexp = expptr_to_undo($stackexp);
+	 pop_memory_frame();
+	 }{
+	 pop_undo_frame();}
+       $newexp;
+       })};
+  }
+
+
+/** ========================================================================
+deflists: LIST operations on arbitrary types
+========================================================================**/
 
 umacro {declare_pointer($typename)}{
   return `{typedef struct ${combine_atoms(typename, `struct)} * $typename};
@@ -89,9 +166,9 @@ void add_list_forms(expptr type){
 	       }});
   add_form(`{
 	     umacro{$listfun(\$x)}{
-	       ucase{x;
+	       ucase(x){
 		 {\$first,\$rest}:{return `{$consfun(\$first,$listfun(\$rest))};};
-		 {\$any}:{return `{$consfun(\$x,NULL)};}}}
+		 {\$any}:{return `{$consfun(\$x,NULL)};};}}
 	     });
   add_form(`{
 	     $listtype $delete($type x, $listtype y){
@@ -99,39 +176,39 @@ void add_list_forms(expptr type){
 	       if(y->first == x)return y->rest;
 	       return $consfun(y->first,$delete(x,y->rest));}
 	     });
-
+  
   }
 
 umacro{deflists($type)}{ //for use with non-class types
   add_list_forms(type);
-  return `{{}};
+  return NULL;
   }
 
 
+init_fun(mcD2_init);
 deflists(expptr);
 
 deflists(voidptr);
-
 
 /** ========================================================================
   list operations on semicolon lists and comma lists
 ========================================================================**/
 
 expptr semi_first(expptr x){
-  ucase{x;
+  ucase(x){
     {$first;$any}:{return first;};
-    {$any}:{return x;}    
+    {$any}:{return x;};}    
   }
-}
+
 
 // semi_first(`{a;})
 
 expptr semi_rest(expptr x){
-  ucase{x;
+  ucase(x){
     {$any;}:{return NULL;};
     {$any;$rest}:{return rest;};
-    {$any}:{return NULL;}
-  };
+    {$any}:{return NULL;};
+  }
   return NULL;
 }
 
@@ -176,10 +253,10 @@ umacro{semi_map($x,$y)($expression)}{
 
 
 expptr comma_first(expptr x){
-  ucase{x;
+  ucase(x){
     {$first,$any}:{return first;};
-    {$any}:{return x;}}
-}
+    {$any}:{return x;};}
+  }
 
 // comma_first
 // comma_first(`{a,b})
@@ -187,10 +264,10 @@ expptr comma_first(expptr x){
 // comma_first(`a)
 
 expptr comma_rest(expptr x){
-  ucase{x;
+  ucase(x){
     {$any,}:{return NULL;};
     {$any,$rest}:{return rest;};
-    {$any}:{return NULL;}};
+    {$any}:{return NULL;};}
   }
 
 //comma_rest(`{a})
@@ -198,11 +275,11 @@ expptr comma_rest(expptr x){
 //comma_rest(`{a,b,c})
 
 int comma_length(expptr x){
-  ucase{x;
+  ucase(x){
     {}:{return 0;};
     {$any,}:{return 1;};
     {$any,$rest}:{return 1+ comma_length(rest);};
-    {$any}:{return 1;}};
+    {$any}:{return 1;};}
   }
 
 //int_exp(comma_length(`{}))
@@ -260,12 +337,6 @@ comma_map(x, `{a,b,c})(`{f($x)})
   miscellaneous
 ========================================================================**/
 
-//   a macro to prevent "unmentioned variable" compiler errors
-
-umacro{mention($x)}{
-  return `{if($x ? $x : $x){}};}
-
-
 //  pushprop assumes the property value is a list of pointers
 
 umacro{pushprop($val, getprop($x, $prop))}{
@@ -275,44 +346,10 @@ umacro{pushprop($val, getprop($x, $prop))}{
       voidptr $xval = $x;
       voidptr $propval = $prop;
       setprop($xval, $propval, voidptr_cons($val, (voidptr_list) getprop($xval, $propval, NULL)));}};
-}
-
-
-//    general exceptions  
-
-expptr exception[0] = NULL;
-
-expptr exception_value[0] = NULL;
-
-umacro{catch_excep{$exception}{$body}{$handler}}{
-  return `{
-    catch({$body})
-    if(exception[0]){
-	if(exception[0] == $exception){
-	  exception[0] = NULL;
-	  $handler}
-	else continue_throw();}};
-}
-
-umacro{throw_excep{$exception;$value}}{
-  return `{
-    exception[0] = $exception;
-    exception_value[0] = $value;
-    throw();};
   }
 
 /** ========================================================================
-void foo(){
-  throw_excep{`bar;`a}
-  }
-
-expptr bar(){
-  catch_excep{`bar}{foo();}{return exception_value[0];};
-  return `b;
-  }
-
-bar()
-
+objects
 ========================================================================**/
 
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars);
@@ -418,9 +455,9 @@ void check_subclass(expptr subclass, expptr superclass){
 }
  
 expptr init_ivars(expptr ivars){
-  ucase{ivars;
+  ucase(ivars){
     {$any $var ; $rest}:{return `{self->$var = $var; ${init_ivars(rest)}};};
-    {$any $var;}:{return `{self->$var = $var;};}};
+    {$any $var;}:{return `{self->$var = $var;};};}
   return NULL;
 }
 
@@ -447,18 +484,16 @@ void add_declare_method_forms(expptr outtype, expptr f_name, expptr argtypes);
 void install_method_ptr(expptr f_name, expptr class, voidptrptr f_table, voidptr f_method);
 
 expptr strip_var(expptr argpair){
-  ucase{argpair;
+  ucase(argpair){
     {$type $any}:{return type;};
-    {$any}:{return argpair;}
-  };
-}
+    {$any}:{return argpair;};}
+  }
 
 expptr strip_vars(expptr arglist){
-  ucase{arglist;
+  ucase(arglist){
     {$first,$rest}:{return `{${strip_var(first)},${strip_vars(rest)}};};
-    {$any}:{return strip_var(arglist);}
-  };
-}
+    {$any}:{return strip_var(arglist);};}
+  }
 
 // strip_vars(`{a b, c d})
 
@@ -547,14 +582,14 @@ void add_defmethod_forms(expptr outtype, expptr f_name, expptr argvars, expptr b
   orcase{argvars; {$class self, $any}{$class self}:{
       expptr ivars = class_ivars(class);
       expptr f_ptr_name = string_atom(sformat("%s_at_%s", atom_string(f_name), atom_string(class)));
-      ucase{ivars;
+      ucase(ivars){
 	{$any ; $rest_ivars}:{
 	  add_form(`{
-	      $outtype $f_ptr_name($argvars){
-		${localize_ivars(rest_ivars,body)}
-		$body}});}};
+		     $outtype $f_ptr_name($argvars){
+		       ${localize_ivars(rest_ivars,body)}
+		       $body}});};}
       add_form(`{install_method_ptr(`$f_name,`$class,$f_table_name,$f_ptr_name);});}}
-}
+  }
 
 int is_subclass(expptr type1, expptr type2){
   if(type1 == type2)return 1;
@@ -566,7 +601,7 @@ int is_subclass(expptr type1, expptr type2){
 void check_method(expptr outtype, expptr fname, expptr argvars){
   expptr method_type = getprop(fname,`method_type,NULL);
   if(!method_type)berror(sformat("attempt to define undeclared method %s", exp_string(fname)));
-  ucase{method_type;
+  ucase(method_type){
     {$m_outtype($mtypes)}:{
       if(outtype != m_outtype)berror(sformat("method output type %s does not match declareed output type for maethod %s",
 					     exp_string(outtype),
@@ -574,10 +609,11 @@ void check_method(expptr outtype, expptr fname, expptr argvars){
       comma_iter(argvar, argvars){
 	if(!mtypes)berror(sformat("too many arguments in method definition for %s", exp_string(fname)));
 	expptr mtype = comma_first(mtypes);
-	ucase{argvar;{$atype $any}:{
-	    if(!is_subclass(atype,mtype))berror(sformat("illegal argument type in method for %s",exp_string(fname)));}};
+	ucase(argvar){
+	  {$atype $any}:{
+	    if(!is_subclass(atype,mtype))berror(sformat("illegal argument type in method for %s",exp_string(fname)));};}
 	mtypes = comma_rest(mtypes);};
-      if(mtypes)berror(sformat("too few arguments in method definition for %s", exp_string(fname)));}}
+      if(mtypes)berror(sformat("too few arguments in method definition for %s", exp_string(fname)));};}
 }
 
 void install_method_ptr(expptr f_name, expptr class, voidptrptr f_table, voidptr f_method){
@@ -593,13 +629,13 @@ void install_method_ptr(expptr f_name, expptr class, voidptrptr f_table, voidptr
 ========================================================================**/
 
 expptr localize_ivars(expptr ivars, expptr body){
-  ucase{ivars;
+  ucase(ivars){
     {}:{return `{};};
     {$type $var ; $rest}:{
       if(occurs_in(var, body)){
 	return `{$type $var = self->$var; ${localize_ivars(rest, body)}};}
       else{
-	return localize_ivars(rest, body);}}};
+	return localize_ivars(rest, body);}};}
   return NULL;
 }
 
@@ -618,7 +654,7 @@ expptr method_expansion(expptr e){
   expptr y = gensym(`y);
   expptr selfvar = gensym(`self);
   expptr index = gensym(`index);
-  ucase{e;
+  ucase(e){
     {$f($argexps)}:{
       ucase{method_type(f); {$outtype($argtypes)}:{
 	  if(outtype == `void){
@@ -646,7 +682,7 @@ expptr method_expansion(expptr e){
 		$outtype $y = $f_ptr(${comma_cons(selfvar,
 				    add_coercions(comma_rest(argexps),comma_rest(argtypes)))});
 		$y;})};}
-	}}}};
+	}}};}
   berror("illegal syntax in method call");
   return NULL;
 }
@@ -658,7 +694,7 @@ expptr leftmost_atom(expptr e){
 }
 
 expptr infer_type(expptr e){
-  ucase{e;
+  ucase(e){
     {($type) $any}:{return type;};
     {$f $any}:{
       expptr sig = getprop(f,`signature,NULL);
@@ -668,7 +704,7 @@ expptr infer_type(expptr e){
 	ucase{mtype;
 	  {$type $any}:{return type;}}}
       berror(sformat("method invocation unable to determine the type of %s", exp_string(e)));};
-    {$any}:{berror(sformat("method invocation unable to determine the type of %s", exp_string(e)));}};
+    {$any}:{berror(sformat("method invocation unable to determine the type of %s", exp_string(e)));};}
   return NULL;
 }
 
@@ -680,9 +716,9 @@ expptr add_coercions(expptr argexps, expptr types){
   expptr first_exptype = infer_type(firstexp);
   expptr first_type = comma_first(types);
   expptr reduced_exp;
-  ucase{firstexp;
+  ucase(firstexp){
     {($any) $e}:{reduced_exp = e;};
-    {$any}:{reduced_exp = firstexp;}};
+    {$any}:{reduced_exp = firstexp;};}
   if(!is_subclass(first_exptype,first_type))berror("subclass failure in method call");
   return comma_cons(`{(${comma_first(types)}) $reduced_exp},
 		    add_coercions(comma_rest(argexps), comma_rest(types)));
@@ -703,25 +739,25 @@ umacro{defpiece{$piecename $f($argvars){$body}}}{
 
 void add_piece(expptr piecename, expptr f_name, expptr argvars, expptr body){
   check_method(`void,f_name,argvars);
-  ucase{comma_first(argvars);
+  ucase(comma_first(argvars)){
     {$class self}:{
       expptr full_method = string_atom(sformat("%s_at_%s", atom_string(f_name), atom_string(class)));
       expptr full_piece = string_atom(sformat("%s_at_%s", atom_string(piecename), atom_string(class)));
       setprop(full_piece,`piece_code,body);
       expptr names = getprop(full_method,`piecenames,`{});
-      if(!member(full_piece,names)){setprop(full_method,`piecenames,cons(full_piece,names));}}}
+      if(!member(full_piece,names)){setprop(full_method,`piecenames,cons(full_piece,names));}};}
 }
 
 umacro{collect_method{$f($argvars)}}{
   check_method(`void,f,argvars);
-  ucase{comma_first(argvars);
+  ucase(comma_first(argvars)){
     {$class self}:{
       expptr full_method = string_atom(sformat("%s_at_%s", atom_string(f), atom_string(class)));
       expptr pieces = getprop(full_method,`piecenames,NULL);
       if(!pieces)berror(sformat("%s is not a piece method",atom_string(f)));
       expptr body = `{};
       dolist(piecename,pieces){body = cons(getprop(piecename,`piece_code,`{}),body);};
-      return `{defmethod{void $f($argvars){$body}}};}}
+      return `{defmethod{void $f($argvars){$body}}};};}
 }
     
   

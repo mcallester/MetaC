@@ -178,3 +178,6 @@ char undo_heap[UNDO_HEAP_DIM];
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
 
+void expptr_error(expptr x, char* s);
+void expptr_breakpt(expptr x, char* s);
+expptr combine_atoms(expptr a1, expptr a2);
