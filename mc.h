@@ -219,6 +219,8 @@ void mcA_init();
 void mcB_init();
 void mcC_init();
 void mcD_init();
+void NIDE_init();
+void mcF_init();
 void expandF_init();
 void install_base();
 

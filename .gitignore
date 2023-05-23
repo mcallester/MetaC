@@ -27,15 +27,14 @@ expandD.c
 expandD
 testD.c
 
-mcD2.c
-expandD2.c
-expandD2
-testD2.c
-
 mcE.c
 expandE.c
 expandE
 testE.c
+
+mcF.c
+expandF.c
+expandF
 
 REPL.c
 REPL

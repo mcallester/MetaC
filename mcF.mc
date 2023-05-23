@@ -1,5 +1,9 @@
 #include "mc.h"
 
+explist file_preamble; // must avoid name clash with preamble in mcA.c
+explist procedures;
+explist arrays;
+
 
 /** ========================================================================
 install_base and install_value_properties
@@ -85,6 +89,8 @@ umacro{install_value_properties()}{
     result = `{setprop(`{$X},`symbol_value,$X) ; $result};}
   return result;
   }
+
+declare_exception(NIDE());
 
 init_fun(mcF_init)
 

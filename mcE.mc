@@ -42,6 +42,21 @@ int occurs_in_explist(expptr symbol, explist lst){
   return occurs_in_exp(symbol,lst->first) || occurs_in_explist(symbol,lst->rest);
   }
 
+
+void expptr_error(expptr x, char* s){
+  berror(sformat("%s %s",exp_string(x),s));
+  }
+
+void expptr_breakpt(expptr x, char* s){
+  breakpt(sformat("%s %s", exp_string(x), s));
+  }
+
+expptr combine_atoms(expptr a1, expptr a2){
+  char* s1 = atom_string(a1);
+  char* s2 = atom_string(a2);
+  return string_atom(sformat("%s_%s",s1,s2));
+  }
+
 explist file_preamble; // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
 explist procedures;
 explist arrays;

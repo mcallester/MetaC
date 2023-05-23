@@ -96,7 +96,7 @@ mcE.o : mcE.c
 #mcF defines install_base_properties macro.  Note the dependence on base_decls.h
 
 mcF.c :  expandD mcF.mc
-	/expandD mcF.mc mcF.c
+	./expandD mcF.mc mcF.c
 
 mcF.o : mcF.c
 	${gcc} -g mcF.c -c
@@ -119,10 +119,10 @@ REPL : REPL.c
 
 #NIDE
 
-NIDE.c : NIDE.mc expandF
-	./expandD2 NIDE.mc NIDE.c
+NIDE.c : NIDE.mc expandF mcE.o
+	./expandF NIDE.mc NIDE.c
 
 NIDE : NIDE.c 
-	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o  NIDE.c mcF.o -ldl -lm
+	${gcc} -g -o NIDE mcA.o mcB.o mcC.o mcD.o  mcE.o mcF.o NIDE.c -ldl -lm
 
 

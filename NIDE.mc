@@ -46,7 +46,7 @@ int main(int argc, char **argv){
   mcB_init();
   mcC_init();
   mcD_init();
-  expandE_init();
+  mcF_init();
   install_value_properties();
   NIDE_init();
   in_ide = 1;
