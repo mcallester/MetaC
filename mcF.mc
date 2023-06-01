@@ -35,7 +35,7 @@ int main(int argc, char **argv){
   mcB_init();
   mcC_init();
   mcD_init();
-  m2F_init();
+  mcF_init();
   install_value_properties(); //this gets macro-expanded with the base installed
   NIDE_init(); //this does install_base
   in_ide = 1;

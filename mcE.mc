@@ -1,30 +1,9 @@
 #include "mc.h"
 
+
 /** ========================================================================
-In this implementation all global data variables must be arrays.
-We can replace a declaration
-
-<type>  x;
-
-by
-
-<type> x[1];
-
-and replace x by x[0] throughout the code.
-
-An array variable x can be dynamically linked into the DLL code in such a way that assignments
-to x[i] in the DLL code do the right thing.  This is not true of assignments
-to x as opposed to assignments to x[i]. To support assignment to x (as opposed to x[i])
-we need to be able to identify the FREE occurances of x in the code. This implementation
-does not support that level of analysis of the C code.
-
-An important design convention is that evaluation of a NIDE cell not have any
-effect in the event of any error prior to the execution of the compiled do_it procedure.
-In particular errors during macro expansion or compilation should block all effects.
-This can be achieved by performing all effects with the add_form construct so that
-the effect is done from inside do_it.
-======================================================================== **/
-
+utilities
+========================================================================**/
 int occurs_in_exp(expptr symbol, expptr exp){
   if(!exp)return 0;
   if(atomp(exp))return (symbol == exp);
@@ -57,7 +36,7 @@ expptr combine_atoms(expptr a1, expptr a2){
   return string_atom(sformat("%s_%s",s1,s2));
   }
 
-explist file_preamble; // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
+explist file_preamble; // must avoid name clash with preamble in mcA.c
 explist procedures;
 explist arrays;
 
@@ -84,6 +63,34 @@ charptr strip_quotes(charptr);
 expptr eval_internal(explist);
 void print_preamble(expptr);
 
+void install_preamble(expptr e);
+void install_array(expptr e);
+void install_procedure(expptr e);
+
+int symbol_index_freeptr = 0;
+
+int symbol_index(expptr sym){
+  int i = getprop_int(sym,`symbol_index,-1);
+  if(i >= 0)return i;
+  i = symbol_index_freeptr++;
+  setprop_int(sym,`symbol_index,i);
+  return i;
+  }
+
+voidptr symbol_value[STRING_DIM] = {0};
+
+void install_value(expptr f){
+  expptr fval = getprop(f,`symbol_value,NULL);
+  if(!fval)berror(sformat("%s failed to have its value installed",exp_string(f)));
+  symbol_value[symbol_index(f)] = fval;
+  }
+
+void install_values(){
+  if(in_ide)breakpt("install values breakpt");
+  explist_do(f,procedures){install_value(f);}
+  explist_do(X,arrays){install_value(X);}
+  }
+
 void NIDE_init(){
   file_preamble = NULL;  // must be careful to avoid name clash with preamble used by add_preamble in mcA.c
   add_undone_pointer((void**) &file_preamble);
@@ -98,19 +105,6 @@ void NIDE_init(){
   add_undone_int(&cellcount);
   }
 
-int symbol_index_freeptr = 0;
-
-voidptr symbol_value[STRING_DIM] = {0};
-
-int symbol_index(expptr sym){
-  int i = getprop_int(sym,`symbol_index,-1);
-  if(i >= 0)return i;
-  i = symbol_index_freeptr++;
-  if(symbol_index_freeptr = STRING_DIM)berror("symbol indeces exhausted");
-  setprop_int(sym,`symbol_index,i);
-  return i;
-  }
-
 
 /** ========================================================================
 insertion is the process of filling values in the symbol_value array.
@@ -119,9 +113,30 @@ extraction is the process of extracting values from the symbol_value array.
 arrays are allocated once and never re-allocated.  Hence extraction can be done
 by a simple assignment to the local dll array variable.
 
-procedures can be redefined which changes their memory location.  For dynamic linking to work
-procedure extraction must be done at procedure call time which is done by defining the local
-dll procedure to do the exprtaction at call time.
+In this implementation all global data variables must be arrays.  We
+can replace a declaration
+
+<type>  x;
+
+by
+
+<type> x[1];
+
+and replace x by x[0] throughout the code.
+
+An array variable x can be dynamically linked into the DLL code in
+such a way that assignments to x[i] in the DLL code do the right
+thing.  This is not true of assignments to x as opposed to assignments
+to x[i]. To support assignment to x (as opposed to x[i]) we need to be
+able to identify the FREE occurances of x in the code. This
+implementation does not support that level of analysis of the C code.
+
+An important design convention is that evaluation of a NIDE cell not
+have any effect in the event of any error prior to the execution of
+the compiled do_it procedure.  In particular errors during macro
+expansion or compilation should block all effects.  This can be
+achieved by performing all effects with the add_form construct so that
+the effect is done from inside do_it.
 ======================================================================== **/
 
 expptr new_procedure_insertion (expptr f){

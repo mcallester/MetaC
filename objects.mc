@@ -549,21 +549,27 @@ declare_method{expptr object_exp(object self)};
 
  defmethod{expptr g(foo self; expptr x;){return x;}}
 
- this creates a foo-specific definition of g "expptr g_52(foo self_37, expptr x);"
+ this creates a foo-specific definition of g "expptr g_52(foo self_37,
+ expptr x);"
 
- the method g must already be declared.  The self type of g can be a proper superclass of foo.
+ the method g must already be declared.  The self type of g can be a
+ proper superclass of foo.
 
- For orbject arguments the arguments are automatically cast to the abstract argument type of g.
- this allows the self argument to be a proper subclass of foo in which case the method is inhereted.
+ For orbject arguments the arguments are automatically cast to the
+ abstract argument type of g.  this allows the self argument to be a
+ proper subclass of foo in which case the method is inhereted.
 
- If g is a declared method then g(s,z) macro-expands to an appropriately typed version of M_g[s->class_index](s,z)
- where M_g is the statically determined method table for g.
+ If g is a declared method then g(s,z) macro-expands to an
+ appropriately typed version of M_g[s->class_index](s,z) where M_g is
+ the statically determined method table for g.
 
- all instance variables, including inherited instance variables, get bound to local
- variables of the same name.  There is also a local self variable of type foo (in the above example)
- even if the self argument is actually a proper subclass of foo.
+ all instance variables, including inherited instance variables, get
+ bound to local variables of the same name.  There is also a local
+ self variable of type foo (in the above example) even if the self
+ argument is actually a proper subclass of foo.
 
- Warning: do not use "x=v;" for instance variable x --- do "self->x = v;" instead.
+ Warning: do not use "x=v;" for instance variable x --- do "self->x =
+ v;" instead.
 
 ========================================================================**/
 
@@ -576,19 +582,27 @@ umacro{defmethod{$outtype $f($argvars){$body}}}{
 
 void check_method(expptr outtype, expptr fname, expptr argvars);
 
+void add_method_forms2(expptr class, expptr fname, expptr body){
+  expptr ivars = class_ivars(class);
+  expptr f_ptr_name = string_atom(sformat("%s_at_%s",
+					  atom_string(f_name),
+					  atom_string(class)));
+  ucase(ivars){
+    {$any ; $rest_ivars}:{
+      add_form(`{
+		 $outtype $f_ptr_name($argvars){
+		   ${localize_ivars(rest_ivars,body)}
+		   $body}});};}
+  add_form(`{install_method_ptr(`$f_name,`$class,$f_table_name,$f_ptr_name);});
+  }
+
 void add_defmethod_forms(expptr outtype, expptr f_name, expptr argvars, expptr body){
   check_method(outtype, f_name,argvars);
   expptr f_table_name = method_table_name(f_name);
-  orcase{argvars; {$class self, $any}{$class self}:{
-      expptr ivars = class_ivars(class);
-      expptr f_ptr_name = string_atom(sformat("%s_at_%s", atom_string(f_name), atom_string(class)));
-      ucase(ivars){
-	{$any ; $rest_ivars}:{
-	  add_form(`{
-		     $outtype $f_ptr_name($argvars){
-		       ${localize_ivars(rest_ivars,body)}
-		       $body}});};}
-      add_form(`{install_method_ptr(`$f_name,`$class,$f_table_name,$f_ptr_name);});}}
+  ucase(argvars){
+    {$class self, $any}:{add_method_forms2(class, fname,body)};
+    {$class self}:{add_method_forms2(class, fname,body)};
+    }
   }
 
 int is_subclass(expptr type1, expptr type2){
