@@ -16,22 +16,25 @@ voidptr symbol_value[STRING_DIM];
 
 expptr eval_exp(expptr);
 
-void read_eval_print(){
+expptr simple_eval(explist exps);
+
+void REPL_loop(){
+  
   while(1){
-    push_memory_frame();
-    fprintf(stdout, "MC>");
+    push_memory_frame(); //stack memory
+    fprintf(stdout, "MC>");    
+    
     catch_all{
-      fgets(ephemeral_buffer,EPHEMERAL_DIM,stdin);
-      expptr e = mcread(ephemeral_buffer);
-      expptr value = NULL;
-      if(!e || e == nil)continue;
-      ucase(e){
-	{quit}:{break;};
-	{$any}:{value = eval_exp(e);};}
-      fprintf(stdout,"%s\n",exp_string(value));}
-    {};
-    pop_memory_frame();
-    }
+      catch(NIDE()){
+	char* s = fgets(ephemeral_buffer,EPHEMERAL_DIM,stdin);
+	expptr e = mcread(s);
+	if(e == `quit)break;
+	expptr result = simple_eval(expcons(mcread(s),NULL));
+	pprint(result,stdout);
+	}{}
+      }{
+      fprintf(stdout,"\n uncought throw\n");}
+    pop_memory_frame();}
   }
 
 int main(int argc, char **argv){
@@ -39,10 +42,10 @@ int main(int argc, char **argv){
   mcB_init();
   mcC_init();
   mcD_init();
-  expandE_init();
+  mcF_init();
   install_value_properties();
   NIDE_init();
-  in_ide =0;
-  read_eval_print();
+  in_repl=1;
+  REPL_loop();
   return 0;
 }

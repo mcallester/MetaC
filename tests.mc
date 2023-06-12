@@ -1,34 +1,45 @@
+/** ========================================================================
 there are still bugs in MetaC mostly involving load.  see bugs .txt
+========================================================================**/
 
 /** ========================================================================
 Hello world
 ======================================================================== **/
 
 string_atom("a")
+/** 1:a **/
 
 `a
+/** 2:a **/
 
 pointer_exp(`a)
+/** 3:0x55555eb2f720 **/
 
 /** ========================================================================
 procedure definitions
 ========================================================================**/
 
 expptr f(expptr exp){return exp;}
+/** 4:done **/
 
 f(`a)
+/** 5:a **/
 
 /** ========================================================================
  Imperative Programming
 ======================================================================== **/
 
 int x[10];
+/** 6:done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
+/** 7:done **/
 
 int_exp(x[5])
+/** 8:5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
+/** 9:45 **/
 
 
 /** ========================================================================
@@ -36,8 +47,10 @@ int_exp(x[5])
 ======================================================================== **/
 
 mcpprint(`a);
+/** 10:done **/
 
 for(int i = 0; i < 10; i++)mcprint("%d",x[i]);
+/** c compilation error **/
 
 
 /** ========================================================================
@@ -179,6 +192,7 @@ expptr barf(){
 }
 
 barf()
+/**  **/
 
 /** ========================================================================
 no arguments
@@ -245,27 +259,18 @@ e[0]->arg1
 
 
 /** ========================================================================
- load
-======================================================================== **/
+load tests
+========================================================================**/
 load("include_test");
 
 included(`a)
 
-//this is still a bug in metac, see bugs.txt.
-//EXECUTING THIS CAN KILL THE C PROCESS AND MAKES A MESS IN EMACS.
-//load("compile_error");
+void file_test(){
+  file_expressions("compile_error.mc");
+  }
 
-
-/** ========================================================================
- exp_from_undo_frame
-======================================================================== **/
-
-exp_from_undo_frame(`{foo(a)})
-
-
-/** ========================================================================
- illegal signature should not be installed
-======================================================================== **/
+file_expressions("compile_error.mc");
+/** mc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check error **/
 
 notype bad(int x){return x;}
 /** c compilation error **/
@@ -290,33 +295,34 @@ expptr friend[0] = ‘{Bob Givan};
 some version of the system failed to recover from this expansion error
 ======================================================================== **/
 
-umacro{test()}{return file_expressions("nonexistent_file");}
+umacro{test2()}{return file_expressions("nonexistent_file");}
 
-test()
+test2()
 /** mc to c dynamic-check error **/
+
+`a
 
 
 /** ========================================================================
 This example failed to behave in some version.
 
-compilation error expected for foo() because of intexp rather than int_exp
-bar() has the bug fixed.
+compilation error expected for foo2() because of intexp rather than int_exp
+
+bar2() has the bug fixed.
 ======================================================================== **/
 
-restart_undo_frame(0);
-
-umacro{foo()}{
+umacro{foo2()}{
   add_preamble(`{int z[0]=0;});
   return `{intexp(z[0])};}
 
-foo()
+foo2()
 /** c compilation error **/
 
-umacro{bar()}{
+umacro{bar2()}{
   add_preamble(`{int z[0]=0;});
   return `{int_exp(z[0])};}
 
-bar()
+bar2()
 
 
 /** ========================================================================
@@ -348,15 +354,15 @@ This is fixed by making symbol indeces permanent (not undone).
 
 restart_undo_frame(0);
 
-expptr foo(){return `a;}
+expptr foo3(){return `a;}
 
 restart_undo_frame(0);
 
-expptr foo2(){return `b;}
+expptr foo4(){return `b;}
 
-expptr foo(){return `a;}
+expptr foo3(){return `a;}
 
-foo()
+foo3()
 
 
 /** ========================================================================
@@ -369,50 +375,50 @@ declare_exception(ex1());
 throw(ex1());
 /** uncaught throw **/
 
-expptr value[0];
+expptr value2[0];
 
-void foob(){value[0] = `b;}
+void foob(){value2[0] = `b;}
 
 void catch_ex1_b(){
-  catch(ex1()){foob();}{value[0] = `a;};
+  catch(ex1()){foob();}{value2[0] = `a;};
   }
 
 catch_ex1_b();
 
-value[0]
+value2[0]
 
 void foothrow(){throw(ex1());}
 
 void catch_test_throw(){
-  catch(ex1()){foothrow();}{value[0] = `a;};
+  catch(ex1()){foothrow();}{value2[0] = `a;};
   }
 
 catch_test_throw();
 
-value[0]
+value2[0]
 
 
 declare_exception(bar(expptr));
 
 void catch_test3(){
-  catch(bar(e)){value[0]= `a;}{value[0]=e;};
+  catch(bar(e)){value2[0]= `a;}{value2[0]=e;};
   }
 
 catch_test3();
 
-value[0]
+value2[0]
 
-void foo3(){
+void foo5(){
   throw(bar(`b));
   }
 
 void catch_test4(){
-  catch(bar(e)){foo3();}{value[0]=e;};
+  catch(bar(e)){foo5();}{value2[0]=e;};
   }
 
 catch_test4();
 
-value[0]
+value2[0]
 
 /** ========================================================================
 The following is a test of dlopen(RTLD_NOW | RTDL_DEEPBIND) which
@@ -428,17 +434,17 @@ umacro{mention($x)}{
 
 restart_undo_frame(1);
 
-expptr bar(expptr x1, expptr x2);
+expptr bar5(expptr x1, expptr x2);
 
 restart_undo_frame(1);
 
-expptr bar(expptr x1, expptr x2, expptr x3){
+expptr bar5(expptr x1, expptr x2, expptr x3){
   mention(x1);
   mention(x2);
   return x3;
   }
 
-bar(`a,`b,`c)
+bar5(`a,`b,`c)
 
 
 

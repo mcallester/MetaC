@@ -117,7 +117,7 @@ umacro{sformat($args)}{
 
 umacro{mcprint($args)}{
   return
-    `{{if(in_ide_proc()){
+  `{{if(in_ide_proc()){
 	fprintf(stdout,$args); send_print_tag();}
       else fprintf(stdout,$args);}};
 }

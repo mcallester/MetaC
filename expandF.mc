@@ -19,6 +19,5 @@ int main(int argc, char **argv){
   mcD_init();
   mcF_init();
   install_base();
-  in_ide = 0;
   precatch({mcexpand(argv[1], argv[2]);},{return -1;});
 }

@@ -40,7 +40,6 @@ void IDE_loop(){
     pop_memory_frame();}
   }
 
-
 int main(int argc, char **argv){
   mcA_init();
   mcB_init();

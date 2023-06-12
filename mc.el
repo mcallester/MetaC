@@ -251,6 +251,7 @@
   (setq *gdb-mode* nil)
   (setq *mc-accumulator* nil)
   (setq *load-count* 0)
+  (setq *execute_count* 0)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
   (shell-command "rm /tmp/TEMP*")
@@ -338,10 +339,10 @@
 	     (process-send-string (mc-process) (format "%s\0\n" exp))
 	     ;; the above return seems needed to flush the buffer
 	     )))))
-	
+
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
-    ;(print (list '*waiting* *waiting* 'filter-receiving clean))
+    (print (list '*waiting* *waiting* 'filter-receiving clean))
     (setq *mc-accumulator* (concat *mc-accumulator* clean))
     (MC:process-output)))
 	
@@ -350,13 +351,13 @@
     ;(print (list "the accumulator is" *mc-accumulator*))
     (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumulator*
       (if cell
-	(let ((tag (car cell))
-	      (value (cdr cell)))
-	  ;(print (list '**** 'doing tag))
-	  ;(print value)
-	  (MC:dotag tag value)
-	  ;(print '(**** done))
-	  (MC:process-output))
+	  (let ((tag (car cell))
+		(value (cdr cell)))
+	    (print (list '**** 'doing tag))
+	    (print value)
+	    (MC:dotag tag value)
+	    (print '(**** done))
+	    (MC:process-output)))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)
 	  (set-marker (process-mark (mc-process)) (point))
@@ -426,7 +427,8 @@
 	((string= tag "print")
 	 (print value))
 	
-	(t (error (format "unrecognized tag %s" tag)))))
+	(t (setq *mc-accumulator* nil)
+	   (error (format "unrecognized tag %s" tag)))))
 
 (defun mc-fix (msg)
   (replace-regexp-in-string "\n" "\n  " value))

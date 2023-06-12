@@ -154,9 +154,9 @@ expptr file_expressions(charptr name);
 expptr read_from_NIDE();
 
 void send_result(charptr result);
+void send_print_tag();
 
 void mcpprint(expptr e);
-void send_print_tag();
 
 expptr expptr_to_undo(expptr stack_exp);
 

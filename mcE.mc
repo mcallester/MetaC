@@ -1,6 +1,5 @@
 #include "mc.h"
 
-
 /** ========================================================================
 utilities
 ========================================================================**/
@@ -204,24 +203,41 @@ void install_link_def_sparsely(expptr f){
 
 /** ========================================================================
 eval_exp
-======================================================================== **/
 
-expptr explist_exp(explist l){
-  if(!l)return NULL;
-  return mkspace(l->first, explist_exp(l->rest));
+Macros expanded in the NIDE can use add_form exclusively in place of
+add_preamble or add_init_form.  Add-form adds to the
+preambles. However, macros defined in pre-Nide bootstrapping must
+separate add_preamble from add_init_form.  Therefore the NIDE must
+handle init_forms as well as preambles.  However, in the NIDE the
+distinction between a preamble and a do_it_statement is determined by
+examining the statement and preambles and init_forms are treated
+equivalently.
+======================================================================== **/
+expptr simple_eval(explist exps);
+void load_check(expptr e);
+explist file_expressions2(char * fname);
+
+expptr eval_exp(expptr exp){
+  ucase(exp){
+    {load($sym);}.(atomp(sym)) : {
+      char * fname=sformat("%s.mc",strip_quotes(atom_string(sym)));
+      explist forms =file_expressions (fname);
+      explist_do(e,forms){load_check(e);}
+      simple_eval(forms);
+      return `{${int_exp(cellcount)}: $sym provided};};
+    {$any}:{
+      return simple_eval(expcons(exp,NULL));};}
   }
 
-expptr simple_eval(expptr exp){
+expptr simple_eval(explist exps){
   preamble = NULL;  //this is the preamble of add_premble in mcA.c
   init_forms = NULL;
   in_doit = 0;
-  expptr e = macroexpand(exp);
-  return eval_internal(explist_append(preamble,
-				      explist_append(init_forms,
-						     expcons(e,NULL))));
+  explist eforms = explist_mapcar(macroexpand,exps);
+  return eval_internal(explist_append(preamble, explist_append(init_forms, eforms)));
   }
 
-void eval_from_load(expptr e){
+void load_check(expptr e){
   ucase(e){
     {restart_undo_frame($any);}:{
       fprintf(stdout,"loaded file contains an undo restart");
@@ -231,34 +247,17 @@ void eval_from_load(expptr e){
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
       throw_NIDE();};
-    {$any} : {simple_eval(e);};}
+    {$any}:{return;};}
   }
 
-expptr eval_exp(expptr exp){
-  ucase(exp){
-    {load($sym);}.(atomp(sym)) : {
-      char * require_file=sformat("%s.mc",strip_quotes(atom_string(sym)));
-      explist_mapc(eval_from_load,file_expressions(require_file));
-      return `{${int_exp(cellcount)}: $sym provided};};
-    {$any}:{
-      return simple_eval(exp);};}
-  }
 
-void write_signature(expptr sym){
-  expptr sig =getprop(sym,`{signature},NULL);
-  if(!sig)berror(sformat("MCbug: %s has no signature", atom_string(sym)));
-  ucase(sig){
-    {$type $x[$dim];}:{pprint(`{${type} * ${x};},fileout);};
-    {$any}:{pprint(sig,fileout);};}
-  }
+/** ========================================================================
+eval_internal
+========================================================================**/
 
-void write_signature_sparsely(expptr sym){
-  if(sym == `berror ||
-     sym == `undo_set_proc ||
-     sym == `string_atom ||
-     occurs_in_explist(sym, current_forms)){
-    write_signature(sym);}
-  }
+void write_signature(expptr sym);
+void write_signature_sparsely(expptr sym);
+expptr explist_exp(explist l);
 
 expptr eval_internal(explist forms){ // forms must be fully macro expanded.
   compilecount++; //sformat duplicates the second argument
@@ -331,6 +330,28 @@ expptr eval_internal(explist forms){ // forms must be fully macro expanded.
   return `{${int_exp(++cellcount)}: $e};
   }
 
+void write_signature(expptr sym){
+  expptr sig =getprop(sym,`{signature},NULL);
+  if(!sig)berror(sformat("MCbug: %s has no signature", atom_string(sym)));
+  ucase(sig){
+    {$type $x[$dim];}:{pprint(`{${type} * ${x};},fileout);};
+    {$any}:{pprint(sig,fileout);};}
+  }
+
+void write_signature_sparsely(expptr sym){
+  //some symbols can be introduced by C preprocessing and always included
+  if(sym == `berror ||
+     sym == `undo_set_proc ||
+     sym == `string_atom ||
+     occurs_in_explist(sym, current_forms)){
+    write_signature(sym);}
+  }
+
+expptr explist_exp(explist l){
+  if(!l)return NULL;
+  return mkspace(l->first, explist_exp(l->rest));
+  }
+
 expptr left_atom(expptr e){
   if(atomp(e)) return e;
   if(cellp(e)) return left_atom(car(e));
@@ -344,7 +365,8 @@ void preinstall(expptr statement){
   else
   ucase(statement){
     {}:{};
-    {#include <$any>}:{explist_push(statement, new_preambles);};
+    {#include $any}:{explist_push(statement, new_preambles);};
+    {#define $any}:{explist_push(statement, new_preambles);};
     {return $e;}:{explist_push(statement,doit_statements);};
     {$type $X[0];}.(symbolp(type) && symbolp(X)):{
       preinstall_array(type,X,`{1});};
@@ -396,7 +418,8 @@ void preinstall_proc(expptr type,  expptr f, expptr args, expptr body){
   else{
     check_signature(f, sig);}
   if(body){
-    if (getprop(f,`{base},NULL))berror(sformat("attempt to change base function %s",atom_string(f)));
+    if(getprop(f,`{base},NULL)){
+      berror(sformat("attempt to change base function %s",atom_string(f)));}
     explist_push(f, new_body_procedures);
     setprop(f,`{gensym_name},gensym(f));
     setprop(f,`{body},body);

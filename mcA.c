@@ -3,7 +3,7 @@
 /** ========================================================================
 versions of throw, cbreak and berror.  Versions of catch are in premaros and mcD.mc.
 ========================================================================**/
-int in_ide_proc(){return in_ide;}
+int in_ide_proc(){return in_ide;} //used in mcprint macro in mcD.mc
 
 void throw_primitive(){
   if(catch_freeptr[0] == 0){
@@ -13,12 +13,10 @@ void throw_primitive(){
   longjmp(catch_stack[catch_freeptr[0]], 1);
   }
 
-void throw_NIDE(){
-  if(in_ide){
+void throw_NIDE(){ //the throw macro is not available here.
+  if(in_ide || in_repl){
     catch_name[0]= string_atom("NIDE");
     throw_primitive();}
-  fprintf(stdout,"unrecoverable_error: c process fatal\n");
-  cbreak();
   exit(-1);
 }
 
@@ -27,13 +25,13 @@ void cbreak(){};  //this procedure has a break set in gdb
 void berror(char *);
 
 void send_ready(){
+  //this is a return acknowledgement from C
+  //we do not wait for a return acknowledgement from a return acknowledgement
   if(!in_ide)berror("sending to emacs while not in the IDE");
   fflush(stderr); //this is needed for the ignore tag to operate on stderr.
   fprintf(stdout,"%s",mc_ready_tag);
   fflush(stdout); //without this stderr can later add to the input of the tag.
   }
-
-char * string_from_NIDE();
 
 void send_emacs_tag(char * tag){
   if(!in_ide)berror("sending to emacs while not in the NIDE");
@@ -43,8 +41,9 @@ void send_emacs_tag(char * tag){
   read_from_NIDE(); //we wait for emacs to acknowledge completion of tag task.
   }
 
-void send_print_tag(){send_emacs_tag(print_tag);}
-
+void send_print_tag(){ //the global variable print_tag is not visible to the NIDE
+  send_emacs_tag(print_tag);
+}
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
   if(in_ide){
@@ -670,63 +669,37 @@ void explist_mapc(void f(expptr), explist lst){
 int explist_length(explist lst){
   if(lst)return explist_length(lst->rest) + 1;
   else return 0;
-}
-
-/** ========================================================================
-expptr file_expressions(char* fname)
-
-reads the cells of a file.
-========================================================================**/
-
-FILE * read_stream;
-char readchar;
-char next;
-void init_read_stream();
-void advance_readchar();
-void addchar(char c);
-expptr read_from_file();
-expptr mcread(char* s);
-
-explist file_expressions(char * fname){
-  read_stream = fopen(fname, "r");
-  if(read_stream == NULL){
-    fprintf(stdout,"attempt to open %s failed",fname); //no sformat yet
-    berror("");}
-  init_read_stream();
-  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
-	     explist exps = NULL;
-	     while(readchar != EOF){exps = expcons(read_from_file(),exps);}
-	     fclose(read_stream);
-	     return explist_reverse(exps);
-	     },{
-	     fclose(read_stream);
-	     throw_NIDE();});
   }
 
-expptr read_from_file(){ //reads one cell a file input_stream
-  char* s = &stackheap[stackheap_freeptr];
-  push_memory_frame();
-  while(!(readchar == '\n' && !whitep(next) && !closep(next) && next != '/')){
-    //end of cell
-    addchar(readchar);
-    advance_readchar();}
-  addchar('\0');
-  advance_readchar();
-  expptr e = mcread(s);
-  pop_memory_frame();
-  return e;}
+/** ========================================================================
+explist file_expressions(char*) reads the cells of a file.
 
-expptr read_from_NIDE(){ //reads a string from stdin
-  if(!in_ide)berror("calling read_from_NIDE while not in NIDE");
-  read_stream = stdin;
-  init_read_stream();
-  char* s = &stackheap[stackheap_freeptr];
-  push_memory_frame();
-  while(readchar){addchar(readchar); advance_readchar();}
-  addchar('\0');
-  expptr e = mcread(s);
-  pop_memory_frame();
-  return e;
+expptr read_from_NIDE() reads a cell from the NIDE()
+
+advance_char(mc_read_stream)  advances one charachter while skipping over comments.
+========================================================================**/
+
+expptr mcread(char* s);
+
+typedef struct read_stream_struct{
+  FILE* stream;
+  char readchar;
+  char next;
+  }read_stream_struct, *mc_read_stream;
+
+mc_read_stream input_stream;
+
+void init_input_stream(){
+  input_stream = (mc_read_stream) perm_alloc(sizeof(read_stream_struct));
+  input_stream->stream = stdin;
+  }
+
+void advance_char(mc_read_stream);
+
+void init_read_stream(mc_read_stream read_stream){
+  read_stream->readchar = ' ';
+  read_stream->next = fgetc(read_stream->stream);
+  advance_char(read_stream); //skips over comments
   }
 
 void addchar(char c){
@@ -734,42 +707,92 @@ void addchar(char c){
   stackheap[stackheap_freeptr++] = c;
   }
 
-void init_read_stream(){
-  next = fgetc(read_stream);
-  advance_readchar();
+expptr read_from_NIDE(){ //reads a string from stdin
+  if(!in_ide)berror("calling read_from_NIDE while not in NIDE");
+  init_read_stream(input_stream);
+  char* s = &stackheap[stackheap_freeptr];
+  push_memory_frame();
+  while(!endp(input_stream->readchar)){
+    addchar(input_stream->readchar);
+    advance_char(input_stream);}
+  addchar('\0');
+  expptr e = mcread(s);
+  pop_memory_frame();
+  return e;
   }
 
-void simple_advance(){
-  if(next == EOF || (in_ide && next == 0)){
-    if(readchar == next)
-      berror("failure of advance_readchar termination");
-    else
-      readchar = next; return;}
-  if(next == 0 || (next > 0 && next < 32 && next != 10 && next != 9) ){
+int cell_endp(mc_read_stream read_stream){
+  return (read_stream->readchar == '\n' &&
+	  !whitep(read_stream->next) &&
+	  !closep(read_stream->next) &&
+	  read_stream->next != '/');
+  }
+
+expptr read_from_file(mc_read_stream read_stream){ //reads one cell from a file
+  //the stream must be initialized
+  char* s = &stackheap[stackheap_freeptr];
+  push_memory_frame();
+  while(!endp(read_stream->readchar) &&
+	!cell_endp(read_stream)){
+    addchar(read_stream->readchar);
+    advance_char(read_stream);}
+  addchar('\0');
+  advance_char(read_stream);
+  expptr e = mcread(s);
+  pop_memory_frame();
+  return e;}
+
+explist file_expressions(char * fname){
+  FILE* stream = fopen(fname, "r");
+  if(stream == NULL){
+    fprintf(stdout,"attempt to open %s failed",fname); //no sformat yet
+    berror("");}
+  mc_read_stream read_stream = (mc_read_stream) stack_alloc(sizeof(read_stream_struct));
+  read_stream->stream = stream;
+  init_read_stream(read_stream);
+  precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
+	     explist exps = NULL;
+	     while(read_stream->readchar != EOF){
+	       exps = expcons(read_from_file(read_stream),exps);}
+	     fclose(stream);
+	     return explist_reverse(exps);
+	     },{
+	     fclose(stream);
+	     throw_NIDE();});
+  }
+
+void simple_advance(mc_read_stream read_stream){
+  if(endp(read_stream->readchar)){
+    berror("MC bug: read_stream termination failure");}
+  if(read_stream->next < 32 &&
+     read_stream->next > 0 &&
+     read_stream->next != 10 &&
+     read_stream->next != 9){
     berror("illegal input character");}
-
-  readchar = next;
-  next = fgetc(read_stream);
+  read_stream->readchar = read_stream->next;
+  read_stream->next = fgetc(read_stream->stream);
   }
 
-void advance_readchar(){
-  simple_advance();
+void advance_char(mc_read_stream read_stream){
+  simple_advance(read_stream);
   
-  if(readchar == '/' && next == '*'){
-    //replace comment with white space
-    while(!(readchar == '*' && next == '/')){
-      if(endp(readchar))return;
-      simple_advance();}
-    simple_advance();
-    readchar = ' ';}
+  if(read_stream->readchar == '/' && read_stream->next == '*'){
+    //replace comment with ' ' (whitep)
+    while(!(read_stream->readchar == '*' && read_stream->next == '/')){
+      if(endp(read_stream->readchar)){berror("unterminated comment");}
+      simple_advance(read_stream);}
+    simple_advance(read_stream);
+    read_stream->readchar = ' ';}
   
-  else if(readchar == '/' && next == '/'){
-    //replace comment with white space
-    while(readchar != '\n' && !endp(readchar))simple_advance();}
+  else if(read_stream->readchar == '/' && read_stream->next == '/'){
+    //replace comment with '\n' (whitep)
+    while(read_stream->readchar != '\n'){
+      if(endp(read_stream->readchar)){berror("unterminated comment");}
+      simple_advance(read_stream);}}
   
-  else if(readchar == '\\' && next == '\n'){
+  else if(read_stream->readchar == '\\' && read_stream->next == '\n'){
     //advance past quoted return --- needed for parsing #define from a file.
-    simple_advance(); advance_readchar();}
+    simple_advance(read_stream); advance_char(read_stream);}
   }
 
 /** ========================================================================
@@ -1379,7 +1402,7 @@ void pprint(expptr e, FILE* f){
   }
 
 void mcpprint(expptr e){
-  if(in_ide){pprint(e,stdout); send_print_tag();}
+  if(in_ide){pprint(e,stdout); send_emacs_tag(print_tag);}
   else pprint(e,stdout);
 }
 
@@ -1389,6 +1412,7 @@ section: initialization
 
 void init_source(){
   in_ide = 0;
+  in_repl = 0;
   in_doit = 0;
 }
 
@@ -1435,6 +1459,7 @@ void mcA_init(){
   catch_freeptr[0] = 0;
   init_undo_memory();
   init_stack_memory();
+  init_input_stream();
   init_exp_constants();
   init_source();
   init_tags();

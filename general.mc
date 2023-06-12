@@ -13,20 +13,7 @@ The efficiency of loading a file into the NIDE needsto be improved.
 
 umacro{mention($x)}{
   return `{if($x ? $x : $x){}};}
-
-void expptr_error(expptr x, char* s){
-  berror(sformat("%s %s",exp_string(x),s));
-  }
-
-void expptr_breakpt(expptr x, char* s){
-  breakpt(sformat("%s %s", exp_string(x), s));
-  }
-
-expptr combine_atoms(expptr a1, expptr a2){
-  char* s1 = atom_string(a1);
-  char* s2 = atom_string(a2);
-  return string_atom(sformat("%s_%s",s1,s2));
-  }
+/** 1:done **/
 
 umacro{in_memory_frame{$body}}{
   return
@@ -37,6 +24,7 @@ umacro{in_memory_frame{$body}}{
       }{
       {pop_memory_frame();}}};
   }
+/** 2:done **/
 
 umacro{in_undo_frame{$body}}{
   return
@@ -47,10 +35,9 @@ umacro{in_undo_frame{$body}}{
       }{
       {pop_undo_frame();}}};
   }
+/** 3:done **/
 
 umacro{int_from_undo_frame($exp)}{
-  expptr expvar = gensym(`expvar);
-  expptr stackexp = gensym(`stack_exp);
   expptr result = gensym(`result);
   return
   `{({
@@ -64,6 +51,7 @@ umacro{int_from_undo_frame($exp)}{
        $result;
        })};
   }
+/** 4:done **/
 
 umacro{exp_from_undo_frame($exp)}{
   expptr expvar = gensym(`expvar);
@@ -85,6 +73,7 @@ umacro{exp_from_undo_frame($exp)}{
        $newexp;
        })};
   }
+/** 5:done **/
 
 
 /** ========================================================================
@@ -94,6 +83,7 @@ deflists: LIST operations on arbitrary types
 umacro {declare_pointer($typename)}{
   return `{typedef struct ${combine_atoms(typename, `struct)} * $typename};
   }
+/** 6:done **/
 
 void add_list_forms(expptr type){
   char * cstring = atom_string(type);
@@ -178,17 +168,13 @@ void add_list_forms(expptr type){
 	     });
   
   }
+/** 7:done **/
 
 umacro{deflists($type)}{ //for use with non-class types
   add_list_forms(type);
   return NULL;
   }
-
-
-init_fun(mcD2_init);
-deflists(expptr);
-
-deflists(voidptr);
+/** 8:done **/
 
 /** ========================================================================
   list operations on semicolon lists and comma lists
@@ -199,6 +185,7 @@ expptr semi_first(expptr x){
     {$first;$any}:{return first;};
     {$any}:{return x;};}    
   }
+/** 9:done **/
 
 
 // semi_first(`{a;})
@@ -211,6 +198,7 @@ expptr semi_rest(expptr x){
   }
   return NULL;
 }
+/** 10:done **/
 
 //semi_rest(`{a;})
 
@@ -218,11 +206,13 @@ expptr semi_cons(expptr x, expptr y){
   if(y){return `{$x;$y};}
   return `{$x;};
 }
+/** 11:done **/
 
 expptr semi_append(expptr x, expptr y){
   if(x)return semi_cons(semi_first(x), semi_append(semi_rest(x),y));
   return y;
 }
+/** 12:done **/
 
 // semi_append(`{a;b;},`{c;d;})
 
@@ -235,6 +225,7 @@ umacro{semi_iter($x,$y){$body}}{
 	{$body};
 	$yval = semi_rest($yval);}}};
 }
+/** 13:done **/
 
 // semi_iter(x,`{a;b;c;}){mcpprint(x);}
 
@@ -248,6 +239,7 @@ umacro{semi_map($x,$y)($expression)}{
 	semi_iter($x, $yval){$result = semi_cons($expression,$result);};
 	$result;})};
 }
+/** 14:done **/
 
 // semi_map(x, `{a;b;c;})(`{f($x)})
 
@@ -257,6 +249,7 @@ expptr comma_first(expptr x){
     {$first,$any}:{return first;};
     {$any}:{return x;};}
   }
+/** 15:done **/
 
 // comma_first
 // comma_first(`{a,b})
@@ -269,6 +262,7 @@ expptr comma_rest(expptr x){
     {$any,$rest}:{return rest;};
     {$any}:{return NULL;};}
   }
+/** 16:done **/
 
 //comma_rest(`{a})
 //comma_rest(`{a,})
@@ -281,6 +275,7 @@ int comma_length(expptr x){
     {$any,$rest}:{return 1+ comma_length(rest);};
     {$any}:{return 1;};}
   }
+/** 17:done **/
 
 //int_exp(comma_length(`{}))
 //int_exp(comma_length(`{a}))
@@ -292,11 +287,13 @@ expptr comma_cons(expptr x, expptr y){
   if(y){return `{$x,$y};}
   return x;
 }
+/** 18:done **/
 
 expptr comma_append(expptr x, expptr y){
   if(x)return comma_cons(comma_first(x), comma_append(comma_rest(x),y));
   return y;
 }
+/** 19:done **/
 
 // comma_append(`{a,b},`{c,d})
 
@@ -309,6 +306,7 @@ umacro{comma_iter($x,$y){$body}}{
 	{$body};
 	$yval = comma_rest($yval);}}};
 }
+/** 20:done **/
 
 //comma_iter(x,`{a,b,c}){mcpprint(x);}
 
@@ -317,6 +315,7 @@ expptr comma_reverse(expptr cl){
   comma_iter(x, cl){result = comma_cons(x,result);};
   return result;
 }
+/** 21:done **/
 
 //comma_reverse(`{a,b})
 
@@ -330,8 +329,10 @@ umacro{comma_map($x,$y)($expression)}{
 	$result = comma_reverse($result);
 	$result;})};
 }
+/** 22:done **/
 
 comma_map(x, `{a,b,c})(`{f($x)})
+/** 23:f(a),f(b),f(c) **/
 
 /** ========================================================================
   miscellaneous
@@ -347,3 +348,4 @@ umacro{pushprop($val, getprop($x, $prop))}{
       voidptr $propval = $prop;
       setprop($xval, $propval, voidptr_cons($val, (voidptr_list) getprop($xval, $propval, NULL)));}};
   }
+/** 24:done **/

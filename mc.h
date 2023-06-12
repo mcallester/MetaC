@@ -246,6 +246,7 @@ The following "source flags" are currently used in berror and, to a very minor e
 
 int in_doit;
 int in_ide;
+int in_repl;
 
 char *  ignore_tag;
 char *  result_tag;
@@ -299,4 +300,8 @@ void throw_NIDE();
 void expptr_error(expptr x, char* s);
 void expptr_breakpt(expptr x, char* s);
 expptr combine_atoms(expptr a1, expptr a2);
+
+FILE * read_stream;
+void init_stream();
+expptr read_from_file();
 

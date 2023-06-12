@@ -14,6 +14,5 @@
 
 int main(int argc, char **argv){
   mcA_init();
-  in_ide = 0;
   precatch({mcexpand(argv[1], argv[2]);},{return -1;});
 }
