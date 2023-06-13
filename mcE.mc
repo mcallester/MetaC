@@ -442,9 +442,9 @@ void install_proc_def(expptr f){
 
 void comp_error(){
   if(in_ide)
-  send_emacs_tag(comp_error_tag);
+  {send_emacs_tag(comp_error_tag);}
   else
-  fprintf(stdout,"\n evaluation aborted\n\n");
+  {fprintf(stdout,"\n evaluation aborted\n\n");}
   throw_NIDE();
 }
 

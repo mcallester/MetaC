@@ -7,39 +7,30 @@ Hello world
 ======================================================================== **/
 
 string_atom("a")
-/** 1:a **/
 
 `a
-/** 2:a **/
 
 pointer_exp(`a)
-/** 3:0x55555eb2f720 **/
 
 /** ========================================================================
 procedure definitions
 ========================================================================**/
 
 expptr f(expptr exp){return exp;}
-/** 4:done **/
 
 f(`a)
-/** 5:a **/
 
 /** ========================================================================
  Imperative Programming
 ======================================================================== **/
 
 int x[10];
-/** 6:done **/
 
 for(int i = 0; i < 10; i++)x[i] = i;
-/** 7:done **/
 
 int_exp(x[5])
-/** 8:5 **/
 
 {int sum = 0; for(int i = 0; i < 10; i++)sum += x[i]; return int_exp(sum);}
-/** 9:45 **/
 
 
 /** ========================================================================
@@ -47,10 +38,8 @@ int_exp(x[5])
 ======================================================================== **/
 
 mcpprint(`a);
-/** 10:done **/
 
 for(int i = 0; i < 10; i++)mcprint("%d",x[i]);
-/** c compilation error **/
 
 
 /** ========================================================================
@@ -192,7 +181,6 @@ expptr barf(){
 }
 
 barf()
-/**  **/
 
 /** ========================================================================
 no arguments
@@ -255,23 +243,26 @@ expptr e[0];
 e[0] = NULL;
 
 e[0]->arg1
-/** segment fault --- to resume type p NIDE() **/
+/** non-break error (likely a segment fault) --- to resume type p NIDE() **/
 
 
 /** ========================================================================
-load tests
+load_test
 ========================================================================**/
+
+load("nofile");
+/** dynamic-check error **/
+
+load("badfile");
+/** dynamic-check error **/
+
 load("include_test");
 
 included(`a)
 
-void file_test(){
-  file_expressions("compile_error.mc");
-  }
-
-file_expressions("compile_error.mc");
-/** mc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check errormc to c dynamic-check error **/
-
+/** ========================================================================
+a bad signature should not be preserved
+========================================================================**/
 notype bad(int x){return x;}
 /** c compilation error **/
 

@@ -342,7 +342,7 @@
 
 (defun MC:filter (proc string)
   (let ((clean  (MC:clean-string string)))
-    (print (list '*waiting* *waiting* 'filter-receiving clean))
+    ;(print (list '*waiting* *waiting* 'filter-receiving clean))
     (setq *mc-accumulator* (concat *mc-accumulator* clean))
     (MC:process-output)))
 	
@@ -353,10 +353,10 @@
       (if cell
 	  (let ((tag (car cell))
 		(value (cdr cell)))
-	    (print (list '**** 'doing tag))
-	    (print value)
+	    ;(print (list '**** 'doing tag))
+	    ;(print value)
 	    (MC:dotag tag value)
-	    (print '(**** done))
+	    ;(print '(**** done))
 	    (MC:process-output)))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)
@@ -402,7 +402,7 @@
 	((string= tag "gdb-exec-error")
 	 (setq *load-count* 0)
          (beep)
-	 (MC:insert-value "segment fault --- to resume type p NIDE()")
+	 (MC:insert-value "non-breakpoint error --- to resume type p NIDE()")
 	 (MC:goto-gdb value))
 
 	((string= tag "breakpoint")

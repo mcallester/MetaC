@@ -305,3 +305,4 @@ FILE * read_stream;
 void init_stream();
 expptr read_from_file();
 
+expptr explist_exp(explist l);

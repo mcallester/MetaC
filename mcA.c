@@ -737,7 +737,7 @@ expptr read_from_file(mc_read_stream read_stream){ //reads one cell from a file
     addchar(read_stream->readchar);
     advance_char(read_stream);}
   addchar('\0');
-  advance_char(read_stream);
+  if(!endp(read_stream->readchar))advance_char(read_stream);
   expptr e = mcread(s);
   pop_memory_frame();
   return e;}
@@ -762,8 +762,6 @@ explist file_expressions(char * fname){
   }
 
 void simple_advance(mc_read_stream read_stream){
-  if(endp(read_stream->readchar)){
-    berror("MC bug: read_stream termination failure");}
   if(read_stream->next < 32 &&
      read_stream->next > 0 &&
      read_stream->next != 10 &&
@@ -777,17 +775,18 @@ void advance_char(mc_read_stream read_stream){
   simple_advance(read_stream);
   
   if(read_stream->readchar == '/' && read_stream->next == '*'){
-    //replace comment with ' ' (whitep)
-    while(!(read_stream->readchar == '*' && read_stream->next == '/')){
-      if(endp(read_stream->readchar)){berror("unterminated comment");}
+    //replace comment with ' ' (whitep) or endp
+    while(!endp(read_stream->readchar) &&
+	  !(read_stream->readchar == '*' &&
+	    read_stream->next == '/')){
       simple_advance(read_stream);}
-    simple_advance(read_stream);
-    read_stream->readchar = ' ';}
+    if(!endp(read_stream->readchar)){
+      simple_advance(read_stream);
+      read_stream->readchar = ' ';}}
   
   else if(read_stream->readchar == '/' && read_stream->next == '/'){
-    //replace comment with '\n' (whitep)
-    while(read_stream->readchar != '\n'){
-      if(endp(read_stream->readchar)){berror("unterminated comment");}
+    //replace comment with '\n' (whitep) or endp
+    while(!endp(read_stream->readchar) && read_stream->readchar != '\n'){
       simple_advance(read_stream);}}
   
   else if(read_stream->readchar == '\\' && read_stream->next == '\n'){

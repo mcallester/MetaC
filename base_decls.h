@@ -150,7 +150,7 @@ voidptr stack_alloc(int size);
 misc.
 ========================================================================**/
 
-expptr file_expressions(charptr name);
+explist file_expressions(charptr name);
 expptr read_from_NIDE();
 
 void send_result(charptr result);
@@ -181,3 +181,11 @@ void throw_primitive();
 void expptr_error(expptr x, char* s);
 void expptr_breakpt(expptr x, char* s);
 expptr combine_atoms(expptr a1, expptr a2);
+
+typedef struct explist_struct * explist;
+
+typedef struct explist_struct{
+  expptr first;
+  explist rest;}explist_struct, *explist;
+
+expptr explist_exp(explist l);
