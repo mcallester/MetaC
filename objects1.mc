@@ -1,3 +1,9 @@
+/** ========================================================================
+macros needed for objects file
+========================================================================**/
+
+deflists(expptr);
+
 deflists(voidptr);
 
 umacro{pushprop($val, getprop($x, $prop))}{
@@ -9,3 +15,4 @@ umacro{pushprop($val, getprop($x, $prop))}{
       setprop($xval, $propval, voidptr_cons($val, (voidptr_list) getprop($xval, $propval, NULL)));}};
   }
 
+umacro{class_dim()}{return `100;}

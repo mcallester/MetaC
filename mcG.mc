@@ -307,6 +307,15 @@ umacro{comma_iter($x,$y){$body}}{
 
 //comma_iter(x,`{a,b,c}){mcpprint(x);}
 
+expptr comma_reverse(expptr cl){
+  expptr result = NULL;
+  comma_iter(x, cl){result = comma_cons(x,result);};
+  return result;
+}
+/** 21:done **/
+
+//comma_reverse(`{a,b})
+
 umacro{comma_map($x,$y)($expression)}{
   expptr yval = gensym(`yval);
   expptr result = gensym(`result);
@@ -319,5 +328,21 @@ umacro{comma_map($x,$y)($expression)}{
 }
 /** 22:done **/
 
-//comma_map(x, `{a,b,c})(`{f($x)})
+comma_map(x, `{a,b,c})(`{f($x)})
 /** 23:f(a),f(b),f(c) **/
+
+/** ========================================================================
+  miscellaneous
+========================================================================**/
+
+//  pushprop assumes the property value is a list of pointers
+
+umacro{pushprop($val, getprop($x, $prop))}{
+  expptr xval = gensym(`xval);
+  expptr propval = gensym(`prop);
+  return `{{
+      voidptr $xval = $x;
+      voidptr $propval = $prop;
+      setprop($xval, $propval, voidptr_cons($val, (voidptr_list) getprop($xval, $propval, NULL)));}};
+  }
+/** 24:done **/

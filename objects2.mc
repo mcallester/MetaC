@@ -1,12 +1,4 @@
-
-/** ========================================================================
-objects
-========================================================================**/
-#define CLASS_DIM 100
-/** 3:done **/
-
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars);
-/** 4:done **/
 
 umacro{defclass{$class{$ivars}}}{
   expptr superclass = semi_first(ivars);
@@ -15,30 +7,24 @@ umacro{defclass{$class{$ivars}}}{
   add_class_forms(superclass, class, ivars);
   return `{};
 }
-/** 5:done **/
 
 typedef struct object_struct{int class_index;} * object;
-/** 6:done **/
 
 setprop(`object,`ivars,`{int class_index;});
-/** 7:done **/
 
 setprop_int(`object,`index,0);
-/** 8:done **/
 
 expptr class_ivars(expptr class){
   expptr ivars = getprop(class,`ivars,NULL);
   if(!ivars)berror(sformat("undefined class %s",atom_string(class)));
   return ivars;
 }
-/** 9:done **/
 
 int class_index(expptr class){
   int index = getprop_int(class,`index,-1);
   if(index < 0)berror(sformat("undefined class %s",atom_string(class)));
   return index;
 }
-/** 10:done **/
 
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars){
   if(class == `object)berror("attempt to redefine the object class");
@@ -53,55 +39,44 @@ void add_class_forms(expptr superclass, expptr class, expptr added_ivars){
   add_form(`{typedef struct $structname{$complete_ivars} $structname, * $class;});
   add_form(`{install_class(`$superclass, `$class, `{$complete_ivars});});
 }
-/** 11:done **/
 
 int class_counter[0] = 1;
-/** 12:done **/
 
-expptr class_name[CLASS_DIM];
-/** 13:done **/
+expptr class_name[class_dim()];
 
 class_name[0] = `object;
-/** 14:done **/
 
-for(int i = 1; i<CLASS_DIM; i++){class_name[i] = NULL;};
-/** 15:done **/
+for(int i = 1; i<class_dim(); i++){class_name[i] = NULL;};
 
 expptr classof(voidptr x){
   int index = ((object) x)->class_index;
-  if(index < 0 || index >= CLASS_DIM)berror("attempt to determine the class of non-object");
+  if(index < 0 || index >= class_dim())berror("attempt to determine the class of non-object");
   expptr class = class_name[index];
   if(!class)berror("attempt to determine the class of a non-object");
   return class;
 }
-/** 16:done **/
 
 umacro{declare_subclass($subclass,$superclass)}{
   return `{add_superclass(`{$subclass},`{$superclass})};
 }
-/** 17:done **/
 
 void add_superclass(expptr subclass, expptr superclass);
-/** 18:done **/
 
 
 void install_class(expptr superclass, expptr class, expptr complete_ivars){
   int index = class_counter[0];
-  if(index == CLASS_DIM){
-    berror(sformat("attempt to create more than %d classes", CLASS_DIM));}
+  if(index == class_dim()){
+    berror(sformat("attempt to create more than %d classes", class_dim()));}
   setprop_int(class,`index, index);
   undo_set_int(class_counter[0], class_counter[0]+1);
   class_name[index] = class;
   setprop(class, `ivars, complete_ivars);
   add_superclass(class, superclass);
 }
-/** 19:done **/
 
 void copy_methods(expptr superclass, expptr subclass);
-/** 20:done **/
 
 void check_subclass(expptr subclass, expptr superclass);
-/** 21:done **/
 
 void add_superclass(expptr subclass, expptr superclass){
   check_subclass(subclass,superclass);
@@ -109,7 +84,6 @@ void add_superclass(expptr subclass, expptr superclass){
   pushprop(superclass, getprop(subclass,`superclasses));
   copy_methods(superclass,subclass);
 }
-/** c compilation error **/
 
 void check_subclass(expptr subclass, expptr superclass){
   expptr_list supervars = (expptr_list) getprop(superclass, `ivars, NULL);
@@ -127,7 +101,7 @@ void check_subclass(expptr subclass, expptr superclass){
 expptr init_ivars(expptr ivars){
   ucase(ivars){
     {$any $var ; $rest}:{return `{self->$var = $var; ${init_ivars(rest)}};};
-    {$any $var;}:{return `{self->$var = $var;};};}
+    {$any $var;}:{return `{self->$var = $var;};};};
   return NULL;
 }
 
@@ -156,14 +130,16 @@ void install_method_ptr(expptr f_name, expptr class, voidptrptr f_table, voidptr
 expptr strip_var(expptr argpair){
   ucase(argpair){
     {$type $any}:{return type;};
-    {$any}:{return argpair;};}
-  }
+    {$any}:{return argpair;};
+  };
+}
 
 expptr strip_vars(expptr arglist){
   ucase(arglist){
     {$first,$rest}:{return `{${strip_var(first)},${strip_vars(rest)}};};
-    {$any}:{return strip_var(arglist);};}
-  }
+    {$any}:{return strip_var(arglist);};
+  };
+}
 
 // strip_vars(`{a b, c d})
 
@@ -183,7 +159,7 @@ void add_declare_method_forms(expptr outtype, expptr f_name, expptr argtypes){
   expptr f_type = `{$outtype($argtypes)};
   expptr old_type = getprop(f_name,`method_type,NULL);
   if(!old_type){
-    add_form(`{voidptr $f_table_name[CLASS_DIM];});
+    add_form(`{voidptr $f_table_name[class_dim()];});
     add_form(`{install_method_name(`$f_name, $f_table_name, `{$f_type});});}
   else if(f_type != old_type){
     berror(sformat("attempt to change the signature of method %s",atom_string(f_name)));}
@@ -193,7 +169,7 @@ expptr method_expansion(expptr e);
 
 void install_method_name(expptr f_name, voidptrptr f_table, expptr f_type){
   set_macro(f_name, method_expansion);
-  for(int i = 0;i<CLASS_DIM;i++){f_table[i] = NULL;};
+  for(int i = 0;i<class_dim();i++){f_table[i] = NULL;};
   setprop(f_name,`method_type,f_type);
   setprop(f_name, `method_table, f_table);
 }
@@ -212,34 +188,26 @@ void copy_methods(expptr superclass, expptr subclass){
     install_method_ptr(f_name,subclass,table,f_ptr);}
 }
 
-declare_method{expptr object_exp(object self)};
-
 /** ========================================================================
  defining a method
 
  defmethod{expptr g(foo self; expptr x;){return x;}}
 
- this creates a foo-specific definition of g "expptr g_52(foo self_37,
- expptr x);"
+ this creates a foo-specific definition of g "expptr g_52(foo self_37, expptr x);"
 
- the method g must already be declared.  The self type of g can be a
- proper superclass of foo.
+ the method g must already be declared.  The self type of g can be a proper superclass of foo.
 
- For orbject arguments the arguments are automatically cast to the
- abstract argument type of g.  this allows the self argument to be a
- proper subclass of foo in which case the method is inhereted.
+ For orbject arguments the arguments are automatically cast to the abstract argument type of g.
+ this allows the self argument to be a proper subclass of foo in which case the method is inhereted.
 
- If g is a declared method then g(s,z) macro-expands to an
- appropriately typed version of M_g[s->class_index](s,z) where M_g is
- the statically determined method table for g.
+ If g is a declared method then g(s,z) macro-expands to an appropriately typed version of M_g[s->class_index](s,z)
+ where M_g is the statically determined method table for g.
 
- all instance variables, including inherited instance variables, get
- bound to local variables of the same name.  There is also a local
- self variable of type foo (in the above example) even if the self
- argument is actually a proper subclass of foo.
+ all instance variables, including inherited instance variables, get bound to local
+ variables of the same name.  There is also a local self variable of type foo (in the above example)
+ even if the self argument is actually a proper subclass of foo.
 
- Warning: do not use "x=v;" for instance variable x --- do "self->x =
- v;" instead.
+ Warning: do not use "x=v;" for instance variable x --- do "self->x = v;" instead.
 
 ========================================================================**/
 
@@ -252,27 +220,24 @@ umacro{defmethod{$outtype $f($argvars){$body}}}{
 
 void check_method(expptr outtype, expptr fname, expptr argvars);
 
-void add_method_forms2(expptr class, expptr fname, expptr body){
+void add_defmethod_forms2(expptr outtype, expptr f_name,
+			  expptr argvars, expptr body, expptr class){
+  expptr f_table_name = method_table_name(f_name);
   expptr ivars = class_ivars(class);
-  expptr f_ptr_name = string_atom(sformat("%s_at_%s",
-					  atom_string(f_name),
-					  atom_string(class)));
+  expptr f_ptr_name = string_atom(sformat("%s_at_%s", atom_string(f_name), atom_string(class)));
   ucase(ivars){
     {$any ; $rest_ivars}:{
       add_form(`{
 		 $outtype $f_ptr_name($argvars){
 		   ${localize_ivars(rest_ivars,body)}
-		   $body}});};}
-  add_form(`{install_method_ptr(`$f_name,`$class,$f_table_name,$f_ptr_name);});
-  }
+		   $body}});};};
+  add_form(`{install_method_ptr(`$f_name,`$class,$f_table_name,$f_ptr_name);});}
 
 void add_defmethod_forms(expptr outtype, expptr f_name, expptr argvars, expptr body){
   check_method(outtype, f_name,argvars);
-  expptr f_table_name = method_table_name(f_name);
   ucase(argvars){
-    {$class self, $any}:{add_method_forms2(class, fname,body)};
-    {$class self}:{add_method_forms2(class, fname,body)};
-    }
+    {$class self, $any}:{add_defmethod_forms2(outtype, f_name, argvars, body, class);};
+    {$class self}:{add_defmethod_forms2(outtype, f_name, argvars, body, class);};}
   }
 
 int is_subclass(expptr type1, expptr type2){
@@ -295,10 +260,11 @@ void check_method(expptr outtype, expptr fname, expptr argvars){
 	expptr mtype = comma_first(mtypes);
 	ucase(argvar){
 	  {$atype $any}:{
-	    if(!is_subclass(atype,mtype))berror(sformat("illegal argument type in method for %s",exp_string(fname)));};}
+	    if(!is_subclass(atype,mtype)){
+	      berror(sformat("illegal argument type in method for %s",exp_string(fname)));};};};
 	mtypes = comma_rest(mtypes);};
       if(mtypes)berror(sformat("too few arguments in method definition for %s", exp_string(fname)));};}
-}
+  }
 
 void install_method_ptr(expptr f_name, expptr class, voidptrptr f_table, voidptr f_method){
   pushprop(f_name,getprop(class,`method_names));
@@ -316,10 +282,10 @@ expptr localize_ivars(expptr ivars, expptr body){
   ucase(ivars){
     {}:{return `{};};
     {$type $var ; $rest}:{
-      if(occurs_in(var, body)){
+      if(occurs_in_exp(var, body)){
 	return `{$type $var = self->$var; ${localize_ivars(rest, body)}};}
       else{
-	return localize_ivars(rest, body);}};}
+	return localize_ivars(rest, body);}};};
   return NULL;
 }
 
@@ -347,7 +313,7 @@ expptr method_expansion(expptr e){
 	      {${comma_first(argtypes)} $selfvar = (${comma_first(argtypes)}) ${comma_first(argexps)};
 		$outtype (* $f_ptr)($argtypes); //declares the variable f_ptr
 		int $index = ((object) $selfvar) -> class_index;
-		if($index < 0 || $index >= CLASS_DIM)berror("illegal self object in method call");
+		if($index < 0 || $index >= class_dim())berror("illegal self object in method call");
 		$f_ptr = ${method_table_name(f)}[$index];
 		if(!$f_ptr)berror(sformat("method %s not defined on class %s",
 					  atom_string(`$f),
@@ -359,7 +325,7 @@ expptr method_expansion(expptr e){
 	      ({${comma_first(argtypes)} $selfvar = (${comma_first(argtypes)}) ${comma_first(argexps)};
 		$outtype (* $f_ptr)($argtypes); //declares the variable f_ptr
 		int $index = ((object) $selfvar) -> class_index;
-		if($index < 0 || $index >= CLASS_DIM)berror("illegal self object in method call");
+		if($index < 0 || $index >= class_dim())berror("illegal self object in method call");
 		$f_ptr = ${method_table_name(f)}[$index];
 		if(!$f_ptr)berror(sformat("method %s not defined on class %s",
 					  atom_string(`$f),
@@ -367,7 +333,7 @@ expptr method_expansion(expptr e){
 		$outtype $y = $f_ptr(${comma_cons(selfvar,
 				    add_coercions(comma_rest(argexps),comma_rest(argtypes)))});
 		$y;})};}
-	};}};}
+	};}};};
   berror("illegal syntax in method call");
   return NULL;
 }
@@ -375,7 +341,7 @@ expptr method_expansion(expptr e){
 expptr leftmost_atom(expptr e){
   if(atomp(e))return e;
   if(parenp(e))return leftmost_atom(paren_inside(e));
-  return leftmost_atom(car(e));
+  return leftmost_atom(leftarg(e));
 }
 
 expptr infer_type(expptr e){
@@ -389,7 +355,7 @@ expptr infer_type(expptr e){
 	ucase(mtype){
 	  {$type $any}:{return type;};}}
       berror(sformat("method invocation unable to determine the type of %s", exp_string(e)));};
-    {$any}:{berror(sformat("method invocation unable to determine the type of %s", exp_string(e)));};}
+    {$any}:{berror(sformat("method invocation unable to determine the type of %s", exp_string(e)));};};
   return NULL;
 }
 
@@ -403,49 +369,12 @@ expptr add_coercions(expptr argexps, expptr types){
   expptr reduced_exp;
   ucase(firstexp){
     {($any) $e}:{reduced_exp = e;};
-    {$any}:{reduced_exp = firstexp;};}
+    {$any}:{reduced_exp = firstexp;};};
   if(!is_subclass(first_exptype,first_type))berror("subclass failure in method call");
   return comma_cons(`{(${comma_first(types)}) $reduced_exp},
 		    add_coercions(comma_rest(argexps), comma_rest(types)));
-  }
-
-
-/** ========================================================================
-piecewise mthods
-
-
-void add_piece(expptr piecename, expptr f_name, expptr argvars, expptr body);
-
-umacro{defpiece{$piecename $f($argvars){$body}}}{
-  add_piece(piecename, f, argvars, body);
-  return `{};
-  }
-
-void add_piece(expptr piecename, expptr f_name, expptr argvars, expptr body){
-  check_method(`void,f_name,argvars);
-  ucase(comma_first(argvars)){
-    {$class self}:{
-      expptr full_method = string_atom(sformat("%s_at_%s", atom_string(f_name), atom_string(class)));
-      expptr full_piece = string_atom(sformat("%s_at_%s", atom_string(piecename), atom_string(class)));
-      setprop(full_piece,`piece_code,body);
-      expptr names = getprop(full_method,`piecenames,`{});
-      if(!member(full_piece,names)){setprop(full_method,`piecenames,cons(full_piece,names));}};}
-  }
-
-umacro{collect_method{$f($argvars)}}{
-  check_method(`void,f,argvars);
-  ucase(comma_first(argvars)){
-    {$class self}:{
-      expptr full_method = string_atom(sformat("%s_at_%s", atom_string(f), atom_string(class)));
-      expptr pieces = getprop(full_method,`piecenames,NULL);
-      if(!pieces)berror(sformat("%s is not a piece method",atom_string(f)));
-      expptr body = `{};
-      dolist(piecename,pieces){body = cons(getprop(piecename,`piece_code,`{}),body);};
-      return `{defmethod{void $f($argvars){$body}}};};}
-  }
-
-========================================================================**/
-
+}
+	
 /** ========================================================================
   test cases
 
@@ -506,14 +435,4 @@ umacro{collect_method{$f($argvars)}}{
 // set_y(barney[0], barney[0]);
 
 // barney[0]->y
-
-//defclass{piecemethod{object;}}
-
-//declare_method{void bar(piecemethod self, int i)}
-
-//defpiece{p1 void bar(piecemethod self, int i){do1(); do2();}}
-
-//defpiece{p2 void bar(piecemethod self, int i){do3(); do4();}}
-
-//macroexpand1(`{collect_method{void bar(piecemethod self, int i)}})
 ========================================================================**/
