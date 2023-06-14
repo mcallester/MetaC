@@ -4,21 +4,40 @@
 versions of catch.
 ========================================================================**/
 
+int occurs_in_exp(expptr symbol, expptr exp){
+  if(!exp)return 0;
+  if(atomp(exp))return (symbol == exp);
+  ucase(exp){
+    {$e->$any}.(symbolp(any)):{return occurs_in_exp(symbol,e);};
+    {$any}:{
+      if(cellp(exp))
+      return (occurs_in_exp(symbol,car(exp)) || occurs_in_exp(symbol,cdr(exp)));
+      else
+      return occurs_in_exp(symbol,paren_inside(exp));};}
+  }
+
+int occurs_in_explist(expptr symbol, explist lst){
+  if(!lst)return 0;
+  return occurs_in_exp(symbol,lst->first) || occurs_in_explist(symbol,lst->rest);
+  }
 
 umacro{catch_all{$body1}{$body2}}{
-  //if body1 contains "return" or nonlocal "continue" or "break" then catch freeptr willnot get reset.  This should get fixed.
-  return `{{
+  if(occurs_in_exp(`return,body1) ||
+     occurs_in_exp(`break,body1) ||
+     occurs_in_exp(`continue,body1)){
+    berror("occurance of return, continue or break in catch body");}
+    return `{{
       if(catch_freeptr[0] == CATCH_DIM)berror("catch stack exhausted");
       if(setjmp(catch_stack[catch_freeptr[0]++]) == 0){
-	{$body1} catch_freeptr[0]--;
-	} else {
+	$body1;catch_freeptr[0]--;}
+      else {
+	catch_freeptr[0]--;
 	$body2}
       }};
   }
 
-
 umacro{unwind_protect{$body1}{$body2}}{
-  return `{catch_all{$body1}{{$body2} throw_primitive();}};
+  return `{catch_all{$body1}{$body2; throw_primitive();}};
   }
 
 umacro{declare_exception($name($argtype))}{
@@ -85,7 +104,14 @@ primitive list operations --- depricated in favor of deflists in objects.mc
 
 umacro{explist_push($x,$y)}{
   return `{undo_set($y,expcons($x,$y));};
-}
+  }
+
+umacro{explist_pushnew($x,$y)}{
+  expptr yvar = gensym(y);
+  return `{
+    explist $yvar = $y;
+    if(!explist_member($x,$yvar)){undo_set($y,expcons($x,$yvar));};};
+  }
 
 umacro{explist_do($x,$y){$body}}{
   //we need make "break" and "continue" work from inside iteration macros.

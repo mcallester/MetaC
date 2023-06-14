@@ -348,20 +348,20 @@
 	
 (defun MC:process-output ()
   (when (> (length *mc-accumulator*) 0)
-    ;(print (list "the accumulator is" *mc-accumulator*))
+					;(print (list "the accumulator is" *mc-accumulator*))
     (let ((cell (MC:parse-output))) ;;when cell is not nil, this updates *mc-accumulator*
       (if cell
 	  (let ((tag (car cell))
 		(value (cdr cell)))
-	    ;(print (list '**** 'doing tag))
-	    ;(print value)
+					;(print (list '**** 'doing tag))
+					;(print value)
 	    (MC:dotag tag value)
 	    ;(print '(**** done))
 	    (MC:process-output)))
 	(when *gdb-mode*
 	  (insert *mc-accumulator*)
 	  (set-marker (process-mark (mc-process)) (point))
-	  (setq *mc-accumulator* nil))))))
+	  (setq *mc-accumulator* nil)))))
 
 (defun MC:dotag (tag value)
   (cond ((string= tag "mc-ready")
@@ -402,7 +402,7 @@
 	((string= tag "gdb-exec-error")
 	 (setq *load-count* 0)
          (beep)
-	 (MC:insert-value "non-breakpoint error --- to resume type p NIDE()")
+	 (MC:insert-value "non-break error (likely a segment fault) --- to resume type p NIDE()")
 	 (MC:goto-gdb value))
 
 	((string= tag "breakpoint")

@@ -3,24 +3,6 @@
 /** ========================================================================
 utilities
 ========================================================================**/
-int occurs_in_exp(expptr symbol, expptr exp){
-  if(!exp)return 0;
-  if(atomp(exp))return (symbol == exp);
-  ucase(exp){
-    {$e->$any}.(symbolp(any)):{return occurs_in_exp(symbol,e);};
-    {$any}:{
-      if(cellp(exp))
-      return (occurs_in_exp(symbol,car(exp)) || occurs_in_exp(symbol,cdr(exp)));
-      else
-      return occurs_in_exp(symbol,paren_inside(exp));};}
-  }
-
-int occurs_in_explist(expptr symbol, explist lst){
-  if(!lst)return 0;
-  return occurs_in_exp(symbol,lst->first) || occurs_in_explist(symbol,lst->rest);
-  }
-
-
 void expptr_error(expptr x, char* s){
   berror(sformat("%s %s",exp_string(x),s));
   }
@@ -215,7 +197,6 @@ equivalently.
 ======================================================================== **/
 expptr simple_eval(explist exps);
 void load_check(expptr e);
-explist file_expressions2(char * fname);
 
 expptr eval_exp(expptr exp){
   ucase(exp){
@@ -361,27 +342,27 @@ void preinstall(expptr statement){
   expptr leftexp = left_atom(statement);
   if(leftexp == `typedef){
     if(!getprop(statement,`installed,NULL)){
-      explist_push(statement, new_preambles);}}
+      explist_pushnew(statement, new_preambles);}}
   else
   ucase(statement){
     {}:{};
-    {#include $any}:{explist_push(statement, new_preambles);};
-    {#define $any}:{explist_push(statement, new_preambles);};
-    {return $e;}:{explist_push(statement,doit_statements);};
+    {#include $any}:{explist_pushnew(statement, new_preambles);};
+    {#define $any}:{explist_pushnew(statement, new_preambles);};
+    {return $e;}:{explist_pushnew(statement,doit_statements);};
     {$type $X[0];}.(symbolp(type) && symbolp(X)):{
       preinstall_array(type,X,`{1});};
     {$type $X[0] = $e;}.(symbolp(type) && symbolp(X)):{
       preinstall_array(type,X,`{1});
-      explist_push(`{$X[0] = $e;},doit_statements);};
+      explist_pushnew(`{$X[0] = $e;},doit_statements);};
     {$type $X[$dim];}.(symbolp(type) && symbolp(X)):{
       preinstall_array(type,X,dim);};
     {$type $f($args){$body}}.(symbolp(type) && symbolp(f)):{
       preinstall_proc(type, f, args, body);};
     {$type $f($args);}.(symbolp(type) && symbolp(f)):{
       preinstall_proc(type, f, args, NULL);};
-    {$e;}:{explist_push(statement,doit_statements)};
-    {{$e}}:{explist_push(statement,doit_statements)};
-    {$any}:{explist_push(`{return $statement;},doit_statements)};}
+    {$e;}:{explist_pushnew(statement,doit_statements)};
+    {{$e}}:{explist_pushnew(statement,doit_statements)};
+    {$any}:{explist_pushnew(`{return $statement;},doit_statements)};}
   }
 
 void print_preamble(expptr e){
@@ -404,7 +385,7 @@ void preinstall_array(expptr type, expptr X, expptr dim){
   expptr sig = `{$type $X[$dim];};
   if(getprop_int(X,`{installed},0) == 0){
     setprop(X,`{signature},sig);
-    explist_push(X,new_arrays);}
+    explist_pushnew(X,new_arrays);}
   else
     check_signature(X, sig);
 }
@@ -414,15 +395,15 @@ void preinstall_proc(expptr type,  expptr f, expptr args, expptr body){
   expptr sig = `{$type $f($args);};
   if(getprop_int(f,`{installed},0) == 0){
     setprop(f,`{signature},sig);
-    explist_push(f,new_sig_procedures);}
+    explist_pushnew(f,new_sig_procedures);}
   else{
     check_signature(f, sig);}
   if(body){
-    if(getprop(f,`{base},NULL)){
+    if(getprop(f,`base,NULL)){
       berror(sformat("attempt to change base function %s",atom_string(f)));}
-    explist_push(f, new_body_procedures);
-    setprop(f,`{gensym_name},gensym(f));
-    setprop(f,`{body},body);
+    explist_pushnew(f, new_body_procedures);
+    setprop(f,`gensym_name,gensym(f));
+    setprop(f,`body,body);
   }
 }
 

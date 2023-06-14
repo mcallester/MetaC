@@ -8,9 +8,9 @@ int in_ide_proc(){return in_ide;} //used in mcprint macro in mcD.mc
 void throw_primitive(){
   if(catch_freeptr[0] == 0){
     fprintf(stdout,"uncaught throw: c process fatal");
+    cbreak();
     exit(-1);}
-  catch_freeptr[0]--;
-  longjmp(catch_stack[catch_freeptr[0]], 1);
+  longjmp(catch_stack[catch_freeptr[0]]-1, 1);
   }
 
 void throw_NIDE(){ //the throw macro is not available here.
@@ -750,15 +750,15 @@ explist file_expressions(char * fname){
   mc_read_stream read_stream = (mc_read_stream) stack_alloc(sizeof(read_stream_struct));
   read_stream->stream = stream;
   init_read_stream(read_stream);
+  explist exps = NULL;
   precatch({ //premacros version of catch_all, catch_all is defined in mcD.mc
-	     explist exps = NULL;
 	     while(read_stream->readchar != EOF){
 	       exps = expcons(read_from_file(read_stream),exps);}
 	     fclose(stream);
-	     return explist_reverse(exps);
 	     },{
 	     fclose(stream);
 	     throw_NIDE();});
+  return explist_reverse(exps);
   }
 
 void simple_advance(mc_read_stream read_stream){

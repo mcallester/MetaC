@@ -9,8 +9,10 @@ Hello world
 string_atom("a")
 
 `a
+/** 1:a **/
 
 pointer_exp(`a)
+/** non-break error (likely a segment fault) --- to resume type p NIDE()3:0x55555eb2f760 **/
 
 /** ========================================================================
 procedure definitions
@@ -247,20 +249,6 @@ e[0]->arg1
 
 
 /** ========================================================================
-load_test
-========================================================================**/
-
-load("nofile");
-/** dynamic-check error **/
-
-load("badfile");
-/** dynamic-check error **/
-
-load("include_test");
-
-included(`a)
-
-/** ========================================================================
 a bad signature should not be preserved
 ========================================================================**/
 notype bad(int x){return x;}
@@ -287,9 +275,10 @@ some version of the system failed to recover from this expansion error
 ======================================================================== **/
 
 umacro{test2()}{return file_expressions("nonexistent_file");}
+/** c compilation error **/
 
 test2()
-/** mc to c dynamic-check error **/
+/** c compilation error **/
 
 `a
 
@@ -357,6 +346,32 @@ foo3()
 
 
 /** ========================================================================
+The following is a test of dlopen(RTLD_NOW | RTDL_DEEPBIND) which
+causes the DLL to give top priority to its own symbol definitions when linking
+the DLL code.  with dlopen(RTDL_NOW | RTDL_GLOBAL) the last cell used to return `b
+because the procedure in the DLL linked to the previous version of bar which
+which fewer arguments.  This happened even though the DLL contained the correct
+version of bar for the new signature.
+========================================================================**/
+
+umacro{mention($x)}{
+  return `{if($x ? $x : $x){}};}
+
+restart_undo_frame(1);
+
+expptr bar5(expptr x1, expptr x2);
+
+restart_undo_frame(1);
+
+expptr bar5(expptr x1, expptr x2, expptr x3){
+  mention(x1);
+  mention(x2);
+  return x3;
+  }
+
+bar5(`a,`b,`c)
+
+/** ========================================================================
 catch and throw
 ======================================================================== **/
 
@@ -365,8 +380,6 @@ declare_exception(ex1());
 //the following should generate "uncaught throw".
 throw(ex1());
 /** uncaught throw **/
-
-expptr value2[0];
 
 void foob(){value2[0] = `b;}
 
@@ -411,31 +424,25 @@ catch_test4();
 
 value2[0]
 
+
 /** ========================================================================
-The following is a test of dlopen(RTLD_NOW | RTDL_DEEPBIND) which
-causes the DLL to give top priority to its own symbol definitions when linking
-the DLL code.  with dlopen(RTDL_NOW | RTDL_GLOBAL) the last cell used to return `b
-because the procedure in the DLL linked to the previous version of bar which
-which fewer arguments.  This happened even though the DLL contained the correct
-version of bar for the new signature.
+load_test
 ========================================================================**/
 
-umacro{mention($x)}{
-  return `{if($x ? $x : $x){}};}
+load("nofile");
+/** mc to c dynamic-check error **/
 
-restart_undo_frame(1);
+load("badfile");
+/** mc to c dynamic-check error **/
 
-expptr bar5(expptr x1, expptr x2);
+explist_exp(file_expressions("badfile2.mc"))
 
-restart_undo_frame(1);
+load("badfile2");
+/** c compilation error **/
 
-expptr bar5(expptr x1, expptr x2, expptr x3){
-  mention(x1);
-  mention(x2);
-  return x3;
-  }
+load("include_test");
 
-bar5(`a,`b,`c)
+included(`a)
 
 
 

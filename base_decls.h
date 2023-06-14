@@ -79,7 +79,7 @@ properties of expressions
 voidptr getprop(expptr e, expptr key, expptr defaultval);
 void setprop(expptr e, expptr key, voidptr val);
 int getprop_int(expptr e, expptr key, int defaultval);
-void setprop_int (expptr e, void * key, int val);
+void setprop_int (expptr e, voidptr key, int val);
 
 
 /** ========================================================================
@@ -178,8 +178,8 @@ char undo_heap[UNDO_HEAP_DIM];
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
 
-void expptr_error(expptr x, char* s);
-void expptr_breakpt(expptr x, char* s);
+void expptr_error(expptr x, charptr s);
+void expptr_breakpt(expptr x, charptr s);
 expptr combine_atoms(expptr a1, expptr a2);
 
 typedef struct explist_struct * explist;

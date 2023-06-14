@@ -3,8 +3,10 @@
 objects
 ========================================================================**/
 #define CLASS_DIM 100
+/** 3:done **/
 
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars);
+/** 4:done **/
 
 umacro{defclass{$class{$ivars}}}{
   expptr superclass = semi_first(ivars);
@@ -13,24 +15,30 @@ umacro{defclass{$class{$ivars}}}{
   add_class_forms(superclass, class, ivars);
   return `{};
 }
+/** 5:done **/
 
 typedef struct object_struct{int class_index;} * object;
+/** 6:done **/
 
 setprop(`object,`ivars,`{int class_index;});
+/** 7:done **/
 
 setprop_int(`object,`index,0);
+/** 8:done **/
 
 expptr class_ivars(expptr class){
   expptr ivars = getprop(class,`ivars,NULL);
   if(!ivars)berror(sformat("undefined class %s",atom_string(class)));
   return ivars;
 }
+/** 9:done **/
 
 int class_index(expptr class){
   int index = getprop_int(class,`index,-1);
   if(index < 0)berror(sformat("undefined class %s",atom_string(class)));
   return index;
 }
+/** 10:done **/
 
 void add_class_forms(expptr superclass, expptr class, expptr added_ivars){
   if(class == `object)berror("attempt to redefine the object class");
@@ -45,14 +53,19 @@ void add_class_forms(expptr superclass, expptr class, expptr added_ivars){
   add_form(`{typedef struct $structname{$complete_ivars} $structname, * $class;});
   add_form(`{install_class(`$superclass, `$class, `{$complete_ivars});});
 }
+/** 11:done **/
 
 int class_counter[0] = 1;
+/** 12:done **/
 
 expptr class_name[CLASS_DIM];
+/** 13:done **/
 
 class_name[0] = `object;
+/** 14:done **/
 
 for(int i = 1; i<CLASS_DIM; i++){class_name[i] = NULL;};
+/** 15:done **/
 
 expptr classof(voidptr x){
   int index = ((object) x)->class_index;
@@ -61,12 +74,15 @@ expptr classof(voidptr x){
   if(!class)berror("attempt to determine the class of a non-object");
   return class;
 }
+/** 16:done **/
 
 umacro{declare_subclass($subclass,$superclass)}{
   return `{add_superclass(`{$subclass},`{$superclass})};
 }
+/** 17:done **/
 
 void add_superclass(expptr subclass, expptr superclass);
+/** 18:done **/
 
 
 void install_class(expptr superclass, expptr class, expptr complete_ivars){
@@ -79,10 +95,13 @@ void install_class(expptr superclass, expptr class, expptr complete_ivars){
   setprop(class, `ivars, complete_ivars);
   add_superclass(class, superclass);
 }
+/** 19:done **/
 
 void copy_methods(expptr superclass, expptr subclass);
+/** 20:done **/
 
 void check_subclass(expptr subclass, expptr superclass);
+/** 21:done **/
 
 void add_superclass(expptr subclass, expptr superclass){
   check_subclass(subclass,superclass);
@@ -90,6 +109,7 @@ void add_superclass(expptr subclass, expptr superclass){
   pushprop(superclass, getprop(subclass,`superclasses));
   copy_methods(superclass,subclass);
 }
+/** c compilation error **/
 
 void check_subclass(expptr subclass, expptr superclass){
   expptr_list supervars = (expptr_list) getprop(superclass, `ivars, NULL);
@@ -320,7 +340,8 @@ expptr method_expansion(expptr e){
   expptr index = gensym(`index);
   ucase(e){
     {$f($argexps)}:{
-      ucase{method_type(f); {$outtype($argtypes)}:{
+      ucase(method_type(f)){
+	{$outtype($argtypes)}:{
 	  if(outtype == `void){
 	    return `{
 	      {${comma_first(argtypes)} $selfvar = (${comma_first(argtypes)}) ${comma_first(argexps)};
@@ -346,7 +367,7 @@ expptr method_expansion(expptr e){
 		$outtype $y = $f_ptr(${comma_cons(selfvar,
 				    add_coercions(comma_rest(argexps),comma_rest(argtypes)))});
 		$y;})};}
-	}}};}
+	};}};}
   berror("illegal syntax in method call");
   return NULL;
 }
@@ -365,8 +386,8 @@ expptr infer_type(expptr e){
       if(sig){return leftmost_atom(sig);}
       expptr mtype = getprop(f,`method_type,NULL);
       if(mtype){
-	ucase{mtype;
-	  {$type $any}:{return type;}}}
+	ucase(mtype){
+	  {$type $any}:{return type;};}}
       berror(sformat("method invocation unable to determine the type of %s", exp_string(e)));};
     {$any}:{berror(sformat("method invocation unable to determine the type of %s", exp_string(e)));};}
   return NULL;
@@ -387,7 +408,6 @@ expptr add_coercions(expptr argexps, expptr types){
   return comma_cons(`{(${comma_first(types)}) $reduced_exp},
 		    add_coercions(comma_rest(argexps), comma_rest(types)));
   }
-
 
 
 /** ========================================================================
