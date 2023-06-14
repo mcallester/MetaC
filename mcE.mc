@@ -213,9 +213,10 @@ expptr eval_exp(expptr exp){
 expptr simple_eval(explist exps){
   preamble = NULL;  //this is the preamble of add_premble in mcA.c
   init_forms = NULL;
-  in_doit = 0;
-  explist eforms = explist_mapcar(macroexpand,exps);
-  return eval_internal(explist_append(preamble, explist_append(init_forms, eforms)));
+  explist_do(e,exps){
+    expptr e2 = macroexpand(e);
+    init_forms = expcons(e2,init_forms);}
+  return eval_internal(explist_append(preamble, explist_reverse(init_forms)));
   }
 
 void load_check(expptr e){
@@ -252,6 +253,7 @@ expptr eval_internal(explist forms){ // forms must be fully macro expanded.
   doit_statements = NULL;
   new_preambles = NULL;
   current_forms = forms;
+  in_doit = 0;
   
   explist_mapc(preinstall,forms);
   
