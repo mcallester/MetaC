@@ -202,7 +202,7 @@ expptr eval_exp(expptr exp){
   ucase(exp){
     {load($sym);}.(atomp(sym)) : {
       char * fname=sformat("%s.mc",strip_quotes(atom_string(sym)));
-      explist forms =file_expressions (fname);
+      explist forms =file_expressions(fname);
       explist_do(e,forms){load_check(e);}
       simple_eval(forms);
       return `{${int_exp(cellcount)}: $sym provided};};
@@ -215,8 +215,8 @@ expptr simple_eval(explist exps){
   init_forms = NULL;
   explist_do(e,exps){
     expptr e2 = macroexpand(e);
-    init_forms = expcons(e2,init_forms);}
-  return eval_internal(explist_append(preamble, explist_reverse(init_forms)));
+    preamble = expcons(e2,explist_append(init_forms,preamble));}
+  return eval_internal(explist_reverse(preamble));
   }
 
 void load_check(expptr e){
@@ -241,7 +241,9 @@ void write_signature(expptr sym);
 void write_signature_sparsely(expptr sym);
 expptr explist_exp(explist l);
 
-expptr eval_internal(explist forms){ // forms must be fully macro expanded.
+expptr eval_internal(explist forms){
+  // forms must be fully macro expanded
+  // forms must be in the desired order
   compilecount++; //sformat duplicates the second argument
   char * s = sformat("/tmp/TEMP%d.c",compilecount);
   fileout = fopen(s, "w");

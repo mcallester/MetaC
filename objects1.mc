@@ -16,3 +16,4 @@ umacro{pushprop($val, getprop($x, $prop))}{
   }
 
 umacro{class_dim()}{return `100;}
+
