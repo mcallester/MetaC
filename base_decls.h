@@ -191,3 +191,7 @@ typedef struct explist_struct{
 expptr explist_exp(explist l);
 
 int occurs_in_exp(expptr symbol, expptr exp);
+
+explist expcons(expptr first, explist rest);
+
+expptr cons(expptr x, expptr y);

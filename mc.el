@@ -40,50 +40,14 @@
   (define-key mc-mode-map [?,] 'self-insert-command)
   (define-key mc-mode-map [?\;] 'self-insert-command))
 
-(global-set-key "\C-\M-z" greek-map)
-(define-key mc-mode-map "\C-\M-z" greek-map)
-
-(define-key greek-map "b" 'insert-beta)
-(defun insert-beta () (interactive)
-       (insert-char 946))
-
-(define-key greek-map "l" 'insert-small-lambda)
-(defun insert-small-lambda () (interactive)
-       (insert-char 955))
-
-(define-key greek-map "a" 'insert-alpha)
-(defun insert-alpha () (interactive)
-       (insert-char 945))
-
-(define-key greek-map "s" 'insert-small-sigma)
-(defun insert-small-sigma () (interactive)
-       (insert-char 963))
-
-(define-key greek-map "S" 'insert-cap-sigma)
-(defun insert-cap-sigma () (interactive)
-       (insert-char 931))
-
-(define-key greek-map "p" 'insert-small-pi)
-(defun insert-small-pi () (interactive)
-       (insert-char 960))
-
-(define-key greek-map "P" 'insert-cap-pi)
-(defun insert-cap-pi () (interactive)
-       (insert-char 928))
-
-(define-key greek-map "gγΓ" 'insert-small-gamma)
-(defun insert-small-gamma () (interactive)
-       (insert-char 947))
-
-(define-key greek-map "G" 'insert-cap-gamma)
-(defun insert-cap-gamma () (interactive)
-       (insert-char 915))
-
 (setq auto-mode-alist
       (append
        (list (cons "\\.mc$" 'mc-mode))
        (list (cons "\\.mz$" 'mc-mode))
        auto-mode-alist))
+
+(add-hook 'mc-mode-hook
+	  (lambda () (set-input-method 'TeX)))
 
 
 (defun make-section ()

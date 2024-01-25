@@ -9,7 +9,6 @@ Hello world
 string_atom("a")
 
 `a
-/** 1:a **/
 
 pointer_exp(`a)
 /** non-break error (likely a segment fault) --- to resume type p NIDE()3:0x55555eb2f760 **/
@@ -96,11 +95,41 @@ expptr e[0] = `{a+b};
 
 expptr g(expptr x){return x;}
 
-g(`a)
+expptr g2(expptr x){return g(x);}
+
+g2(`a)
 
 expptr g(expptr x){return `{$x $x};}
 
-g(`a)
+g2(`a)
+
+
+/** ========================================================================
+null redefinition of void function fails (not fixed)
+========================================================================**/
+expptr e[1];
+/** 18:done **/
+
+void g(){e[0]=`a;}
+/** 19:done **/
+
+g();
+/** 20:done **/
+
+e[0]
+/** 21:a **/
+
+e[0]=`b;
+/** 22:done **/
+
+void g(){}
+/** 23:done **/
+
+g();
+/** 24:done **/
+
+e[0]
+/** 25:a **/
 
 /** ========================================================================
  mutual recursion and redefinition
