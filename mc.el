@@ -49,7 +49,6 @@
 (add-hook 'mc-mode-hook
 	  (lambda () (set-input-method 'TeX)))
 
-
 (defun make-section ()
   (interactive)
   (end-of-line)

@@ -1006,10 +1006,12 @@ void paddchar(char c){
 void putexp(expptr);
 
 char * exp_string(expptr e){
+  char oldlast = lastchar;
   char * s = &(stackheap[stackheap_freeptr]);
   lastchar = '\0';
   putexp(e);
   paddchar('\0');
+  lastchar=oldlast;
   return s;
 }
 
@@ -1079,68 +1081,110 @@ void putexp_safe(expptr w){
 exp_pps this is like exp_string but inserts pretty printing white space.
 ======================================================================== **/
 
-int paren_level;
+int current_indent;
+int newline_indent;
+expptr newline_connector;
+void putexp_pretty(expptr e);
 
-#define TEXT_WIDTH 50
+void paddchar_pretty(char c){
+  paddchar(c);
+  current_indent++;
+}
 
-void putexp_pretty();
+void putstring_pretty(char * s){
+  for(int i = 0;s[i] != '\0';i++){
+    paddchar_pretty(s[i]);}
+}
 
 char * exp_pps(expptr e){
   char * s = &(stackheap[stackheap_freeptr]);
   lastchar = '\0';
-  paren_level = 0;
+  newline_indent = 0;
+  current_indent = 0;
+  newline_connector = NULL;
   putexp_pretty(e);
   paddchar('\n');
   paddchar('\0');
   return s;
-  }
+}
 	
 void add_newline(){
   paddchar('\n');
-  for(int i = 0;i< paren_level;i++){paddchar(' ');paddchar(' ');}
+  current_indent = 0;
+  for(int i = 0;i< newline_indent;i++){paddchar_pretty(' ');}
   }
 
-int expression_length(expptr e){
+int exp_length(expptr e){
   if(!e)return 0;
   if(atomp(e))return strlen(atom_string(e));
-  if(parenp(e))return expression_length(paren_inside(e));
-  return expression_length(car(e)) + expression_length(cdr(e));
-  }
+  if(cellp(e))return exp_length(car(e)) + exp_length(cdr(e));
+  if(parenp(e))return 2+exp_length(paren_inside(e));
+  berror("illegal expression in exp_length");
+  return 0;
+}
 
-void breaklines(expptr e){ //line breaks occur only at parens, semi and comma
+void putexp_pretty(expptr e){ //line breaks at (all) curly braces and semicolons
   if(!e)return;
-  if(atomp(e)){putexp(e); return;}
-  
-  if(parenp(e)){
-    if(expression_length(e)<TEXT_WIDTH){putexp(e);return;}
-    paddchar(constructor(e));
-    paren_level++;
-    add_newline();
-    putexp_pretty(paren_inside(e));
-    add_newline();
-    paddchar(close_for(constructor(e)));
-    paren_level--; return;}
-  
-  if(connectionp(e) && (connector(e) == semi || connector(e) == comma)){
-    putexp_pretty(leftarg(e));
-    paddchar(atom_string(connector(e))[0]);
-    if(rightarg(e)){
-	 add_newline();
-	 breaklines(rightarg(e));}
+
+  if(atomp(e)){
+    char * s = atom_string(e);
+    if((connp(s[0]) && connp(lastchar)) ||
+       (alphap(s[0]) && alphap(lastchar))){
+      paddchar_pretty(' ');}
+    putstring_pretty(s);
     return;}
-  
-  putexp_pretty(leftarg(e));
-  expptr con = connector(e);
-  if(con != space)putexp(connector(e));
-  putexp_pretty(rightarg(e));
+
+  if(connectionp(e)){
+    putexp_pretty(leftarg(e));
+    expptr con = connector(e);
+    if(!white_connectorp(con))putexp_pretty(con);
+    expptr right = rightarg(e);
+    if(!right)return;
+    if(con != newline_connector){
+      putexp_pretty(right);
+      return;}
+    add_newline();
+    putexp_pretty(right);
+    return;}
+	
+  if(parenp(e)){
+    char c = constructor(e);
+    paddchar_pretty(c);
+    expptr old_connector = newline_connector;
+    
+    if(exp_length(e) < 30){
+      newline_connector = NULL;
+      putexp_pretty(paren_inside(e));
+      paddchar_pretty(close_for(c));
+      newline_connector = old_connector;
+      return;}
+    
+    if(c == '{'){
+      newline_indent++;
+      newline_indent++;
+      add_newline();
+      newline_connector = semi;
+      putexp_pretty(paren_inside(e));
+      paddchar_pretty('}');
+      newline_connector = old_connector;
+      newline_indent--;
+      newline_indent--;
+      return;}
+
+    //c = '(' or '['
+    int old_indent = newline_indent;
+    newline_indent = current_indent;
+    newline_connector = comma;
+    putexp_pretty(paren_inside(e));
+    paddchar_pretty(close_for(c));
+    newline_indent = old_indent;
+    newline_connector = old_connector;
+    return;}
+
+  berror("illegal expression in putexp_pretty");
   }
 
-void putexp_pretty(expptr w){
-  if(!w)return;
-  if(expression_length(w) <= TEXT_WIDTH) putexp(w);
-  else breaklines(w);
-  }
-
+    
 /** ========================================================================
 section: macroexpand
 ========================================================================**/
