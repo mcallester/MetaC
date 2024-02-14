@@ -154,6 +154,7 @@ void add_list_forms(expptr type){
 	       }});
   add_form(`{
 	     umacro{$listfun(\$x)}{
+	       if(!x)return `NULL;
 	       ucase(x){
 		 {\$first,\$rest}:{return `{$consfun(\$first,$listfun(\$rest))};};
 		 {\$any}:{return `{$consfun(\$x,NULL)};};}}
