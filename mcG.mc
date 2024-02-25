@@ -12,7 +12,6 @@ The efficiency of loading a file into the NIDE needsto be improved.
 
 umacro{mention($x)}{
   return `{if($x ? $x : $x){}};}
-/** 1:done **/
 
 umacro{in_memory_frame{$body}}{
   return
@@ -23,7 +22,6 @@ umacro{in_memory_frame{$body}}{
       }{
       {pop_memory_frame();}}};
   }
-/** 2:done **/
 
 umacro{in_undo_frame{$body}}{
   return
@@ -34,7 +32,6 @@ umacro{in_undo_frame{$body}}{
       }{
       {pop_undo_frame();}}};
   }
-/** 3:done **/
 
 umacro{int_from_undo_frame($exp)}{
   expptr result = gensym(`result);
@@ -50,29 +47,23 @@ umacro{int_from_undo_frame($exp)}{
        $result;
        })};
   }
-/** 4:done **/
 
-umacro{exp_from_undo_frame($exp)}{
+umacro{stackexp_from_undo_frame($exp)}{
   expptr expvar = gensym(`expvar);
   expptr stackexp = gensym(`stack_exp);
-  expptr newexp = gensym(`new_exp);
   return
   `{({
-       expptr $newexp;
+       expptr $stackexp;
        unwind_protect{
 	 push_undo_frame();
 	 expptr $expvar = $exp; //unsafe.  The rest is safe which is required for proper stack memory management.
-	 push_memory_frame();
 	 expptr $stackexp = expptr_to_stack($expvar);
 	 pop_undo_frame();
-	 $newexp = expptr_to_undo($stackexp);
-	 pop_memory_frame();
 	 }{
 	 pop_undo_frame();}
-       $newexp;
+       $stackexp;
        })};
   }
-/** 5:done **/
 
 
 /** ========================================================================
@@ -182,7 +173,6 @@ expptr semi_first(expptr x){
     {$first;$any}:{return first;};
     {$any}:{return x;};}    
   }
-/** 9:done **/
 
 
 // semi_first(`{a;})
@@ -195,7 +185,6 @@ expptr semi_rest(expptr x){
   }
   return NULL;
 }
-/** 10:done **/
 
 //semi_rest(`{a;})
 
@@ -203,13 +192,11 @@ expptr semi_cons(expptr x, expptr y){
   if(y){return `{$x;$y};}
   return `{$x;};
 }
-/** 11:done **/
 
 expptr semi_append(expptr x, expptr y){
   if(x)return semi_cons(semi_first(x), semi_append(semi_rest(x),y));
   return y;
 }
-/** 12:done **/
 
 // semi_append(`{a;b;},`{c;d;})
 
@@ -222,7 +209,6 @@ umacro{semi_iter($x,$y){$body}}{
 	{$body};
 	$yval = semi_rest($yval);}}};
 }
-/** 13:done **/
 
 // semi_iter(x,`{a;b;c;}){mcpprint(x);}
 
@@ -236,7 +222,6 @@ umacro{semi_map($x,$y)($expression)}{
 	semi_iter($x, $yval){$result = semi_cons($expression,$result);};
 	$result;})};
 }
-/** 14:done **/
 
 // semi_map(x, `{a;b;c;})(`{f($x)})
 
@@ -246,7 +231,6 @@ expptr comma_first(expptr x){
     {$first,$any}:{return first;};
     {$any}:{return x;};}
   }
-/** 15:done **/
 
 // comma_first
 // comma_first(`{a,b})
@@ -259,7 +243,6 @@ expptr comma_rest(expptr x){
     {$any,$rest}:{return rest;};
     {$any}:{return NULL;};}
   }
-/** 16:done **/
 
 //comma_rest(`{a})
 //comma_rest(`{a,})
@@ -272,7 +255,6 @@ int comma_length(expptr x){
     {$any,$rest}:{return 1+ comma_length(rest);};
     {$any}:{return 1;};}
   }
-/** 17:done **/
 
 //int_exp(comma_length(`{}))
 //int_exp(comma_length(`{a}))
@@ -284,13 +266,11 @@ expptr comma_cons(expptr x, expptr y){
   if(y){return `{$x,$y};}
   return x;
 }
-/** 18:done **/
 
 expptr comma_append(expptr x, expptr y){
   if(x)return comma_cons(comma_first(x), comma_append(comma_rest(x),y));
   return y;
 }
-/** 19:done **/
 
 // comma_append(`{a,b},`{c,d})
 
@@ -303,7 +283,6 @@ umacro{comma_iter($x,$y){$body}}{
 	{$body};
 	$yval = comma_rest($yval);}}};
 }
-/** 20:done **/
 
 //comma_iter(x,`{a,b,c}){mcpprint(x);}
 
@@ -317,10 +296,8 @@ umacro{comma_map($x,$y)($expression)}{
 	$result = comma_reverse($result);
 	$result;})};
 }
-/** 22:done **/
 
 //comma_map(x, `{a,b,c})(`{f($x)})
-/** 23:f(a),f(b),f(c) **/
 
 /** ========================================================================
 closures
