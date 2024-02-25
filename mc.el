@@ -46,8 +46,8 @@
        (list (cons "\\.mz$" 'mc-mode))
        auto-mode-alist))
 
-(add-hook 'mc-mode-hook
-	  (lambda () (set-input-method 'TeX)))
+;;(add-hook 'mc-mode-hook
+;;	  (lambda () (set-input-method 'TeX)))
 
 (defun make-section ()
   (interactive)

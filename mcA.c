@@ -850,7 +850,7 @@ expptr mcread_Ep(int p_left){
   expptr arg = mcread_arg();
   int p_right = right_precedence();
   while(!terminatorp(pps[pprest])
-	&& (p_left < p_right || (p_left == p_right && connp(pps[pprest]) != '.'))){
+	&& (p_left < p_right || (p_left == p_right && pps[pprest] != '.'))){
     expptr conn = mcread_conn();
     arg = mk_connection(conn,arg,mcread_Ep(p_right));
     p_right = right_precedence();}
