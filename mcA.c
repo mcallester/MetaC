@@ -236,17 +236,6 @@ void pop_undo_frame(){
   undostack_freeptr--;
 }
 
-void restart_undo_frame(int n){
-  if(n == undostack_freeptr){
-    push_undo_frame();
-    return;}
-  if(n > undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
-  while(undostack_freeptr > n+1){
-    clear_undo_frame();
-    undostack_freeptr--;}
-  clear_undo_frame();
-}
-
 void init_undo1(){
   undo_heap_freeptr = 0;
   perm_heap_freeptr = 0;
@@ -1447,6 +1436,17 @@ void pprint(expptr e, FILE* f){
 void mcpprint(expptr e){
   if(in_ide){pprint(e,stdout); send_emacs_tag(print_tag);}
   else pprint(e,stdout);
+}
+
+void restart_undo_frame(int n){
+  if(n == undostack_freeptr){
+    push_undo_frame();
+    return;}
+  if(n > undostack_freeptr || n < 0)berror("attempt to restarting non-existent undo frame");
+  while(undostack_freeptr > n+1){
+    clear_undo_frame();
+    undostack_freeptr--;}
+  clear_undo_frame();
 }
 
 /** ========================================================================

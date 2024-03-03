@@ -41,6 +41,7 @@ void push_undo_frame();
 void pop_undo_frame();
 void clear_undo_frame();
 void restart_undo_frame(int n);
+void restart_event(expptr name);
 
 expptr expptr_to_stack(expptr exp);
 expptr expptr_to_undo(expptr exp);
