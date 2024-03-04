@@ -5,8 +5,8 @@ int undostack_freeptr;
 void restart_event(expptr name){
   int n = getprop_int(name,`undo_freeptr,-1);
   if(n < 0){
-    push_undo_frame();
     setprop_int(name,`undo_freeptr,undostack_freeptr);
+    push_undo_frame();
     return;}
   while(undostack_freeptr > n+1){pop_undo_frame();}
   clear_undo_frame();

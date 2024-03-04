@@ -144,6 +144,7 @@ voidptrptr stack;
 void push_memory_frame();
 void pop_memory_frame();
 
+voidptr current_heap_boundary[1];
 voidptr stack_alloc(int size);
 
 

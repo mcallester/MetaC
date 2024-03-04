@@ -38,6 +38,7 @@ void add_undone_int(int * loc);
 void add_undone_pointer(void * * loc);
 
 void push_undo_frame();
+void* current_heap_boundary[1];
 void pop_undo_frame();
 void clear_undo_frame();
 void restart_undo_frame(int n);
@@ -291,8 +292,6 @@ expptr catch_name[1];
 expptr catch_type[1];
 voidptr catch_val[1];
 char undo_heap[UNDO_HEAP_DIM];
-
-void* undo_freeptr();
 
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
