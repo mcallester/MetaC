@@ -14,6 +14,9 @@ void restart_event(expptr name){
 
 /** ========================================================================
 versions of catch.
+
+exits from the first body of the catch prevent the catch stack from being decremented on exit.
+hence we do not allow continue,break or return in the first body of the catch.
 ========================================================================**/
 
 int occurs_in_exp(expptr symbol, expptr exp){
