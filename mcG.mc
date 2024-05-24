@@ -386,3 +386,93 @@ umacro{lambda $outtype($freevars)($args){$body}}{ // all free variables must be 
 //apply_closure(m[0])();
 
 //e[0]
+
+/** ========================================================================
+parse_comma is used as a macro in later macros
+
+parse_comma allows a {x,y,z} to be treated as a null terminated list.
+
+Semicolons are often null terminated as in {a;b;c;} which allows then to be naturally
+treated as a list.  The parse_semicolon macro allows semicolon to be treated
+as a connective as in {a;b;c}.
+========================================================================**/
+
+umacro{parse_comma(($first,$rest),$commaexp){$body}}{
+  expptr comvar = gensym(`commaexp);
+  expptr fvar = gensym(`f);
+  expptr rvar = gensym(`r);
+  return `{{
+      expptr $comvar = $commaexp;
+      expptr $first;
+      expptr $rest;
+      ucase($comvar){
+	{\$$fvar,\$$rvar}:{$first = $fvar; $rest = $rvar;};
+	{\$any}:{$first = $comvar; $rest = NULL;};};
+      $body}};
+  }
+
+umacro{comma_iter($x,$commalist){$body}}{
+  expptr restvar = gensym(`rest);
+  expptr nextrest = gensym(`nextrest);
+  return `{{
+      expptr $restvar = $commalist;
+      while($restvar){
+	parse_comma(($x,$nextrest),$restvar){
+	  {$body}
+	  $restvar = $nextrest;}}}};
+  }
+
+umacro{parse_semi(($first,$rest),$commaexp){$body}}{
+  expptr semvar = gensym(`semiexp);
+  expptr fvar = gensym(`f);
+  expptr rvar = gensym(`r);
+  return `{{
+      expptr $semvar = $commaexp;
+      expptr $first;
+      expptr $rest;
+      ucase($semvar){
+	{\$$fvar;\$$rvar}:{$first = $fvar; $rest = $rvar;};
+	{\$any}:{$first = $semvar; $rest = NULL;};};
+      $body}};
+  }
+
+
+umacro{semi_iter($x,$semilist){$body}}{
+  expptr restvar = gensym(`rest);
+  expptr nextrest = gensym(`nextrest);
+  return `{{
+      expptr $restvar = $semilist;
+      while($restvar){
+	parse_semi(($x,$nextrest),$restvar){
+	  {$body}
+	  $restvar = $nextrest;}}}};
+  }
+
+umacro{parse_space(($first,$rest),$space_exp){$body}}{
+  //MetaC does not propery parse `{\$$x \$$y}
+  //--- needs investigation.
+  expptr spacevar = gensym(`space_val);
+  return `{{
+      expptr $spacevar = $space_exp;
+      expptr $first;
+      expptr $rest;
+      if(!connectionp($spacevar) || connector($spacevar) != string_atom(" ")){
+	$first = $spacevar;
+	$rest = NULL;}
+      else{
+	$first = leftarg($spacevar);
+	$rest = rightarg($spacevar);
+	}
+      $body}};
+  }
+
+umacro{space_iter($x,$spacelist){$body}}{
+  expptr restvar = gensym(`rest);
+  expptr nextrest = gensym(`nextrest);
+  return `{{
+      expptr $restvar = $spacelist;
+      while($restvar){
+	parse_space(($x,$nextrest),$restvar){
+	  {$body}
+	  $restvar = $nextrest;}}}};
+  }

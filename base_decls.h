@@ -63,6 +63,7 @@ int parenp(expptr e);
 expptr paren_inside(expptr e);
 
 char constructor(expptr e);
+
 /** ========================================================================
 case
 

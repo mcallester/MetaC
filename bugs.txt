@@ -10,9 +10,9 @@ properly separate cells.
 
 4. a compilation error inside an load-region loops through the region repeateing the same error.
 
-*) There is evidence of issues with a procedure name's index in the value table.  It seems that the index
-is incremented under repeated undo and redefinition but the procedure version passing the call to the
-compiled procedure gets stuck at an older index.  This is not solidly confirmed but should be investigated.
+*) It seems that increasing the index of a symbol (for the index to the symbol_value array) confuses
+gdb even when there is no problem with the moving index in the NIDE.  It wouls seem better (for gdb) to
+never undo the index property (perhaps requires another field in expptr structures).
 
 Warts:
 
