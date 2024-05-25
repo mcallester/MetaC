@@ -23,17 +23,20 @@ void IDE_loop(){
     push_memory_frame(); //stack memory
     
     catch_all{
-      catch(NIDE()){
+      catch(NIDE(msg)){
 	send_ready();
 	expptr e=read_from_NIDE();
 	fprintf(stdout, "processing:\n");
 	pprint(e,stdout);
-	send_emacs_tag(print_tag);
 	
+	send_emacs_tag(print_tag);
 	expptr result = eval_exp(e);
 	pprint(result,stdout);
 	send_emacs_tag(result_tag);
-	}{}
+	}{
+	pprint(msg,stdout);
+	send_emacs_tag(result_tag);
+}
       }{
       send_emacs_tag(uncaught_throw_tag);};
     

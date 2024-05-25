@@ -13,9 +13,10 @@ void throw_primitive(){
   longjmp(catch_stack[catch_freeptr[0]]-1, 1);
   }
 
-void throw_NIDE(){ //the throw macro is not available here.
+void throw_NIDE(expptr msg){ //the throw macro is not available here.
   if(in_ide || in_repl){
     catch_name[0]= string_atom("NIDE");
+    catch_val[0]= msg;
     throw_primitive();}
   exit(-1);
 }
@@ -44,6 +45,7 @@ void send_emacs_tag(char * tag){
 void send_print_tag(){ //the global variable print_tag is not visible to the NIDE
   send_emacs_tag(print_tag);
 }
+
 void berror(char *s){
   fprintf(stdout,"\n%s\n",s);
   if(in_ide){
@@ -51,7 +53,7 @@ void berror(char *s){
     else send_emacs_tag(expansion_error_tag);}
   cbreak();
   if(in_ide){send_emacs_tag(continue_from_gdb_tag);}
-  throw_NIDE();
+  throw_NIDE(NULL);
 }
 
 void send_result(char * result){
@@ -747,7 +749,7 @@ explist file_expressions(char * fname){
 	     fclose(stream);
 	     },{
 	     fclose(stream);
-	     throw_NIDE();});
+	     throw_NIDE(NULL);});
   return explist_reverse(exps);
   }
 
@@ -807,11 +809,27 @@ void remove_white(){
 
 char* exp_pps(expptr e);
 
-void declare_unmatched(char openchar, expptr e, char closechar){
-  if(closechar)fprintf(stdout,"unmatched parentheses %c%c\n",openchar, closechar);
-  else fprintf(stdout,"unmatched parentheses %c%c\n",openchar, '-');
-  berror(exp_pps(e));
-  }
+void declare_unmatched(char open, char close, expptr e){
+  char* openstring = (char*) stack_alloc(2);
+  openstring[0]=open;
+  openstring[1]=0;
+  expptr openexp = string_atom(openstring);
+  char* closestring = (char*) stack_alloc(2);
+  closestring[0]=close;
+  closestring[1]=0;
+  expptr closeexp = string_atom(closestring);
+  expptr msg = intern_paren('{',
+			      mk_connection(semi,
+					    mk_connection(space,
+							  string_atom("unmatched"),
+							  string_atom("parens")),
+					    mk_connection(space,
+							  openexp,
+							  mk_connection(space,
+									e,
+									closeexp))));
+  throw_NIDE(msg);
+}
 
 expptr mcread_Ep(int);
 expptr mcread_arg();
@@ -822,7 +840,7 @@ expptr mcread(char* s){
   pprest = 0;
   remove_white();
   expptr e = mcread_Ep(-1);
-  if(closep(pps[pprest]))declare_unmatched('-',e,pps[pprest]);
+  if(closep(pps[pprest]))declare_unmatched('-',pps[pprest],e);
   return e;
   }
 
@@ -891,7 +909,10 @@ expptr mcread_open(){
   char cl = close_for(c);
   movechar(); remove_white();
   expptr e = mcread_Ep(-1);
-  if(pps[pprest] != cl)declare_unmatched(c,e,pps[pprest]);
+  char end = pps[pprest];
+  if(end != cl){
+    if(closep(end))declare_unmatched(c,end,e);
+    declare_unmatched(c,'-',e);}
   movechar();remove_white();
   return intern_paren(c,e);
   }

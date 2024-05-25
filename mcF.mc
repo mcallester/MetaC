@@ -90,7 +90,7 @@ umacro{install_value_properties()}{
   return result;
   }
 
-declare_exception(NIDE());
+declare_exception(NIDE(expptr));
 
 init_fun(mcF_init)
 

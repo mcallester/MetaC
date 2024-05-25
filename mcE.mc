@@ -224,11 +224,11 @@ void load_check(expptr e){
     {restart_undo_frame($any);}:{
       fprintf(stdout,"loaded file contains an undo restart");
       if(in_ide)send_emacs_tag(comp_error_tag);
-      throw_NIDE();};
+      throw_NIDE(NULL);};
     {load($sym);}.(atomp(sym)) : {
       fprintf(stdout,"recursive load is not yet supported");
       if(in_ide)send_emacs_tag(comp_error_tag);
-      throw_NIDE();};
+      throw_NIDE(NULL);};
     {$any}:{return;};}
   }
 
@@ -430,7 +430,7 @@ void comp_error(){
   {send_emacs_tag(comp_error_tag);}
   else
   {fprintf(stdout,"\n evaluation aborted\n\n");}
-  throw_NIDE();
+  throw_NIDE(NULL);
 }
 
 voidptr compile_load_file(charptr fstring){
@@ -466,7 +466,7 @@ char *strip_quotes(char *input){
 
 void NIDE(){
   send_emacs_tag(continue_from_gdb_tag);
-  throw_NIDE();
+  throw_NIDE(NULL);
   }
 
 

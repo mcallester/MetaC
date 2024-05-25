@@ -14,10 +14,11 @@ void ucase_rule_error(expptr rule){
   berror("");}
 
 void match_failure(expptr value, expptr unmatched_patterns){
-  fprintf(stdout,"the value %s \n does not match any of \n %s",
-	  exp_pps(value),
-	  exp_pps(unmatched_patterns));
-  berror("");
+  throw_NIDE(`{{pattern match failure;
+		 the value;
+		 $value;
+		 does not match any of;
+		 $unmatched_patterns}});
   }
 
 expptr ucase_macro(expptr e){
@@ -42,7 +43,7 @@ expptr casecode1(expptr rules, expptr topvar,
   return mk_connection(semi,
 		       casecode2(first_rule,topvar,donelabel),
 		       casecode1(rightarg(rules),topvar,donelabel,
-				 mk_connection(comma,
+				 mk_connection(semi,
 					       leftarg(first_rule),
 					       unmatched)));
   }
