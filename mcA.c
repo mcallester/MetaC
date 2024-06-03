@@ -138,6 +138,9 @@ void * undo_alloc(int size){
   return result;
 }
 
+int undo_heap_freeptr_fun(){
+  return undo_heap_freeptr;}
+
 typedef struct undopair_int{
   int * location;
   int oldval;

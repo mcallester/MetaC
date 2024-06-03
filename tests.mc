@@ -108,28 +108,20 @@ g2(`a)
 null redefinition of void function fails (not fixed)
 ========================================================================**/
 expptr e[1];
-/** 18:done **/
 
 void g(){e[0]=`a;}
-/** 19:done **/
 
 g();
-/** 20:done **/
 
 e[0]
-/** 21:a **/
 
 e[0]=`b;
-/** 22:done **/
 
 void g(){}
-/** 23:done **/
 
 g();
-/** 24:done **/
 
 e[0]
-/** 25:a **/
 
 /** ========================================================================
  mutual recursion and redefinition
@@ -472,6 +464,4 @@ load("badfile2");
 load("include_test");
 
 included(`a)
-
-
 

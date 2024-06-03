@@ -306,3 +306,5 @@ void init_stream();
 expptr read_from_file();
 
 expptr explist_exp(explist l);
+
+int undo_heap_freeptr_fun();

@@ -198,3 +198,5 @@ int occurs_in_exp(expptr symbol, expptr exp);
 explist expcons(expptr first, explist rest);
 
 expptr cons(expptr x, expptr y);
+
+int undo_heap_freeptr_fun();

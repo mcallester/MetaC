@@ -22,8 +22,6 @@ Warts:
 may not get reset (very bad). This could be addressed by compiling the body of the catch into a procedure call.
 
 
-
-
-
-
-
+If the same procedure is defined twice in the same file with different
+signatures then which the file is loaded (as opposed to evaluaty the definitions sequentially)
+the signature clash goes undetected.
