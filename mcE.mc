@@ -205,7 +205,7 @@ expptr eval_exp(expptr exp){
       explist forms =file_expressions(fname);
       explist_do(e,forms){load_check(e);}
       simple_eval(forms);
-      return `{${int_exp(cellcount)}: $sym provided};};
+      return `{{${int_exp(cellcount)}: $sym provided}};};
     {$any}:{
       return simple_eval(expcons(exp,NULL));};}
   }

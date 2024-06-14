@@ -341,31 +341,31 @@
   (cond	((string= tag "reader-error")
 	 (setq *load-count* 0)
          (beep)
-	 (MC:insert-value "reader error")
+	 (MC:insert-value "{reader error}")
 	 (MC:display-abort-message value))
 
 	((string= tag "expansion-error")
 	 (setq *load-count* 0)
          (beep)
-	 (MC:insert-value "mc to c dynamic-check error")
+	 (MC:insert-value "{mc to c dynamic-check error}")
 	 (MC:goto-gdb value))
 
 	((string= tag "comp-error")
 	 (setq *load-count* 0)
          (beep)
-	 (MC:insert-value "c compilation error")
+	 (MC:insert-value "{c compilation error}")
 	 (MC:display-abort-message value))
 
 	((string= tag "exec-error")
 	 (setq *load-count* 0)
          (beep)
-	 (MC:insert-value "dynamic-check error")
+	 (MC:insert-value "{dynamic-check error}")
 	 (MC:goto-gdb value))
 	
 	((string= tag "gdb-exec-error")
 	 (setq *load-count* 0)
          (beep)
-	 (MC:insert-value "non-break error (likely a segment fault) --- to resume type p NIDE()")
+	 (MC:insert-value "{non-break error (likely a segment fault) --- to resume type p NIDE()}")
 	 (MC:goto-gdb value))
 
 	((string= tag "breakpoint")
@@ -383,7 +383,7 @@
 	((string= tag "uncaught-throw")
 	 (setq *load-count* 0)
 	 (beep)
-	 (MC:insert-value "uncaught throw"))
+	 (MC:insert-value "{uncaught throw}"))
 
 	((string= tag "ignore"))
 
@@ -551,7 +551,7 @@
 	     (eq t (compare-strings "(gdb)" nil nil *mc-accumulator* -6 -1)))
     (let ((value *mc-accumulator*))
       (setq *mc-accumulator* nil)
-      (cons "gdb-exec-error" value))))
+      (cons "gdb-exe-cerror" value))))
 
 (defun message-buffer ()
   (get-buffer-create "*MC compilation*"))
@@ -576,7 +576,7 @@
               (end (if (use-region-p) (region-end) (point-max))))
           (while t
             (goto-char start) 
-            (re-search-forward "/** [0-9]+:" end)
+            (search-forward "/** {" end)
             (beginning-of-line)
             (push-mark)
             (search-forward "**/" end)
