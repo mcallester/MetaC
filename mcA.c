@@ -210,14 +210,15 @@ void save_undones(){
     if(undo_trail_freeptr == UNDO_TRAIL_DIM)berror("undo trail exhausted");
     undo_trail[undo_trail_freeptr].location = undone_pointer[i];
     undo_trail[undo_trail_freeptr++].oldval = *undone_pointer[i];}
-}
+  }
 
 void push_undo_frame(){
-  current_heap_boundary[0] = &undo_heap[undo_heap_freeptr];
+  int previous_freeptr = undo_heap_freeptr;
   if(undostack_freeptr == UNDOSTACK_DIM)berror("undo freeptr stack exhausted");
   undo_stack[undostack_freeptr].undo_trail_int_freeptr = undo_trail_int_freeptr;
   undo_stack[undostack_freeptr++].undo_trail_freeptr = undo_trail_freeptr;
   save_undones();
+  undo_set(previous_heap_boundary[0],&undo_heap[previous_freeptr]);
 }
 
 void clear_undo_frame(){
@@ -408,7 +409,15 @@ void * stack_alloc(int size){
   char * result = &stackheap[stackheap_freeptr];
   stackheap_freeptr += size;
   return result;
-}
+  }
+
+int in_stackheap(void* p){
+  return (p >= (void*) &stackheap[0] && p < (void*) &stackheap[STACKHEAP_DIM]);
+  }
+
+int stackheap_allocatedp(void* p){
+  return (p >= (void*) &stackheap[0] && p < (void*) &stackheap[stackheap_freeptr]);
+  }
 
 #define STACK_DIM  (1 << 10)
 int stackmem_stack[STACK_DIM];

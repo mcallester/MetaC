@@ -312,7 +312,7 @@ expptr eval_internal(explist forms){
   explist_mapc(install_array,explist_reverse(new_arrays));
   explist_mapc(install_procedure,explist_reverse(new_sig_procedures));
   if(!e)e = `{};
-  return `{${int_exp(++cellcount)}: $e};
+  return `{{${int_exp(++cellcount)}; $e}};
   }
 
 void write_signature(expptr sym){

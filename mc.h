@@ -38,7 +38,7 @@ void add_undone_int(int * loc);
 void add_undone_pointer(void * * loc);
 
 void push_undo_frame();
-void* current_heap_boundary[1];
+void* previous_heap_boundary[1];
 void pop_undo_frame();
 void clear_undo_frame();
 void restart_undo_frame(int n);
@@ -308,3 +308,8 @@ expptr read_from_file();
 expptr explist_exp(explist l);
 
 int undo_heap_freeptr_fun();
+
+int in_stackheap(voidptr p);
+
+int stackheap_allocatedp(voidptr p);
+

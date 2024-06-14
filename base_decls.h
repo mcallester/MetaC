@@ -145,7 +145,7 @@ voidptrptr stack;
 void push_memory_frame();
 void pop_memory_frame();
 
-voidptr current_heap_boundary[1];
+voidptr previous_heap_boundary[1];
 voidptr stack_alloc(int size);
 
 
@@ -200,3 +200,8 @@ explist expcons(expptr first, explist rest);
 expptr cons(expptr x, expptr y);
 
 int undo_heap_freeptr_fun();
+
+int in_stackheap(voidptr p);
+
+int stackheap_allocatedp(voidptr p);
+
