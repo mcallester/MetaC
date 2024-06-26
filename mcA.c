@@ -405,7 +405,9 @@ char stackheap[STACKHEAP_DIM];
 int stackheap_freeptr;
 
 void * stack_alloc(int size){
-  if(stackheap_freeptr + size > STACKHEAP_DIM)berror("stack memory heap exhausted");
+  if(stackheap_freeptr + size > STACKHEAP_DIM){
+    stackheap_freeptr = 0;
+    berror("stack memory heap exhausted");}
   char * result = &stackheap[stackheap_freeptr];
   stackheap_freeptr += size;
   return result;
@@ -487,8 +489,9 @@ int alphap(char c){
 
 int connp(char c){
   return c == '#' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
-    || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^'
-    || c == '|' || c == '&' || c == '~' ||c ==';' || c == '%' || c == '!' || c == '?';
+  || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^'
+  || c == '|' || c == '&' || c == '~' ||c ==';' || c == '%' || c == '!' || c == '?'
+    || c < 0; //unicode
 }
 
 int whitep(char c){return c == ' ' || c == '\n' || c== '\t';}
