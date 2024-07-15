@@ -481,16 +481,15 @@ int quotecharp(char x){return (x == '"' || x == '\'');}
 
 int alphap(char c){
   return  (c >= 'A' && c <= 'Z')
-  || (c >= 'a' && c <= 'z')
-  || (c >= '0' && c <= '9')
-  || (c == '_')
-  || (c < 0); //unicode byte
+    || (c >= 'a' && c <= 'z')
+    || (c >= '0' && c <= '9')
+    || (c == '_');
 }
 
 int connp(char c){
   return c == '#' || c == '*' || c == '/' || c == '+' || c == '-' || c == '.' || c == ':'
-  || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^'
-  || c == '|' || c == '&' || c == '~' ||c ==';' || c == '%' || c == '!' || c == '?'
+    || c == ',' || c == '<' || c == '=' ||c == '>' || c == '@' || c == '^'
+    || c == '|' || c == '&' || c == '~' ||c ==';' || c == '%' || c == '!' || c == '?'
     || c < 0; //unicode
 }
 
@@ -519,19 +518,18 @@ int precedence(char c){
   if(c==';')return 1;
   if(c==',')return 2;
   if(c ==':')return 3;
-  if(c=='@')return 4;
+  if(c=='@' || c < 0)return 4; //unicode
   if(c=='|')return 5;
   if(c=='&')return 6;
-  if(c=='!')return 7;
   if(c=='?')return 8;
-  if(c=='=' || c=='<' || c=='>' || c =='~') return 9;
+  if(c=='=' || c=='<' || c=='>' || c =='~' || c=='!') return 9;
   if(c=='+' || c=='-')return 10;
   if(c=='*' || c=='/')return 11;
   if(c == '%' || c == '^' || c== '#')return 12;
   if(c==' ')return 13;
   if(c=='.')return 14;
   berror("undefined precedence");
-  return 15; //prevents compiler warning
+  return 13; //prevents compiler warning
   }
 
 

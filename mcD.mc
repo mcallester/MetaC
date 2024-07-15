@@ -10,7 +10,7 @@ void restart_event(expptr name){
     return;}
   while(undostack_freeptr > n+1){pop_undo_frame();}
   clear_undo_frame();
-}
+  }
 
 /** ========================================================================
 versions of catch.

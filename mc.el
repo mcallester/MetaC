@@ -551,7 +551,7 @@
 	     (eq t (compare-strings "(gdb)" nil nil *mc-accumulator* -6 -1)))
     (let ((value *mc-accumulator*))
       (setq *mc-accumulator* nil)
-      (cons "gdb-exe-cerror" value))))
+      (cons "gdb-exec-error" value))))
 
 (defun message-buffer ()
   (get-buffer-create "*MC compilation*"))
