@@ -14,6 +14,7 @@ void ucase_rule_error(expptr rule){
   berror("");}
 
 void match_failure(expptr value, expptr unmatched_patterns){
+  if(break_on_throw[0])breakpt("pattern match failure");
   throw_NIDE(`{{pattern match failure;
 		 the value;
 		 $value;

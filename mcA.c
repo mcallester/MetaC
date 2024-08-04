@@ -1535,6 +1535,7 @@ void init_exp_constants(){
 void mcA_init(){
   
   catch_freeptr[0] = 0;
+  break_on_throw[0]=0;
   init_undo_memory();
   init_stack_memory();
   init_input_stream();
