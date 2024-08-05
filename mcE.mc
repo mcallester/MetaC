@@ -162,7 +162,7 @@ void install_link_def(expptr f){
 		 $type (* _mc_f)($args);
 		 _mc_f = symbol_value_copy[${symbol_index_exp(f)}];
 		 
-		 if(!_mc_f){berror("call to undefined procedure");}
+		 if(!_mc_f){throw_NODE(`{call to undefined procedure $f});}
 		 
 		 ${(type == `{void} ?
 		    `{(* _mc_f)(${args_variables(args)});}

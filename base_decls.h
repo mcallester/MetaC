@@ -206,3 +206,5 @@ int in_stackheap(voidptr p);
 int stackheap_allocatedp(voidptr p);
 
 int break_on_throw[1];
+
+void throw_NIDE(expptr msg);

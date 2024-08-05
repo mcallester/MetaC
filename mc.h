@@ -295,7 +295,7 @@ char undo_heap[UNDO_HEAP_DIM];
 
 void declare_except_fun(expptr name, expptr argtype);
 void throw_primitive();
-void throw_NIDE();
+void throw_NIDE(expptr msg);
 
 void expptr_error(expptr x, char* s);
 void expptr_breakpt(expptr x, char* s);
