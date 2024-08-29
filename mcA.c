@@ -400,7 +400,7 @@ stack memory
 stack objects are not interned and stack expressions do not have properties
 ========================================================================**/
 
-#define STACKHEAP_DIM (1<<19)
+#define STACKHEAP_DIM (1<<21)
 char stackheap[STACKHEAP_DIM];
 int stackheap_freeptr;
 
