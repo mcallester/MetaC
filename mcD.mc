@@ -68,7 +68,7 @@ void declare_except_fun(expptr name, expptr argtype){
 
 umacro{throw($name($value))}{
   expptr argtype = getprop(name,`exception_argtype,`none);
-  if(argtype == `none)berror("undeclared exception");
+  if(argtype == `none)berror(exp_string(`{undeclared exception $name}));
   
   if(!argtype){
     if(value)berror("ill typed throw");
@@ -89,7 +89,7 @@ umacro{throw($name($value))}{
   
 umacro{catch($name($arg)){$body1}{$body2}}{
   expptr argtype = getprop(name,`exception_argtype,`none);
-  if(argtype == `none)berror("undeclared exception");
+  if(argtype == `none)berror(exp_string(`{undeclared exception $name}));
   
   if(!argtype){
     if(arg)berror("ill-typed catch");

@@ -517,12 +517,11 @@ int precedence(char c){
   if(terminatorp(c))return -1;
   if(c==';')return 1;
   if(c==',')return 2;
-  if(c ==':')return 3;
   if(c=='@' || c < 0)return 4; //unicode
   if(c=='|')return 5;
   if(c=='&')return 6;
   if(c=='?')return 8;
-  if(c=='=' || c=='<' || c=='>' || c =='~' || c=='!') return 9;
+  if(c=='=' || c=='<' || c=='>' || c =='~' || c=='!' || c ==':') return 9;
   if(c=='+' || c=='-')return 10;
   if(c=='*' || c=='/')return 11;
   if(c == '%' || c == '^' || c== '#')return 12;
