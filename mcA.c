@@ -146,12 +146,12 @@ typedef struct undopair_int{
   int oldval;
 }undopair_int;
 
-#define UNDO_TRAIL_INT_DIM  (1 << 14)
+#define UNDO_TRAIL_INT_DIM  (1 << 16)
 undopair_int undo_trail_int[UNDO_TRAIL_INT_DIM];
 int undo_trail_int_freeptr;
 
 void undo_set_int_proc(int * loc, int val){
-  if(undo_trail_int_freeptr == UNDO_TRAIL_INT_DIM)berror("undo trail exhausted");
+  if(undo_trail_int_freeptr == UNDO_TRAIL_INT_DIM)berror("undo int trail exhausted");
   undo_trail_int[undo_trail_int_freeptr].location = loc;
   undo_trail_int[undo_trail_int_freeptr++].oldval = *loc;
   *loc = val;}
@@ -163,7 +163,7 @@ typedef struct undopair{
   void * oldval;
 }undopair;
 
-#define UNDO_TRAIL_DIM  (1 << 20)
+#define UNDO_TRAIL_DIM  (1 << 24)
 undopair undo_trail[UNDO_TRAIL_DIM];
 int undo_trail_freeptr;
 
