@@ -217,7 +217,7 @@
   (setq *execute_count* 0)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
-  (shell-command "rm /tmp/TEMP*")
+  (shell-command "rm -f /tmp/TEMP*")
   (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
   (with-current-buffer (gdb-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:filter))
