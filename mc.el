@@ -1,6 +1,15 @@
 (setq *gdb* "/usr/bin/gdb")
 (setq *MetaC* "/home/david/MC/")
 
+(shell-command "cd /home/david/MetaC; etags --lang=c --regex=@/home/david/MC/mc-regexps.tags *.mc mcA.c *.h")
+(shell-command "cd /home/david/Alfred; etags --lang=c --regex=@/home/david/MC/mc-regexps.tags *.mc")
+
+(setq tags-table-list (list "/home/david/Alfred/TAGS" "/home/david/MC/TAGS"))
+
+;;Each of the shell commands creates a TAGS file in the directory it works on (one is MetaC the other is Alfred).
+;;Meta-. is very useful and locates the definition of the symbol your cursor is on. If you provide a prefix
+;;argument then it will prompt you for the name of the symbol. M-, returns you to where you typed M-.
+
 (define-derived-mode greek
   nil "greek"
   "for greek characters")
