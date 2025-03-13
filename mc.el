@@ -209,6 +209,7 @@
 
 (defun MC:start-metac ()
   (interactive)
+  (setq *source-buffer* (current-buffer))
   (MC:clean-cells)
   (setq *waiting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
   (setq *gdb-mode* nil)
@@ -338,6 +339,8 @@
 	   (process-send-string (mc-process) "tag_done\0\n"))))
 
 (defun MC:dotag_other (tag value)
+  (unless (bound-and-true-p *value-point*)
+    (setq *value-point* (point-min)))
   (cond	((string= tag "reader-error")
 	 (setq *load-count* 0)
          (beep)
