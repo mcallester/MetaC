@@ -1,15 +1,6 @@
 (setq *gdb* "/usr/bin/gdb")
 (setq *MetaC* "/home/david/MC/")
 
-(shell-command "cd /home/david/MetaC; etags --lang=c --regex=@/home/david/MC/mc-regexps.tags *.mc mcA.c *.h")
-(shell-command "cd /home/david/Alfred; etags --lang=c --regex=@/home/david/MC/mc-regexps.tags *.mc")
-
-(setq tags-table-list (list "/home/david/Alfred/TAGS" "/home/david/MC/TAGS"))
-
-;;Each of the shell commands creates a TAGS file in the directory it works on (one is MetaC the other is Alfred).
-;;Meta-. is very useful and locates the definition of the symbol your cursor is on. If you provide a prefix
-;;argument then it will prompt you for the name of the symbol. M-, returns you to where you typed M-.
-
 (define-derived-mode greek
   nil "greek"
   "for greek characters")
@@ -218,6 +209,7 @@
 
 (defun MC:start-metac ()
   (interactive)
+  (setq *source-buffer* (current-buffer))
   (MC:clean-cells)
   (setq *waiting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
   (setq *gdb-mode* nil)
@@ -226,7 +218,7 @@
   (setq *execute_count* 0)
   (when (mc-process) (delete-process (mc-process)))
   (with-current-buffer (gdb-buffer) (erase-buffer))
-  (shell-command "rm /tmp/TEMP*")
+  (shell-command "rm -f /tmp/TEMP*")
   (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
   (with-current-buffer (gdb-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:filter))
@@ -347,6 +339,8 @@
 	   (process-send-string (mc-process) "tag_done\0\n"))))
 
 (defun MC:dotag_other (tag value)
+  (unless (bound-and-true-p *value-point*)
+    (setq *value-point* (point-min)))
   (cond	((string= tag "reader-error")
 	 (setq *load-count* 0)
          (beep)
