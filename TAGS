@@ -1,15 +1,15 @@
 
-closures.mc,561
+closures.mc,507
 expptr wrap_body(5,163
 expptr install_vars(13,480
-umacro{closure_type((closure_type(21,776
+umacro{closure_type(closure_type21,776
 umacro{umacro21,776
-umacro{closure_typeexp($typename:(closure_typeexp($typename:28,988
+umacro{closure_typeexp(closure_typeexp28,988
 umacro{umacro28,988
-umacro{closure_typedef($typename:(closure_typedef($typename:31,1142
+umacro{closure_typedef(closure_typedef31,1142
 umacro{umacro31,1142
   return `{typedef closure_typeexp($typename:$typename32,1196
-umacro{apply_closure($f)(apply_closure($f)39,1371
+umacro{apply_closure(apply_closure39,1371
 umacro{umacro39,1371
 umacro{lambda lambda43,1478
 umacro{umacro43,1478
@@ -55,17 +55,19 @@ expptr init_form_body(26,628
 expptr init_fun_macro(33,808
 void mcC_init(39,960
 
-mcD.mc,749
+mcD.mc,795
 int undostack_freeptr;3,17
 void restart_event(5,41
 int occurs_in_exp(22,651
 int occurs_in_explist(34,1024
-umacro{declare_exception($name(declare_exception($name58,1731
+umacro{catch_all{catch_all39,1182
+umacro{unwind_protect{unwind_protect54,1627
+umacro{declare_exception(declare_exception58,1731
 umacro{umacro58,1731
 void declare_except_fun(63,1857
-umacro{throw($name(throw($name69,2115
+umacro{throw(throw69,2115
 umacro{umacro69,2115
-umacro{catch($name(catch($name90,2629
+umacro{catch(catch90,2629
 umacro{umacro90,2629
   expptr argtype 91,2673
   expptr valvar 105,3029
@@ -140,9 +142,11 @@ void install_base(70,1798
 umacro{install_value_properties(install_value_properties84,2244
 umacro{umacro84,2244
 
-mcG.mc,2496
+mcG.mc,2480
 umacro{mention(mention13,505
 umacro{umacro13,505
+umacro{in_memory_frame{in_memory_frame16,560
+umacro{in_undo_frame{in_undo_frame26,732
 umacro{int_from_undo_frame(int_from_undo_frame36,896
 umacro{umacro36,896
 umacro{stackexp_from_undo_frame(stackexp_from_undo_frame51,1160
@@ -153,7 +157,7 @@ umacro 73,1795
   return `{typedef struct ${combine_atoms(combine_atoms74,1832
   return `{typedef struct ${combine_atoms(typename, `struct)} * $typename}$typename74,1832
 void add_list_forms(77,1913
-umacro{deflists($type)}{ deflists($type)}{162,4675
+umacro{deflists(deflists162,4675
 umacro{umacro162,4675
 expptr semi_first(171,4982
 expptr semi_rest(180,5115
@@ -162,7 +166,7 @@ expptr semi_append(196,5369
 umacro{semi_iter(semi_iter203,5526
 umacro{umacro203,5526
   expptr yval 204,5559
-umacro{semi_map($x,$y)(semi_map($x,$y)215,5765
+umacro{semi_map(semi_map215,5765
 umacro{umacro215,5765
 expptr comma_first(229,6075
 expptr comma_rest(240,6241
@@ -172,25 +176,25 @@ expptr comma_append(270,6846
 umacro{comma_iter(comma_iter277,7007
 umacro{umacro277,7007
   expptr yval 278,7041
-umacro{comma_map($x,$y)(comma_map($x,$y)289,7248
+umacro{comma_map(comma_map289,7248
 umacro{umacro289,7248
 expptr wrap_body(306,7730
 expptr install_vars(314,8047
-umacro{closure_type((closure_type(322,8348
+umacro{closure_type(closure_type322,8348
 umacro{umacro322,8348
-umacro{closure_typeexp($typename:(closure_typeexp($typename:329,8560
+umacro{closure_typeexp(closure_typeexp329,8560
 umacro{umacro329,8560
-umacro{closure_typedef($typename:(closure_typedef($typename:332,8714
+umacro{closure_typedef(closure_typedef332,8714
 umacro{umacro332,8714
   return `{typedef closure_typeexp($typename:$typename333,8768
-umacro{apply_closure($f)(apply_closure($f)340,8943
+umacro{apply_closure(apply_closure340,8943
 umacro{umacro340,8943
 umacro{lambda lambda344,9050
 umacro{umacro344,9050
   expptr pname 345,9139
   expptr cname 346,9178
   expptr f 347,9213
-umacro{parse_comma((parse_comma(400,10767
+umacro{parse_comma(parse_comma400,10767
 umacro{umacro400,10767
   expptr comvar 401,10821
   expptr fvar 402,10858
@@ -199,7 +203,7 @@ umacro{comma_iter(comma_iter414,11143
 umacro{umacro414,11143
   expptr restvar 415,11185
   expptr nextrest 416,11219
-umacro{parse_semi((parse_semi(425,11415
+umacro{parse_semi(parse_semi425,11415
 umacro{umacro425,11415
   expptr semvar 426,11468
   expptr fvar 427,11504
@@ -208,7 +212,7 @@ umacro{semi_iter(semi_iter440,11790
 umacro{umacro440,11790
   expptr restvar 441,11830
   expptr nextrest 442,11864
-umacro{parse_space((parse_space(451,12058
+umacro{parse_space(parse_space451,12058
 umacro{umacro451,12058
   expptr spacevar 454,12188
 umacro{space_iter(space_iter469,12530
@@ -216,7 +220,7 @@ umacro{umacro469,12530
   expptr restvar 470,12572
   expptr nextrest 471,12606
 
-NIDE-examples.mc,579
+NIDE-examples.mc,571
 expptr f(3,16
 f(5,51
 for(int i = 0; i < 10; i++)x[x11,74
@@ -235,7 +239,7 @@ g(63,967
 g(67,1014
 expptr bar(77,1114
 foo(81,1183
-umacro{mydolist($x, mydolist($x,91,1271
+umacro{mydolist(mydolist91,1271
 foo(87,1261
      expptr rest 92,1304
 int numeralp(106,1628
@@ -247,13 +251,14 @@ voidptr symbol_value[symbol_value15,253
 void IDE_loop(19,314
 int main(46,787
 
-objects1.mc,142
-umacro{pushprop($val, pushprop($val,9,224
+objects1.mc,110
+umacro{pushprop(pushprop9,224
 umacro{umacro9,224
-umacro{class_dim()}{return class_dim()}{return18,511
+umacro{class_dim(class_dim18,511
 umacro{umacro18,511
 
-objects2.mc,1586
+objects2.mc,1581
+umacro{defclass{defclass3,76
 umacro{umacro3,76
 typedef struct object_struct{object_struct11,350
 typedef struct object_struct{int class_index;11,350
@@ -278,14 +283,14 @@ umacro{new(new108,3726
 umacro{umacro108,3726
 expptr strip_var(130,4450
 expptr strip_vars(137,4573
-umacro{declare_method{$outtype declare_method{$outtype146,4776
+umacro{declare_method{declare_method146,4776
 umacro{umacro146,4776
 expptr method_table_name(151,4899
 void add_declare_method_forms(157,5055
 void install_method_name(170,5590
 voidptrptr method_table(177,5846
 void copy_methods(183,6046
-umacro{defmethod{$outtype defmethod{$outtype216,7558
+umacro{defmethod{defmethod216,7558
 umacro{umacro216,7558
 void add_defmethod_forms2(223,7740
 void add_defmethod_forms(236,8268
@@ -311,11 +316,11 @@ testB.mc,29
 ucase(3,17
 expptr foo(5,66
 
-testC.mc,79
-umacro{declare_exception($name(declare_exception($name1,0
+testC.mc,67
+umacro{declare_exception(declare_exception1,0
 umacro{umacro1,0
 
-tests.mc,1587
+tests.mc,1559
 string_atom(9,389
 f(22,732
 for(int i = 0; i < 10; i++)x[x30,930
@@ -339,7 +344,7 @@ expptr foo(132,3130
 expptr bar(136,3199
 foo(140,3268
 foo(146,3346
-umacro{mydolist($x, mydolist($x,156,3540
+umacro{mydolist(mydolist156,3540
      expptr rest 157,3573
 ucase(`{a;b}){{$a;$a172,4046
 int numeralp(178,4249
@@ -361,7 +366,7 @@ notype bad(275,6887
 int bad(278,6945
 int_exp(280,6972
 expptr friend[friend290,7209
-umacro{test2()}{return test2()}{return298,7500
+umacro{test2(test2298,7500
 umacro{umacro298,7500
 test2(301,7591
 umacro{foo2(foo2315,7939
