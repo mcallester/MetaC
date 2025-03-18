@@ -1009,7 +1009,13 @@ expptr mcread_dollar_seq(){//it is important to "hide" dollar under backslash
 expptr mcread_dollar_phrase(){//backslashes must hide the dollar from backquote
   expptr s = mcread_dollar_seq();
   if(!s)return NULL;
-  expptr arg = mcread_alpha_or_open();
+  expptr f = mcread_alpha();
+  if(f){
+    expptr sf = mkspace(s,f);
+    expptr args = mcread_open_sequence();
+    if(args) return mkspace(sf,args);
+    return sf;}
+  expptr arg = mcread_open();
   if(arg)return mkspace(s,arg);
   return s;
   }
