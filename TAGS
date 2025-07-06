@@ -309,6 +309,9 @@ voidptr symbol_value[symbol_value15,253
 void REPL_loop(21,349
 int main(40,765
 
+temp.mc,11
+ucase(1,0
+
 testA.mc,18
 expptr foo(18,89
 
@@ -553,59 +556,59 @@ expptr mcread_alpha_or_open(985,28695
 expptr mcread_backquote_phrase(991,28802
 expptr mcread_dollar_seq(999,28978
 expptr mcread_dollar_phrase(1009,29263
-char lastchar;1021,29681
-void paddchar(1023,29754
-char * exp_string(1031,29930
-void putstring(1041,30117
-void putexp(1046,30202
-char * exp_string_safe(1071,30985
-void putexp_safe(1079,31135
-int current_indent;1107,31983
-int newline_indent;1108,32003
-expptr newline_connector;1109,32023
-void paddchar_pretty(1112,32080
-void putstring_pretty(1117,32148
-char * exp_pps(1122,32247
-void add_newline(1134,32482
-int exp_length(1140,32609
-void putexp_pretty(1149,32874
-void set_macro(1215,34623
-expptr head_symbol 1219,34709
-expptr macroexpand1(1226,34847
-expptr macroexpand2(1235,35044
-expptr reparse(1246,35369
-expptr macroexpand(1253,35495
-expptr bquote_macro(1265,35808
-int quotep(1281,36315
-expptr bqcode(1286,36413
-expptr bqcode_ignore_dollar(1296,36683
-expptr atom_code(1310,37095
-expptr quote_symbol(1314,37214
-expptr quote_quote(1320,37417
-expptr connection_code(1334,37856
-expptr mkspace_code(1343,38144
-expptr quote_connection(1348,38320
-expptr paren_code(1357,38573
-expptr quote_char(1364,38779
-expptr quote_paren(1369,38891
-expptr dollar_code(1375,39007
-void add_init_form(1393,39757
-void add_preamble(1399,39978
-void add_form(1407,40282
-expptr int_exp(1413,40514
-int exp_int(1419,40688
-expptr pointer_exp(1424,40806
-expptr gensym(1429,40916
-FILE * fileout;1445,41505
-void mcexpand(1448,41556
-void write_preamble(1459,41958
-void pprint(1466,42164
-void mcpprint(1470,42231
-void restart_undo_frame(1475,42343
-void init_source(1490,42821
-void init_tags(1496,42888
-void init_exp_constants(1510,43632
-void mcA_init(1534,44121
+char lastchar;1027,29836
+void paddchar(1029,29909
+char * exp_string(1037,30085
+void putstring(1047,30272
+void putexp(1052,30357
+char * exp_string_safe(1077,31140
+void putexp_safe(1085,31290
+int current_indent;1113,32138
+int newline_indent;1114,32158
+expptr newline_connector;1115,32178
+void paddchar_pretty(1118,32235
+void putstring_pretty(1123,32303
+char * exp_pps(1128,32402
+void add_newline(1140,32637
+int exp_length(1146,32764
+void putexp_pretty(1155,33029
+void set_macro(1221,34778
+expptr head_symbol 1225,34864
+expptr macroexpand1(1232,35002
+expptr macroexpand2(1241,35199
+expptr reparse(1252,35524
+expptr macroexpand(1259,35650
+expptr bquote_macro(1271,35963
+int quotep(1287,36470
+expptr bqcode(1292,36568
+expptr bqcode_ignore_dollar(1302,36838
+expptr atom_code(1316,37250
+expptr quote_symbol(1320,37369
+expptr quote_quote(1326,37572
+expptr connection_code(1340,38011
+expptr mkspace_code(1349,38299
+expptr quote_connection(1354,38475
+expptr paren_code(1363,38728
+expptr quote_char(1370,38934
+expptr quote_paren(1375,39046
+expptr dollar_code(1381,39162
+void add_init_form(1399,39912
+void add_preamble(1405,40133
+void add_form(1413,40437
+expptr int_exp(1419,40669
+int exp_int(1425,40843
+expptr pointer_exp(1430,40961
+expptr gensym(1435,41071
+FILE * fileout;1451,41660
+void mcexpand(1454,41711
+void write_preamble(1465,42113
+void pprint(1472,42319
+void mcpprint(1476,42386
+void restart_undo_frame(1481,42498
+void init_source(1496,42976
+void init_tags(1502,43043
+void init_exp_constants(1516,43787
+void mcA_init(1540,44276
 
 base_decls.h,1205
 typedef char * charptr;1,0
