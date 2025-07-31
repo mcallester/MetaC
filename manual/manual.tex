@@ -434,7 +434,7 @@ gdb debugger.  Such an error may be
 due to a bug in a user-written macro and gdb can be useful in this case.
 Typing the continue command, which can be abbreviated as just {\tt "c"}, will abort the cell execution and return to emacs.
 If an error occurs while attempting to compile the macro-expanded cell, emacs will print {\tt "compilation error"} as the value of the cell
-and display the compiler errors.  In this case the ``display error'' command "$\backslash$ M x-`" will bring up a C file that was passed to the compiler.
+and display the compiler errors.  In this case the ``display error'' command "$\backslash$ C x-`" will bring up a C file that was passed to the compiler.
 These errors contain the name of the C file passed to the compiler.  Examining this C file is sometimes helpful.
 
 There are two kinds of errors that can occur in the final execution phase.  The first is a ``dynamic check error''.  This is an error caught

@@ -2,7 +2,7 @@ void add_class_forms(expptr superclass, expptr class, expptr added_ivars);
 
 umacro{defclass{$class{$ivars}}}{
   expptr superclass = semi_first(ivars);
-  if(!(atomp(class) & atomp(superclass)))berror("illegal syntax in defclass --- class names must be atoms");
+  if(!(atomp(class) && atomp(superclass)))berror("illegal syntax in defclass --- class names must be atoms");
   ivars = semi_rest(ivars);
   add_class_forms(superclass, class, ivars);
   return `{};

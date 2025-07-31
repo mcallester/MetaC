@@ -146,7 +146,7 @@ typedef struct undopair_int{
   int oldval;
 }undopair_int;
 
-#define UNDO_TRAIL_INT_DIM  (1 << 16)
+#define UNDO_TRAIL_INT_DIM  (1 << 22)
 undopair_int undo_trail_int[UNDO_TRAIL_INT_DIM];
 int undo_trail_int_freeptr;
 

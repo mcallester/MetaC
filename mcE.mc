@@ -211,7 +211,7 @@ expptr eval_exp(expptr exp){
   }
 
 expptr simple_eval(explist exps){
-  preamble = NULL;  //this is the preamble of add_premble in mcA.c
+  preamble = NULL;  //this is the preamble of add_preamble in mcA.c
   init_forms = NULL;
   explist_do(e,exps){
     expptr e2 = macroexpand(e);
