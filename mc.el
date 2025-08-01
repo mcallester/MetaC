@@ -213,10 +213,12 @@
   (MC:clean-cells)
   (setq *waiting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
   (setq *gdb-mode* nil)
+  (setq *gdb-mode-start* 0)
   (setq *mc-accumulator* nil)
   (setq *load-count* 0)
   (setq *execute_count* 0)
   (when (mc-process) (delete-process (mc-process)))
+  (kill-buffer (gdb-buffer))
   (with-current-buffer (gdb-buffer) (erase-buffer))
   (shell-command "rm -f /tmp/TEMP*")
   (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
@@ -323,8 +325,13 @@
 	    ;(print '(**** done))
 	    (MC:process-output)))
 	(when *gdb-mode*
-	  (insert *mc-accumulator*)
-	  (set-marker (process-mark (mc-process)) (point))
+          (with-current-buffer (gdb-buffer) ;this new wrapper fixes issues with gdb startup
+            (goto-char (point-max))
+	    (insert *mc-accumulator*)
+	    (set-marker (process-mark (mc-process)) (point))
+            (when (> *gdb-mode-start* 0) ;; this form makes sure the user knows <enter> will continue
+              (when (= 1 *gdb-mode-start*) (insert "continue"))
+              (setq *gdb-mode-start* (1- *gdb-mode-start*))))
 	  (setq *mc-accumulator* nil)))))
 
 (defun MC:dotag (tag value)
@@ -492,11 +499,45 @@
 
 (defun MC:goto-gdb (value)
   (pop-to-buffer (gdb-buffer))
-  (erase-buffer)
-  (insert (mc-fix value))
-  (set-marker (process-mark (mc-process)) (point))
-  (setq *gdb-mode* t)
-)
+  (let* ((proc (mc-process))
+         (inhibit-read-only t))
+    (unless proc
+      (error "No GDB process found"))
+
+    ;; Temporarily disable the filter to prevent interference during setup
+    ;; Written by Claude Sonnet 4. It didn't fix any problem though lol.
+    (let ((old-filter (process-filter proc)))
+      (set-process-filter proc nil)
+
+      ;; Clear any pending output
+      (accept-process-output proc 0.1)
+
+      ;; Set up the buffer
+      (erase-buffer)
+      (insert (mc-fix value))
+      (insert "\n")
+
+      ;; Create a proper GDB prompt
+      (let ((prompt-start (point)))
+        (insert "(gdb) ")
+
+        ;; Set up all the necessary markers for shell-mode interaction
+        (set-marker (process-mark proc) (point) (current-buffer))
+        (set-marker comint-last-input-start (point) (current-buffer))
+        (set-marker comint-last-input-end (point) (current-buffer))
+
+        ;; Mark the prompt as read-only so it doesn't get sent as input
+        (add-text-properties prompt-start (point)
+                            '(read-only t rear-nonsticky t field output)))
+
+      (goto-char (point-max))
+
+      ;; Restore the filter AFTER setting up the buffer
+      (set-process-filter proc old-filter))
+
+    ;; Set GDB mode
+    (setq *gdb-mode* t)
+    (setq *gdb-mode-start* 2)))
 
 (defun MC:fixup-gdb ()
   (newline)
