@@ -32,8 +32,8 @@ undo
 
 void * undo_alloc(int size);
 int in_ide_proc();
-void undo_set_proc(void ** loc, void * val);
-void undo_set_int_proc(int * loc, int val);
+voidptr undo_set_proc(void ** loc, void * val);
+int undo_set_int_proc(int * loc, int val);
 void add_undone_int(int * loc);
 void add_undone_pointer(void * * loc);
 

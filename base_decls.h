@@ -124,8 +124,8 @@ undo frames
 
 voidptr undo_alloc(int size);
 int in_ide_proc();
-void undo_set_proc(voidptrptr loc, voidptr val);
-void undo_set_int_proc(intptr loc, int val);
+voidptr undo_set_proc(voidptrptr loc, voidptr val);
+int undo_set_int_proc(intptr loc, int val);
 void add_undone_int(intptr loc);
 void add_undone_pointer(voidptrptr loc);
 
