@@ -77,6 +77,7 @@ umacro {declare_pointer($typename)}{
 void add_list_forms(expptr type){
   char * cstring = atom_string(type);
   expptr listtype = string_atom(sformat("%s_list",cstring));
+  expptr predicate_type = string_atom(sformat("%s_predicate",cstring));
   expptr structtype = string_atom(sformat("%s_list_struct",cstring));
   expptr consfun = string_atom(sformat("%s_cons",cstring));
   expptr iterator = string_atom(sformat("%s_iter",cstring));
@@ -89,9 +90,14 @@ void add_list_forms(expptr type){
   expptr member = string_atom(sformat("%s_member",cstring));
   expptr delete = string_atom(sformat("%s_delete",cstring));
   expptr length = string_atom(sformat("%s_length",cstring));
+  expptr some = string_atom(sformat("%s_some",cstring));
+  expptr every = string_atom(sformat("%s_every",cstring));
   
   add_form(`{
              typedef struct $structtype{$type first; struct $structtype * rest;}$structtype, * $listtype;
+             });
+  add_form(`{
+             closure_typedef($predicate_type:($type)->int);
              });
   add_form(`{
              $listtype $consfun($type first, $listtype rest){
@@ -164,10 +170,42 @@ void add_list_forms(expptr type){
              });
   add_form(`{
              int $length($listtype y){
-	       if(!y) return 0;
-	       return 1+$length(y->rest);}
-	     });
-  
+               if(!y) return 0;
+               return 1+$length(y->rest);}
+             });
+  add_form(`{
+             umacro{$some(\$y, \$lst, \$integer_exp)}{
+               if(!symbolp(y))berror("First argument to some() must be a variable name");
+               expptr lst_var = gensym(`lst_var);
+               expptr result_var = gensym(`result_var);
+               return `{
+                 ({ int \$result_var = 0;
+                    $listtype \$lst_var = \$lst;
+                    $type \$y;
+                    for(; \$lst_var; \$lst_var = \$lst_var->rest){
+                      \$y = \$lst_var->first;
+                      if(\$integer_exp){\$result_var=1; break;}
+                      };
+                    \$result_var;
+                    })};}});
+  add_form(`{
+             umacro{$every(\$y, \$lst, \$integer_exp)}{
+               if(!symbolp(y))berror("First argument to some() must be a variable name");
+               expptr lst_var = gensym(`lst_var);
+               expptr result_var = gensym(`result_var);
+               expptr val = gensym(`val);
+               return `{
+                 ({ int \$result_var = 1;
+                    $listtype \$lst_var = \$lst;
+                    $type \$y;
+                    int \$val;
+                    for(; \$lst_var; \$lst_var = \$lst_var->rest){
+                      \$y = \$lst_var->first;
+                      \$val = \$integer_exp;
+                      if(!\$val){\$result_var=0; break;}
+                      };
+                    \$result_var;
+                    })};}});
   }
 
 umacro{deflists($type)}{ //for use with non-class types
