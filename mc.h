@@ -309,6 +309,8 @@ expptr explist_exp(explist l);
 
 int undo_heap_freeptr_fun();
 
+int undo_stack_freeptr_fun();
+
 int in_stackheap(voidptr p);
 
 int stackheap_allocatedp(voidptr p);

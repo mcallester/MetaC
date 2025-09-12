@@ -138,9 +138,6 @@ void * undo_alloc(int size){
   return result;
 }
 
-int undo_heap_freeptr_fun(){
-  return undo_heap_freeptr;}
-
 typedef struct undopair_int{
   int * location;
   int oldval;
@@ -200,6 +197,12 @@ typedef struct undo_frame{
 undo_frame undo_stack[UNDOSTACK_DIM];
 int undostack_freeptr;
 int undo_checkpoint;
+
+int undo_heap_freeptr_fun(){
+  return undo_heap_freeptr;}
+
+int undo_stack_freeptr_fun(){
+  return undostack_freeptr;}
 
 void save_undones(){
   for(int i = 0;i<undoneint_freeptr;i++){
