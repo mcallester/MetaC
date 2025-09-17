@@ -260,6 +260,8 @@ char *  exec_error_tag;
 char *  breakpoint_tag;
 char *  continue_from_gdb_tag;
 char * print_tag;
+char * log_file_tag;
+char * log_message_tag;
 char * mc_ready_tag;
 
 void send_emacs_tag(char *);
@@ -273,6 +275,7 @@ FILE* read_stream_proc();
 void return_to_NIDE();
 
 void mcpprint(expptr);
+void mcpprintlog(expptr e, expptr logfile);
 void send_print_tag();
 
 char * MetaC_directory;

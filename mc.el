@@ -345,6 +345,8 @@
 	(t (MC:dotag_other tag value)
 	   (process-send-string (mc-process) "tag_done\0\n"))))
 
+(setq *log-file* nil)
+
 (defun MC:dotag_other (tag value)
   (unless (bound-and-true-p *value-point*)
     (setq *value-point* (point-min)))
@@ -400,6 +402,13 @@
 	((string= tag "print")
 	 (print value))
 	
+	((string= tag "log-file")
+	 (setq *log-file* value))
+        
+        ((string= tag "log-message")
+	 (when *log-file*
+           (write-region (format "%s\n" value) nil *log-file* 'append 'quiet)))
+
 	(t (setq *mc-accumulator* nil)
 	   (error (format "unrecognized tag %s" tag)))))
 

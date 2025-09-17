@@ -160,6 +160,7 @@ void send_result(charptr result);
 void send_print_tag();
 
 void mcpprint(expptr e);
+void mcpprintlog(expptr e, expptr logfile);
 
 expptr expptr_to_undo(expptr stack_exp);
 

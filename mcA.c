@@ -1489,6 +1489,12 @@ void mcpprint(expptr e){
   else pprint(e,stdout);
 }
 
+void mcpprintlog(expptr e, expptr logfile){
+  if(in_ide){
+    pprint(logfile,stdout); send_emacs_tag(log_file_tag);
+    pprint(e,stdout); send_emacs_tag(log_message_tag);}
+}
+
 void restart_undo_frame(int n){
   if(n == undostack_freeptr){
     push_undo_frame();
@@ -1521,6 +1527,8 @@ void init_tags(){
   breakpoint_tag = "*#*#dsflsadk#*#*breakpoint*#*#dsflsadk#*#*";
   continue_from_gdb_tag = "*#*#dsflsadk#*#*continue-from-gdb*#*#dsflsadk#*#*";
   print_tag = "*#*#dsflsadk#*#*print*#*#dsflsadk#*#*";
+  log_file_tag = "*#*#dsflsadk#*#*log-file*#*#dsflsadk#*#*";
+  log_message_tag = "*#*#dsflsadk#*#*log-message*#*#dsflsadk#*#*";
   mc_ready_tag = "*#*#dsflsadk#*#*mc-ready*#*#dsflsadk#*#*";
   }
 
