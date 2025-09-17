@@ -39,8 +39,6 @@ void IDE_loop(){
 }
       }{
       send_emacs_tag(uncaught_throw_tag);};
-    
-    pop_memory_frame();}
   }
 
 int main(int argc, char **argv){

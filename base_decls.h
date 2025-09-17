@@ -142,6 +142,7 @@ stack frames
 
 voidptrptr stack;
 
+void init_stack_memory();
 void push_memory_frame();
 void pop_memory_frame();
 
