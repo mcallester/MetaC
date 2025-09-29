@@ -84,14 +84,18 @@ void add_list_forms(expptr type){
   expptr mapper = string_atom(sformat("%s_map",cstring));
   expptr pusher = string_atom(sformat("push_%s",cstring));
   expptr newpusher = string_atom(sformat("pushnew_%s",cstring));
+  expptr popper = string_atom(sformat("pop_%s",cstring));
   expptr listfun = string_atom(sformat("%s_listfun",cstring));
   expptr append = string_atom(sformat("%s_append",cstring));
+  expptr reverse = string_atom(sformat("%s_reverse",cstring));
   expptr nth = string_atom(sformat("%s_nth",cstring));
   expptr member = string_atom(sformat("%s_member",cstring));
   expptr delete = string_atom(sformat("%s_delete",cstring));
   expptr length = string_atom(sformat("%s_length",cstring));
   expptr some = string_atom(sformat("%s_some",cstring));
   expptr every = string_atom(sformat("%s_every",cstring));
+  expptr remove_if = string_atom(sformat("%s_remove_if",cstring));
+  expptr remove_if_not = string_atom(sformat("%s_remove_if_not",cstring));
   
   add_form(`{
              typedef struct $structtype{$type first; struct $structtype * rest;}$structtype, * $listtype;
@@ -111,6 +115,11 @@ void add_list_forms(expptr type){
                if(!x)return y;
                return $consfun(x->first,$append(x->rest,y));}
              });
+  add_form (`{
+              $listtype $reverse($listtype y){
+                if(!y) return NULL;
+                return $append($reverse(y->rest), $consfun(y->first, NULL));}
+              });
   add_form(`{
              $type $nth($listtype x, int n){
                if(!x)berror("list too short in nth");
@@ -130,6 +139,17 @@ void add_list_forms(expptr type){
   add_form(`{
              umacro{$newpusher(\$x,\$y)}{
                return `{if(!$member(\$x,\$y)){undo_set(\$y,$consfun(\$x,\$y));};};}
+             });
+  add_form(`{
+             umacro{$popper(\$y,\$if_empty)}{
+               expptr result = gensym(`result);
+               return `{({
+                           $type \$result = \$if_empty;
+                           if(\$y){
+                             \$result = \$y->first;
+                             undo_set(\$y,\$y->rest);};
+                           \$result;
+                           })};}
              });
   add_form(`{
              umacro{$iterator(\$x,\$y){\$body}}{
@@ -203,6 +223,42 @@ void add_list_forms(expptr type){
                       \$y = \$lst_var->first;
                       \$val = \$integer_exp;
                       if(!\$val){\$result_var=0; break;}
+                      };
+                    \$result_var;
+                    })};}});
+  add_form(`{
+             umacro{$remove_if(\$y, \$integer_exp, \$lst)}{
+               if(!symbolp(y))berror("First argument to some() must be a variable name");
+               expptr lst_var = gensym(`lst_var);
+               expptr result_var = gensym(`result_var);
+               expptr val = gensym(`val);
+               return `{
+                 ({ $listtype \$result_var = NULL;
+                    $listtype \$lst_var = \$lst;
+                    $type \$y;
+                    int \$val;
+                    for(; \$lst_var; \$lst_var = \$lst_var->rest){
+                      \$y = \$lst_var->first;
+                      \$val = \$integer_exp;
+                      if(!\$val){\$result_var=$consfun(\$y, \$result_var);}
+                      };
+                    \$result_var;
+                    })};}});
+  add_form(`{
+             umacro{$remove_if_not(\$y, \$integer_exp, \$lst)}{
+               if(!symbolp(y))berror("First argument to some() must be a variable name");
+               expptr lst_var = gensym(`lst_var);
+               expptr result_var = gensym(`result_var);
+               expptr val = gensym(`val);
+               return `{
+                 ({ $listtype \$result_var = NULL;
+                    $listtype \$lst_var = \$lst;
+                    $type \$y;
+                    int \$val;
+                    for(; \$lst_var; \$lst_var = \$lst_var->rest){
+                      \$y = \$lst_var->first;
+                      \$val = \$integer_exp;
+                      if(\$val){\$result_var=$consfun(\$y, \$result_var);}
                       };
                     \$result_var;
                     })};}});
