@@ -1,0 +1,750 @@
+
+closures.mc,535
+expptr wrap_body(5,163
+expptr install_vars(13,480
+//install_vars(`c,c19,731
+umacro{closure_type(closure_type21,776
+umacro{umacro21,776
+umacro{closure_typeexp(closure_typeexp28,988
+umacro{umacro28,988
+umacro{closure_typedef(closure_typedef31,1142
+umacro{umacro31,1142
+  return `{typedef closure_typeexp($typename:$typename32,1196
+umacro{apply_closure(apply_closure39,1371
+umacro{umacro39,1371
+umacro{lambda lambda43,1478
+umacro{umacro43,1478
+  expptr pname 44,1567
+  expptr cname 45,1606
+  expptr f 46,1641
+
+expandB.mc,17
+int main(15,234
+
+expandC.mc,17
+int main(15,234
+
+expandD.mc,17
+int main(15,234
+
+expandF.mc,17
+int main(15,234
+
+file-expressions-test-file.mc,35
+int f(3,6
+int g(5,33
+int h(7,63
+
+include_test.mc,21
+expptr included(1,0
+
+mcB.mc,270
+void ucase_error(8,185
+void ucase_rule_error(12,289
+void match_failure(16,402
+expptr ucase_macro(25,642
+expptr casecode1(39,1073
+expptr casecode2(53,1580
+expptr casecode3(72,2299
+expptr casecode4(78,2511
+void mcB_init(99,3325
+  set_macro(`ucase,ucase100,3342
+
+mcC.mc,256
+expptr init_form_macro(3,17
+expptr umacro_macro(9,145
+expptr init_form_body(26,628
+expptr init_fun_macro(33,808
+void mcC_init(39,960
+  set_macro(`umacro,umacro42,1017
+  set_macro(`init_form,init_form43,1052
+  set_macro(`init_fun,init_fun44,1094
+
+mcD.mc,926
+int undostack_freeptr;3,17
+void restart_event(5,41
+int occurs_in_exp(22,651
+int occurs_in_explist(34,1024
+umacro{catch_all{catch_all39,1182
+  if(occurs_in_exp(`return,return40,1217
+     occurs_in_exp(`break,break41,1254
+     occurs_in_exp(`continue,continue42,1290
+umacro{unwind_protect{unwind_protect54,1627
+umacro{declare_exception(declare_exception58,1731
+umacro{umacro58,1731
+void declare_except_fun(63,1857
+umacro{throw(throw69,2115
+umacro{umacro69,2115
+umacro{catch(catch90,2629
+umacro{umacro90,2629
+  expptr argtype 91,2673
+  expptr valvar 105,3029
+umacro{explist_push(explist_push120,3468
+umacro{umacro120,3468
+umacro{explist_pushnew(explist_pushnew124,3544
+umacro{umacro124,3544
+umacro{explist_do(explist_do131,3714
+umacro{umacro131,3714
+  expptr yval 133,3823
+umacro{sformat(sformat150,4422
+umacro{umacro150,4422
+umacro{mcprint(mcprint159,4624
+umacro{umacro159,4624
+
+mcE.mc,1422
+void expptr_error(6,180
+void expptr_breakpt(10,267
+expptr combine_atoms(14,359
+explist file_preamble;20,514
+explist procedures;21,585
+explist arrays;22,605
+explist new_body_procedures;24,622
+explist new_sig_procedures;25,651
+explist new_arrays;26,679
+explist doit_statements;27,699
+explist new_preambles;28,724
+explist current_forms;29,747
+int compilecount;31,771
+int cellcount;32,789
+int symbol_index_freeptr 51,1320
+int symbol_index(53,1351
+voidptr symbol_value[symbol_value61,1531
+void install_value(63,1572
+void install_values(69,1777
+void NIDE_init(75,1940
+expptr new_procedure_insertion 123,3735
+expptr new_array_insertion 129,3888
+expptr array_extraction 136,4136
+expptr strip_type(141,4291
+expptr args_variables(149,4547
+void install_link_def(157,4764
+void install_link_def_sparsely(174,5210
+expptr eval_exp(201,6179
+expptr simple_eval(213,6563
+void load_check(222,6861
+expptr eval_internal(244,7546
+void write_signature(318,10131
+void write_signature_sparsely(326,10402
+expptr explist_exp(335,10677
+expptr left_atom(340,10784
+void preinstall(345,10895
+void print_preamble(372,12055
+void check_signature(378,12209
+void preinstall_array(387,12480
+void preinstall_proc(397,12797
+expptr symbol_index_exp(414,13378
+void install_proc_def(418,13455
+void comp_error(428,13690
+voidptr compile_load_file(436,13837
+char *strip_quotes(strip_quotes455,14412
+void NIDE(467,14667
+
+mcF.mc,282
+explist file_preamble;3,17
+explist procedures;4,88
+explist arrays;5,108
+void install_preamble(52,1375
+void install_array(58,1520
+void install_procedure(64,1655
+void install_base(70,1798
+umacro{install_value_properties(install_value_properties84,2244
+umacro{umacro84,2244
+
+mcG.mc,2546
+umacro{mention(mention13,504
+umacro{umacro13,504
+umacro{in_memory_frame{in_memory_frame16,559
+umacro{in_undo_frame{in_undo_frame26,731
+umacro{int_from_undo_frame(int_from_undo_frame36,895
+umacro{umacro36,895
+umacro{stackexp_from_undo_frame(stackexp_from_undo_frame51,1159
+umacro{umacro51,1159
+umacro {declare_pointer(declare_pointer73,1794
+umacro 73,1794
+  return `{typedef struct ${$74,1831
+  return `{typedef struct ${combine_atoms(combine_atoms74,1831
+  return `{typedef struct ${combine_atoms(typename, `struct)} * $typename}$typename74,1831
+void add_list_forms(77,1912
+umacro{deflists(deflists267,9879
+umacro{umacro267,9879
+expptr semi_first(276,10186
+expptr semi_rest(285,10319
+expptr semi_cons(296,10489
+expptr semi_append(301,10573
+umacro{semi_iter(semi_iter308,10730
+umacro{umacro308,10730
+  expptr yval 309,10763
+umacro{semi_map(semi_map320,10969
+umacro{umacro320,10969
+expptr comma_first(334,11279
+expptr comma_rest(345,11445
+int comma_length(356,11643
+expptr comma_cons(370,11970
+expptr comma_append(375,12050
+umacro{comma_iter(comma_iter382,12211
+umacro{umacro382,12211
+  expptr yval 383,12245
+umacro{comma_map(comma_map394,12452
+umacro{umacro394,12452
+expptr wrap_body(411,12934
+expptr install_vars(419,13251
+//install_vars(`c,c425,13507
+umacro{closure_type(closure_type427,13552
+umacro{umacro427,13552
+umacro{closure_typeexp(closure_typeexp434,13764
+umacro{umacro434,13764
+umacro{closure_typedef(closure_typedef437,13918
+umacro{umacro437,13918
+  return `{typedef closure_typeexp($typename:$typename438,13972
+umacro{apply_closure(apply_closure445,14147
+umacro{umacro445,14147
+umacro{lambda lambda449,14254
+umacro{umacro449,14254
+  expptr pname 450,14343
+  expptr cname 451,14382
+  expptr f 452,14417
+umacro{parse_comma(parse_comma505,15971
+umacro{umacro505,15971
+  expptr comvar 506,16025
+  expptr fvar 507,16062
+  expptr rvar 508,16090
+umacro{comma_iter(comma_iter519,16347
+umacro{umacro519,16347
+  expptr restvar 520,16389
+  expptr nextrest 521,16423
+umacro{parse_semi(parse_semi530,16619
+umacro{umacro530,16619
+  expptr semvar 531,16672
+  expptr fvar 532,16708
+  expptr rvar 533,16736
+umacro{semi_iter(semi_iter545,16994
+umacro{umacro545,16994
+  expptr restvar 546,17034
+  expptr nextrest 547,17068
+umacro{parse_space(parse_space556,17262
+umacro{umacro556,17262
+  expptr spacevar 559,17392
+umacro{space_iter(space_iter574,17734
+umacro{umacro574,17734
+  expptr restvar 575,17776
+  expptr nextrest 576,17810
+
+NIDE-examples.mc,571
+expptr f(3,16
+f(5,51
+for(int i = 0; i < 10; i++)x[x11,74
+int_exp(15,167
+typedef struct myexpstruct{myexpstruct22,262
+  char * label;23,290
+  struct myexpstruct * car;24,306
+  struct myexpstruct * cdr;25,334
+} myexpstruct, *myexp;myexp26,362
+myexp mycons(28,386
+expptr myexp_exp(35,562
+myexp_exp(40,715
+int height[height54,850
+`{My friend ${friend[0]} is ${$56,870
+g(63,967
+g(67,1014
+expptr bar(77,1114
+foo(81,1183
+umacro{mydolist(mydolist91,1271
+foo(87,1261
+     expptr rest 92,1304
+int numeralp(106,1628
+int value(114,1800
+int_exp(123,2008
+
+NIDE.mc,81
+voidptr symbol_value[symbol_value15,253
+void IDE_loop(19,314
+int main(46,787
+
+objects1.mc,110
+umacro{pushprop(pushprop9,224
+umacro{umacro9,224
+umacro{class_dim(class_dim18,511
+umacro{umacro18,511
+
+objects2.mc,1828
+umacro{defclass{defclass3,76
+umacro{umacro3,76
+typedef struct object_struct{object_struct11,351
+typedef struct object_struct{int class_index;11,351
+typedef struct object_struct{int class_index;} * object;11,351
+setprop(`object,object13,409
+setprop_int(`object,object15,455
+expptr class_ivars(17,487
+int class_index(23,655
+void add_class_forms(29,822
+  add_form(`{typedef struct $structname 36,1354
+  add_form(`{typedef struct $structname{$complete_ivars} $structname, * $class;39,1498
+int class_counter[class_counter43,1658
+expptr class_name[class_name45,1685
+class_name[class_name47,1718
+for(int i = 1; i<class_dim(); i++){class_name[class_name49,1744
+expptr classof(51,1804
+umacro{declare_subclass(declare_subclass59,2092
+umacro{umacro59,2092
+void install_class(66,2260
+void add_superclass(81,2788
+void check_subclass(88,3036
+expptr init_ivars(101,3531
+umacro{new(new108,3727
+umacro{umacro108,3727
+expptr strip_var(130,4451
+expptr strip_vars(137,4574
+umacro{declare_method{declare_method146,4777
+umacro{umacro146,4777
+expptr method_table_name(151,4900
+void add_declare_method_forms(157,5056
+void install_method_name(170,5591
+voidptrptr method_table(177,5847
+void copy_methods(183,6047
+umacro{defmethod{defmethod216,7559
+umacro{umacro216,7559
+void add_defmethod_forms2(223,7741
+void add_defmethod_forms(236,8269
+int is_subclass(243,8590
+void check_method(250,8794
+void install_method_ptr(269,9718
+expptr localize_ivars(281,10200
+expptr method_type(294,10546
+expptr method_expansion(302,10777
+expptr leftmost_atom(341,12334
+expptr infer_type(347,12483
+expptr add_coercions(362,12999
+// leftmost_atom(getprop(`blah,blah385,13813
+// leftmost_atom(getprop(`blah2,blah2389,13891
+//int_exp(getprop_int(`foo,foo393,13991
+// int_exp(is_subclass(`bar,bar397,14067
+
+REPL.mc,82
+voidptr symbol_value[symbol_value15,253
+void REPL_loop(21,349
+int main(40,765
+
+testA.mc,18
+expptr foo(18,89
+
+testB.mc,29
+ucase(3,17
+expptr foo(5,66
+
+testC.mc,67
+umacro{declare_exception(declare_exception1,0
+umacro{umacro1,0
+
+tests.mc,1648
+string_atom(9,389
+f(22,732
+for(int i = 0; i < 10; i++)x[x30,930
+int_exp(32,968
+typedef struct myexpstruct{myexpstruct50,1460
+  char * label;51,1488
+  struct myexpstruct * car;52,1504
+  struct myexpstruct * cdr;53,1532
+} myexpstruct, *myexp;myexp54,1560
+myexp mycons(56,1584
+expptr myexp_exp(63,1761
+myexp_exp(68,1914
+int height[height83,2220
+`{My friend ${friend[0]} is ${$85,2240
+expptr g2(98,2544
+g2(100,2579
+g2(104,2625
+e[e118,2886
+void g(120,2896
+expptr foo(132,3130
+expptr bar(136,3199
+foo(140,3268
+foo(146,3346
+umacro{mydolist(mydolist156,3540
+     expptr rest 157,3573
+ucase(`{a;b}){{$a;$a172,4046
+int numeralp(178,4249
+int value(186,4421
+int_exp(195,4639
+barf(206,4890
+foobar(214,5095
+goo(223,5393
+typedef struct myexpstruct{myexpstruct231,5662
+  char * label;232,5690
+  myexp car;233,5706
+  struct myexpstruct * cdr;234,5719
+} myexpstruct, *myexp;myexp235,5747
+goop(247,6079
+int y[y258,6354
+expptr e[e264,6576
+e[e266,6590
+notype bad(275,6887
+int bad(278,6945
+int_exp(280,6972
+expptr friend[friend290,7209
+umacro{test2(test2298,7500
+umacro{umacro298,7500
+test2(301,7591
+umacro{foo2(foo2315,7939
+umacro{bar2(bar2322,8051
+foo2(319,8015
+bar2(326,8128
+setprop(`a,a342,8531
+getprop(`a,a344,8551
+getprop(344,8551
+getprop(`a,a348,8596
+expptr foo4(362,9010
+expptr foo3(364,9037
+umacro{mention(mention378,9650
+foo3(366,9064
+expptr bar5(387,9789
+bar5(`a,a393,9883
+bar5(393,9883
+void catch_ex1_b(407,10215
+void foothrow(415,10309
+void catch_test_throw(417,10341
+void catch_test3(428,10483
+void foo5(436,10582
+void catch_test4(440,10618
+explist_exp(459,10982
+
+mcA.c,6742
+int in_ide_proc(6,255
+void throw_primitive(8,324
+void throw_NIDE(16,513
+void cbreak(24,710
+void send_ready(28,791
+void send_emacs_tag(37,1191
+void send_print_tag(45,1554
+void berror(49,1668
+void send_result(59,1917
+void breakpt(64,2064
+#define PERM_HEAP_DIM 75,2433
+char perm_heap[perm_heap76,2463
+int perm_heap_freeptr;77,2500
+void * perm_alloc(79,2524
+char * string_hash_table[string_hash_table89,2795
+int string_count;90,2932
+int string_key(92,2951
+int intern_string(109,3272
+int undo_heap_freeptr;131,4015
+void * undo_alloc(133,4039
+typedef struct undopair_int{undopair_int141,4268
+  int * location;142,4297
+  int oldval;143,4315
+}undopair_int;undopair_int144,4329
+#define UNDO_TRAIL_INT_DIM 146,4345
+undopair_int undo_trail_int[undo_trail_int147,4383
+int undo_trail_int_freeptr;148,4432
+int undo_set_int_proc(150,4461
+typedef struct undopair{undopair158,4723
+  void * * location;159,4748
+  void * oldval;160,4769
+}undopair;undopair161,4786
+#define UNDO_TRAIL_DIM 163,4798
+undopair undo_trail[undo_trail164,4832
+int undo_trail_freeptr;165,4869
+voidptr undo_set_proc(167,4894
+int * undone_integer[undone_integer175,5140
+int undoneint_freeptr;176,5167
+void add_undone_int(178,5191
+void** undone_pointer[undone_pointer183,5337
+int undoneptr_freeptr;184,5365
+void add_undone_pointer(186,5389
+typedef struct undo_frame{undo_frame191,5543
+  int undo_trail_freeptr;192,5570
+  int undo_trail_int_freeptr;193,5596
+}undo_frame;undo_frame194,5626
+#define UNDOSTACK_DIM 196,5640
+undo_frame undo_stack[undo_stack197,5670
+int undostack_freeptr;198,5708
+int undo_checkpoint;199,5731
+int undo_heap_freeptr_fun(201,5753
+int undo_stack_freeptr_fun(204,5812
+void save_undones(207,5872
+void push_undo_frame(218,6422
+void clear_undo_frame(227,6815
+void pop_undo_frame(243,7461
+void init_undo1(249,7602
+#define UNDOEXP_HASH_DIM 278,8252
+expptr undoexp_hash_table[undoexp_hash_table279,8288
+int undoexp_count;280,8339
+expptr intern_exp(282,8359
+expptr intern_index_exp(304,9173
+void init_undo_memory(318,9696
+plistptr exp_plist(340,10099
+plistptr getprop_cell(344,10219
+void * getprop(350,10370
+void addprop(357,10606
+void setprop(366,10882
+int getprop_int(373,11125
+void addprop_int(381,11377
+void setprop_int(391,11682
+#define STACKHEAP_DIM 406,12187
+char stackheap[stackheap407,12217
+int stackheap_freeptr;408,12248
+void * stack_alloc(410,12272
+int in_stackheap(419,12521
+int stackheap_allocatedp(423,12633
+#define STACK_DIM 427,12757
+int stackmem_stack[stackmem_stack428,12786
+int stack_frame_freeptr;429,12817
+void init_stack_memory(431,12843
+void push_memory_frame(436,12924
+void pop_memory_frame(441,13092
+expptr stack_exp(446,13261
+expptr expptr_to_stack(459,13693
+expptr expptr_to_undo(465,13904
+expptr clean_undo_frame(471,14121
+int quotecharp(483,14510
+int alphap(485,14567
+int connp(492,14702
+int whitep(499,14999
+int closep(501,15062
+int openp(503,15124
+char close_for(505,15186
+int endp(513,15381
+int terminatorp(515,15430
+int specialcharp(517,15485
+int precedence(519,15554
+int atomp(544,16353
+int symbolp(546,16410
+int connectorp(550,16504
+int white_connectorp(556,16640
+int specialp(562,16770
+char * atom_string(566,16871
+expptr string_atom(571,17045
+void ephemeral_putc(575,17149
+expptr cons(581,17312
+int cellp(584,17377
+expptr car(586,17434
+expptr cdr(590,17545
+expptr intern_paren(596,17666
+int parenp(599,17758
+char open_char(601,17816
+expptr paren_inside(603,17866
+expptr mk_connection(611,18112
+int connectionp(615,18239
+int connofp(619,18334
+expptr connector(621,18418
+expptr leftarg(625,18473
+expptr rightarg(629,18526
+explist expcons(639,18793
+explist explist_append(646,18973
+explist explist_reverse(651,19103
+int explist_member(659,19245
+explist explist_mapcar(665,19380
+void explist_mapc(670,19521
+int explist_length(676,19629
+typedef struct read_stream_struct{read_stream_struct691,20108
+  FILE* stream;692,20143
+  char readchar;693,20159
+  char next;694,20176
+  }read_stream_struct, *mc_read_stream;mc_read_stream695,20189
+mc_read_stream input_stream;697,20230
+void init_input_stream(699,20260
+void init_read_stream(706,20433
+void addchar(712,20621
+expptr read_from_NIDE(717,20758
+int cell_endp(731,21166
+expptr read_from_file(738,21353
+explist file_expressions(752,21807
+void simple_advance(771,22469
+void advance_char(781,22781
+char* pps;812,24189
+int pprest;813,24222
+void movechar(815,24266
+void remove_white(821,24420
+void declare_unmatched(827,24510
+expptr mcread(853,25195
+int right_precedence(867,25590
+expptr mcread_Ep(874,25725
+expptr mcread_arg(897,26348
+expptr mcread_conn(911,26752
+expptr mcread_alpha(920,26993
+expptr mcread_open(929,27215
+expptr mcread_quote(943,27568
+expptr mcread_dollar(963,28138
+expptr mcread_backslash(967,28244
+expptr mcread_backquote(971,28357
+expptr mkspace(976,28486
+expptr mcread_open_sequence(979,28573
+expptr mcread_alpha_phrase(988,28762
+expptr mcread_alpha_or_open(996,28930
+expptr mcread_backquote_phrase(1002,29037
+expptr mcread_dollar_seq(1010,29213
+expptr mcread_dollar_phrase(1020,29498
+char lastchar;1038,30071
+void paddchar(1040,30144
+char * exp_string(1048,30320
+void putstring(1058,30507
+void putexp(1063,30592
+char * exp_string_safe(1088,31375
+void putexp_safe(1096,31525
+int current_indent;1124,32373
+int newline_indent;1125,32393
+expptr newline_connector;1126,32413
+void paddchar_pretty(1129,32470
+void putstring_pretty(1134,32538
+char * exp_pps(1139,32637
+void add_newline(1151,32872
+int exp_length(1157,32999
+void putexp_pretty(1166,33264
+void set_macro(1232,35013
+expptr head_symbol 1236,35099
+expptr macroexpand1(1243,35237
+expptr macroexpand2(1252,35434
+expptr reparse(1263,35759
+expptr macroexpand(1270,35885
+expptr bquote_macro(1282,36198
+int quotep(1298,36705
+expptr bqcode(1303,36803
+expptr bqcode_ignore_dollar(1313,37073
+expptr atom_code(1327,37485
+expptr quote_symbol(1331,37604
+expptr quote_quote(1337,37807
+expptr connection_code(1351,38246
+expptr mkspace_code(1360,38534
+expptr quote_connection(1365,38710
+expptr paren_code(1374,38963
+expptr quote_char(1381,39169
+expptr quote_paren(1386,39281
+expptr dollar_code(1392,39397
+void add_init_form(1410,40147
+void add_preamble(1416,40368
+void add_form(1424,40672
+expptr int_exp(1430,40904
+int exp_int(1436,41078
+expptr pointer_exp(1441,41196
+expptr gensym(1446,41306
+FILE * fileout;1462,41895
+void mcexpand(1465,41946
+void write_preamble(1476,42348
+void pprint(1483,42554
+void mcpprint(1487,42621
+void mcpprintlog(1492,42733
+void restart_undo_frame(1498,42908
+void init_source(1513,43386
+void init_tags(1519,43453
+void init_exp_constants(1535,44325
+void mcA_init(1559,44814
+
+base_decls.h,1205
+typedef char * charptr;1,0
+typedef int * intptr;3,25
+typedef void * voidptr;5,48
+typedef voidptr * voidptrptr;7,73
+typedef FILE * FILEptr;9,104
+typedef struct pliststruct{pliststruct11,129
+  void * key;12,157
+  struct expstruct * data;13,171
+  struct pliststruct * rest;14,198
+}pliststruct,*plist;plist15,227
+typedef struct expstruct{expstruct17,249
+  plist data;18,275
+  void * extension;19,289
+  char constructor;20,309
+  struct expstruct * arg1;21,329
+  struct expstruct * arg2;22,356
+}expstruct,*expptr;expptr23,383
+int catch_freeptr[catch_freeptr36,867
+jmp_buf catch_stack[catch_stack37,889
+voidptrptr stack;143,4014
+voidptr previous_heap_boundary[previous_heap_boundary148,4085
+int catch_freeptr[catch_freeptr175,4682
+jmp_buf catch_stack[catch_stack176,4704
+expptr catch_name[catch_name177,4736
+expptr catch_type[catch_type178,4758
+voidptr catch_val[catch_val179,4780
+char undo_heap[undo_heap180,4802
+typedef struct explist_struct * explist;189,5040
+typedef struct explist_struct{explist_struct191,5082
+  expptr first;192,5113
+  explist rest;193,5129
+  explist rest;}explist_struct, *explist;explist193,5129
+int break_on_throw[break_on_throw211,5460
+
+mc.h,2571
+typedef char * charptr;3,24
+typedef void * voidptr;4,48
+typedef struct pliststruct{pliststruct6,73
+  void * key;7,101
+  void * value;8,115
+  struct pliststruct * rest;9,131
+}pliststruct,*plistptr;plistptr10,160
+typedef struct expstruct{expstruct12,185
+  plistptr plist;13,228
+  void * extension;14,246
+  char constructor;15,266
+  struct expstruct * arg1;16,286
+  struct expstruct * arg2;17,313
+}expstruct,*expptr;expptr18,340
+void* previous_heap_boundary[previous_heap_boundary41,1046
+#define EPHEMERAL_DIM 57,1517
+char ephemeral_buffer[ephemeral_buffer58,1547
+int ephemeral_freeptr;59,1585
+static inline char constructor(116,2716
+FILE * fileout;152,3962
+FILE * filein;153,3978
+typedef struct explist_struct * explist;155,3994
+typedef struct explist_struct{explist_struct157,4036
+  expptr first;158,4067
+  explist rest;159,4083
+  explist rest;}explist_struct, *explist;explist159,4083
+explist preamble;181,4674
+explist init_forms;184,4722
+FILE * writestrm;210,5380
+int rep_column;229,5758
+expptr comma,236,5952
+expptr comma, colon,236,5952
+expptr comma, colon, semi,236,5952
+expptr comma, colon, semi, backquote,236,5952
+expptr comma, colon, semi, backquote, dollar,236,5952
+expptr comma, colon, semi, backquote, dollar, backslash;236,5952
+expptr exclam,237,6009
+expptr exclam, question,237,6009
+expptr exclam, question, any,237,6009
+expptr exclam, question, any, dot;237,6009
+expptr nil,238,6044
+expptr nil, macro,238,6044
+expptr nil, macro, intern_noticers,238,6044
+expptr nil, macro, intern_noticers, space,238,6044
+expptr nil, macro, intern_noticers, space, tab;238,6044
+char leftbrace,240,6093
+char leftbrace, leftparen,240,6093
+char leftbrace, leftparen, leftbracket;240,6093
+int in_doit;249,6450
+int in_ide;250,6463
+int in_repl;251,6475
+char *  ignore_tag;253,6489
+char *  result_tag;254,6509
+char *  uncaught_throw_tag;255,6529
+char *  reader_error_tag;256,6557
+char *  expansion_error_tag;257,6583
+char *  comp_error_tag;258,6612
+char *  exec_error_tag;259,6636
+char *  breakpoint_tag;260,6660
+char *  continue_from_gdb_tag;261,6684
+char * print_tag;262,6715
+char * log_file_tag;263,6733
+char * log_message_tag;264,6754
+char * mc_ready_tag;265,6778
+char * MetaC_directory;281,7059
+int catch_freeptr[catch_freeptr292,7263
+jmp_buf catch_stack[catch_stack293,7285
+expptr catch_name[catch_name294,7317
+expptr catch_type[catch_type295,7339
+voidptr catch_val[catch_val296,7361
+char undo_heap[undo_heap297,7383
+FILE * read_stream;307,7646
+int break_on_throw[break_on_throw321,7873
+
+premacros.h,190
+#define STRING_DIM 21,587
+#define CATCH_DIM 23,616
+#define UNDO_HEAP_DIM 25,640
+#define catch_check(27,671
+#define precatch(29,764
+#define undo_set(31,920
+#define undo_set_int(33,995
+
+testD.mc,0

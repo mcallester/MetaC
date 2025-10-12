@@ -17,10 +17,8 @@ voidptr symbol_value[STRING_DIM];
 expptr eval_exp(expptr);
 
 void IDE_loop(){
-  
-  
+    
   while(1){
-    push_memory_frame(); //stack memory
     
     catch_all{
       catch(NIDE(msg)){
@@ -36,11 +34,9 @@ void IDE_loop(){
 	}{
 	pprint(msg,stdout);
 	send_emacs_tag(result_tag);
-}
+	}
       }{
-      send_emacs_tag(uncaught_throw_tag);};
-    
-    pop_memory_frame();}
+      send_emacs_tag(uncaught_throw_tag);};}
   }
 
 int main(int argc, char **argv){

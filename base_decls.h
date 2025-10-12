@@ -211,3 +211,5 @@ int stackheap_allocatedp(voidptr p);
 int break_on_throw[1];
 
 void throw_NIDE(expptr msg);
+
+void init_stack_memory();
