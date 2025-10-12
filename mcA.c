@@ -1568,6 +1568,6 @@ void mcA_init(){
   init_tags();
   set_macro(backquote, bquote_macro);
   
-  MetaC_directory = "/home/david/MC/";
+  MetaC_directory = "/home/david/MetaC/";
   }
 

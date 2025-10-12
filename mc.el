@@ -1,5 +1,5 @@
 (setq *gdb* "/usr/bin/gdb")
-(setq *MetaC* "/home/david/MC/")
+(setq *MetaC* "/home/david/MetaC/")
 
 (define-derived-mode greek
   nil "greek"
