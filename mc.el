@@ -94,6 +94,9 @@
 	     (forward-char))
     (error (beginning-of-buffer))))
 
+(defun MC:beginning-of-cellp ()
+  (and (bolp) (not (looking-at "[] \t\r\n})/]"))))
+
 (defun MC:return ()
   (interactive)
   (insert-char ?\n)
@@ -252,7 +255,7 @@
 	(message "Region contains no first cell")
       (progn
 	(goto-char top)
-	(MC:next-cell)
+	(when (not (MC:beginning-of-cellp)) (MC:next-cell))
 	(MC:execute-cell-internal)))))
 
 (defun MC:execute-cell-internal ()
@@ -407,7 +410,7 @@
         
         ((string= tag "log-message")
 	 (when *log-file*
-           (write-region (format "%s\n" value) nil *log-file* 'append 'quiet)))
+           (write-region (format "%s" value) nil *log-file* 'append 'quiet)))
 
 	(t (setq *mc-accumulator* nil)
 	   (error (format "unrecognized tag %s" tag)))))
@@ -614,7 +617,7 @@
     (let ((end (region-end))
           (beg (region-beginning)))
       (goto-char beg)
-      (MC:next-cell)
+      (when (not (MC:beginning-of-cellp)) (MC:next-cell))
       (let ((count 0))
 	(while (< (point) end)
 	  (setq count (+ count 1))

@@ -1491,7 +1491,7 @@ void mcpprint(expptr e){
 
 void mcpprintlog(expptr e, expptr logfile){
   if(in_ide){
-    pprint(logfile,stdout); send_emacs_tag(log_file_tag);
+    fprintf(stdout,"%s",exp_string(logfile)); send_emacs_tag(log_file_tag);
     pprint(e,stdout); send_emacs_tag(log_message_tag);}
 }
 
