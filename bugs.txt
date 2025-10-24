@@ -1,27 +1,33 @@
-1. macro expansion to a procedure definition does not work.  You have to used "add_form".
+* macro expansion to a procedure definition does not work.  You have to used "add_form".
 
-2. load can fail on a file where load-region on the whole file
+* load can fail on a file where load-region on the whole file
 succeeds.  The problem involves consecutive cells with no space
 between them being executed together in the file load but no in the
 load region.  It seems that the procedure file_forms is failing to
 properly separate cells.
 
-3. loading a file then ends inside an open paren hangs. Probably another problem wth file-forms.
+* loading a file then ends inside an open paren hangs. Probably another problem wth file-forms.
 
-4. a compilation error inside an load-region loops through the region repeateing the same error.
+* a compilation error inside an load-region loops through the region repeateing the same error.
 
-*) It seems that increasing the index of a symbol (for the index to the symbol_value array) confuses
+* It seems that increasing the index of a symbol (for the index to the symbol_value array) confuses
 gdb even when there is no problem with the moving index in the NIDE.  It wouls seem better (for gdb) to
 never undo the index property (perhaps requires another field in expptr structures).
 
-Warts:
+* making program variables pointers.
 
-5. making program variables pointers.
-
-6. the body of a catch or unwind protect must not contain a return or nonlocal control flow.  Otherwise the catch stack freeptr
+* the body of a catch or unwind protect must not contain a return or nonlocal control flow.  Otherwise the catch stack freeptr
 may not get reset (very bad). This could be addressed by compiling the body of the catch into a procedure call.
 
+* executing foo`bar; breaks MetaC by apparently redefining mkspace.
 
-If the same procedure is defined twice in the same file with different
-signatures then which the file is loaded (as opposed to evaluaty the definitions sequentially)
+* There is some unresolved phenomenon involving the numbering in the names used in synamic compilation.
+We get "undefine proceure" errors on functions of the form foo_23 where the index seems to be the problem.
+With proper dynamic linking (the proper switches to the call to dlopen which is already in place) we should
+be able to use the same name for the compiled file every time.
+
+* If the same procedure is defined twice in the same file with different
+signatures then when the file is loaded (as opposed to evaluaty the definitions sequentially)
 the signature clash goes undetected.
+
+* redefning a signature with differerent variable names should be allowed.
