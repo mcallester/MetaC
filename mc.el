@@ -23,6 +23,7 @@
   (define-key mc-mode-map "\C-\M-a" 'MC:beginning-of-cell)
   (define-key mc-mode-map "\C-\M-g" 'MC:indent-cell) ;;also used for end-of-cell
   (define-key mc-mode-map "\C-\M-b" 'MC:next-cell)
+  (define-key mc-mode-map "\C-\M-e" 'MC:next-cell)
   (define-key mc-mode-map "\C-\M-c" 'MC:clean-cells) ;;will use region
   (define-key c-mode-map "\C-x`" 'MC:display-error)
   (define-key mc-mode-map "\C-x'"   'MC:last-compilation)
