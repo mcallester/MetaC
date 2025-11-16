@@ -1,5 +1,8 @@
 * macro expansion to a procedure definition does not work.  You have to used "add_form".
 
+*loading a file with an expression that returns a value, as ooposed to definitions,
+fails to fully load although no error message is generated.
+
 * load can fail on a file where load-region on the whole file
 succeeds.  The problem involves consecutive cells with no space
 between them being executed together in the file load but no in the
