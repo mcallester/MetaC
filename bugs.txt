@@ -34,3 +34,5 @@ signatures then when the file is loaded (as opposed to evaluaty the definitions 
 the signature clash goes undetected.
 
 * redefning a signature with differerent variable names should be allowed.
+
+* an attempt to redefine a base function fails but changes the signature of the base function
