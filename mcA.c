@@ -216,12 +216,10 @@ void save_undones(){
   }
 
 void push_undo_frame(){
-  int previous_freeptr = undo_heap_freeptr;
   if(undostack_freeptr == UNDOSTACK_DIM)berror("undo freeptr stack exhausted");
   undo_stack[undostack_freeptr].undo_trail_int_freeptr = undo_trail_int_freeptr;
   undo_stack[undostack_freeptr++].undo_trail_freeptr = undo_trail_freeptr;
   save_undones();
-  undo_set(previous_heap_boundary[0],&undo_heap[previous_freeptr]);
 }
 
 void clear_undo_frame(){

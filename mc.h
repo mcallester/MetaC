@@ -38,7 +38,6 @@ void add_undone_int(int * loc);
 void add_undone_pointer(void * * loc);
 
 void push_undo_frame();
-void* previous_heap_boundary[1];
 void pop_undo_frame();
 void clear_undo_frame();
 void restart_undo_frame(int n);
