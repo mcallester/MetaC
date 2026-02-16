@@ -224,6 +224,12 @@ void push_undo_frame(){
 
 void clear_undo_frame(){
   if(undostack_freeptr == 0)berror("MetaC bug: no undo frame to clear");
+  pop_undo_frame();
+  push_undo_frame();
+}
+  
+void pop_undo_frame(){
+  if(undostack_freeptr == 0)berror("attempt to pop base undo frame");
 
   int old_trail_int_freeptr = undo_stack[undostack_freeptr-1].undo_trail_int_freeptr;
   while(undo_trail_int_freeptr != old_trail_int_freeptr){
@@ -235,12 +241,6 @@ void clear_undo_frame(){
     undo_trail_freeptr--;
     *(undo_trail[undo_trail_freeptr].location) = undo_trail[undo_trail_freeptr].oldval;}
 
-  save_undones();
-}
-  
-void pop_undo_frame(){
-  if(undostack_freeptr == 0)berror("attempt to pop base undo frame");
-  clear_undo_frame();
   undostack_freeptr--;
 }
 
