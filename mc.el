@@ -225,6 +225,7 @@
   (kill-buffer (gdb-buffer))
   (with-current-buffer (gdb-buffer) (erase-buffer))
   (shell-command "rm -f /tmp/TEMP*")
+  (print '(initialization complete))
   (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
   (with-current-buffer (gdb-buffer) (shell-mode))
   (set-process-filter (mc-process) (function MC:filter))
