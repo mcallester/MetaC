@@ -461,6 +461,21 @@ umacro{lambda $outtype($freevars)($args){$body}}{ // all free variables must be 
 	      $f = (closure_type(($args)->$outtype)) $cname;
 	      $f;})};}
 
+umacro{stack_lambda $outtype($freevars)($args){$body}}{ // all free variables must be pointers
+  expptr pname = gensym(`lambda_proc);
+  expptr cname = gensym(`closure);
+  expptr f = gensym(`f);
+  if(args == `{})add_form(`{void $pname(voidptrptr $cname){${wrap_body(freevars,cname,1,body)}}});
+  else
+  add_form(`{void $pname(voidptrptr $cname,$args){${wrap_body(freevars,cname,1,body)}}});
+  return `{({
+	      void** $cname = stack_alloc(${int_exp(sizeof(void*)*(1 + comma_length(freevars)))});
+	      *$cname = $pname;
+	      {${install_vars(cname,freevars,1)}}
+	      closure_typeexp($f:($args)->$outtype);
+	      $f = (closure_type(($args)->$outtype)) $cname;
+	      $f;})};}
+
 
 //macroexpand(`{lambda void (expptr x)(expptr y){e[0]= `{\$x,\$y};}})
 
