@@ -80,6 +80,8 @@ int atomp(expptr e);
 
 int symbolp(expptr e);
 
+int numeralp(expptr e);
+
 char * atom_string(expptr a);
 
 expptr cons(expptr x, expptr y);

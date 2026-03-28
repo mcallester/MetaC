@@ -545,6 +545,14 @@ int symbolp(expptr e){
   return e && e->constructor == 'A' && alphap(atom_string(e)[0]);
   }
 
+int numeralp(expptr x){
+  if(!atomp(x))return 0;
+  char * s= atom_string(x);
+  for(int i = 0; s[i] != '\0'; i++){
+    if(s[i] < '0' || s[i] > '9')return 0;}
+  return 1;
+}
+
 int connectorp(expptr e){
   if(!e || e->constructor != 'A')return 0;
   char c = atom_string(e)[0];
