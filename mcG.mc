@@ -195,6 +195,7 @@ void add_list_forms(expptr type){
              });
   add_form(`{
              umacro{$some(\$y, \$lst, \$integer_exp)}{
+               if(occurs_in_exp(string_atom("="),integer_exp)){berror("= not allowed in some_var tests");};
                if(!symbolp(y))berror("First argument to some() must be a variable name");
                expptr lst_var = gensym(`lst_var);
                expptr result_var = gensym(`result_var);
@@ -210,6 +211,7 @@ void add_list_forms(expptr type){
                     })};}});
   add_form(`{
              umacro{$every(\$y, \$lst, \$integer_exp)}{
+               if(occurs_in_exp(string_atom("="),integer_exp)){berror("= not allowed in every_var tests");};
                if(!symbolp(y))berror("First argument to some() must be a variable name");
                expptr lst_var = gensym(`lst_var);
                expptr result_var = gensym(`result_var);
@@ -228,6 +230,7 @@ void add_list_forms(expptr type){
                     })};}});
   add_form(`{
              umacro{$remove_if(\$y, \$integer_exp, \$lst)}{
+               if(occurs_in_exp(string_atom("="),integer_exp)){berror("= not allowed in remove_if tests");};
                if(!symbolp(y))berror("First argument to some() must be a variable name");
                expptr lst_var = gensym(`lst_var);
                expptr result_var = gensym(`result_var);
@@ -246,6 +249,7 @@ void add_list_forms(expptr type){
                     })};}});
   add_form(`{
              umacro{$remove_if_not(\$y, \$integer_exp, \$lst)}{
+               if(occurs_in_exp(string_atom("="),integer_exp)){berror("= not allowed in remove_if_not tests");};
                if(!symbolp(y))berror("First argument to some() must be a variable name");
                expptr lst_var = gensym(`lst_var);
                expptr result_var = gensym(`result_var);
