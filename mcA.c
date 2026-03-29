@@ -551,7 +551,14 @@ int numeralp(expptr x){
   for(int i = 0; s[i] != '\0'; i++){
     if(s[i] < '0' || s[i] > '9')return 0;}
   return 1;
-}
+  }
+
+int numeral_int(expptr n){
+  int val = 0;
+  for(char* rest = atom_string(n);rest[0] != '\0';rest=rest+1){
+    val = 10*val + rest[0] - '0';}
+  return val;
+  }
 
 int connectorp(expptr e){
   if(!e || e->constructor != 'A')return 0;
