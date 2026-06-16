@@ -11,7 +11,7 @@ The efficiency of loading a file into the NIDE needs to be improved.
 ========================================================================**/
 
 umacro{mention($x)}{
-  return `{if($x ? $x : $x){}};}
+  return `{$x=$x};}
 
 umacro{in_memory_frame{$body}}{
   return
@@ -123,7 +123,7 @@ void add_list_forms(expptr type){
   add_form(`{
              $type $nth($listtype x, int n){
                if(!x)berror("list too short in nth");
-               if(n == 1){return x->first;}
+               if(n == 0){return x->first;}
                return $nth(x->rest,n-1);}
              });
   add_form(`{
