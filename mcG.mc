@@ -12,6 +12,7 @@ The efficiency of loading a file into the NIDE needs to be improved.
 
 umacro{mention($x)}{
   return `{if($x){};};
+  }
 
 umacro{in_memory_frame{$body}}{
   return
