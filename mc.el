@@ -302,7 +302,7 @@
 		   (delete-region start (point)))
 	       (progn (newline) (backward-char)))
 	     
-	     (insert "/**  **/")
+	     (insert "/***  ***/")
 	     (backward-char 4)
 	     (setq *source-buffer* (current-buffer))
 	     (setq *value-point* (point))
@@ -636,10 +636,10 @@
               (end (if (use-region-p) (region-end) (point-max))))
           (while t
             (goto-char start) 
-            (search-forward "/** {" end)
+            (search-forward "/*** " end)
             (beginning-of-line)
             (push-mark)
-            (search-forward "**/" end)
+            (search-forward "***/" end)
             (forward-char)
             (kill-region (mark) (point))))
       (error nil))))

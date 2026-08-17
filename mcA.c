@@ -130,7 +130,12 @@ premacros.h (included form mc.h included above) contains the declarations of the
 
 int undo_heap_freeptr;
 
+int undo_exhaust_break_early = 1;
+
 void * undo_alloc(int size){
+  if(undo_exhaust_break_early && undo_heap_freeptr + size > (UNDO_HEAP_DIM - (1<<15))){
+    undo_exhaust_break_early = 0;
+    breakpt("Undo heap about to exhaust");};
   if(undo_heap_freeptr + size > UNDO_HEAP_DIM)berror("undo heap exhausted");
   void * result = &undo_heap[undo_heap_freeptr];
   undo_heap_freeptr += size;

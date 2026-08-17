@@ -91,6 +91,7 @@ void add_list_forms(expptr type){
   expptr reverse = string_atom(sformat("%s_reverse",cstring));
   expptr nth = string_atom(sformat("%s_nth",cstring));
   expptr member = string_atom(sformat("%s_member",cstring));
+  expptr position = string_atom(sformat("%s_position",cstring));
   expptr delete = string_atom(sformat("%s_delete",cstring));
   expptr length = string_atom(sformat("%s_length",cstring));
   expptr some = string_atom(sformat("%s_some",cstring));
@@ -132,6 +133,12 @@ void add_list_forms(expptr type){
                if(!y) return 0;
                if(y->first == x)return 1;
                return $member(x,y->rest);}
+             });
+  add_form(`{ // returns length(y)+1 if x not present
+             int $position($type x, $listtype y){
+               if(!y) return 1;
+               if(y->first == x)return 0;
+               return 1+$position(x,y->rest);}
              });
   add_form(`{
              umacro{$pusher(\$x,\$y)}{
