@@ -231,10 +231,10 @@
       (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
       (with-current-buffer (gdb-buffer) (shell-mode))
       (set-process-filter (mc-process) (function MC:filter))
-      (process-send-string (mc-process) "gdb\n")
-      (process-send-string (mc-process) (format "file %s/NIDE\n" *MetaC*))
-      (process-send-string (mc-process) "break cbreak\n")
-      (process-send-string (mc-process) "run\n"))))
+      (process-send-string
+       (mc-process)
+       (format "%s -q -ex 'break cbreak' -ex run %s\n"
+               *gdb* (expand-file-name "NIDE" *MetaC*))))))
 
 (defun MC:execute-cell ()
   (interactive)
@@ -334,7 +334,7 @@
 	(when *gdb-mode*
           (with-current-buffer (gdb-buffer) ;this new wrapper fixes issues with gdb startup
             (goto-char (point-max))
-	    (insert *mc-accumulator*)
+	    (when *mc-accumulator* (insert *mc-accumulator*))
 	    (set-marker (process-mark (mc-process)) (point))
             (when (> *gdb-mode-start* 0) ;; this form makes sure the user knows <enter> will continue
               (when (= 1 *gdb-mode-start*) (insert "continue"))
@@ -420,7 +420,7 @@
 	   (error (format "unrecognized tag %s" tag)))))
 
 (defun mc-fix (msg)
-  (replace-regexp-in-string "\n" "\n  " value))
+  (replace-regexp-in-string "\n" "\n  " msg))
 
 (defun MC:insert-value (value)
   (with-current-buffer *source-buffer*
@@ -526,7 +526,8 @@
       (set-process-filter proc nil)
 
       ;; Clear any pending output
-      (accept-process-output proc 0.1)
+      ;; CLAUDE SAID REMOVE THIS: 
+      ;;(accept-process-output PROC 0.1)
 
       ;; Set up the buffer
       (erase-buffer)
@@ -567,13 +568,10 @@
   (setq *gdb-mode* nil))
 
 (defun MC:clean-string (string)
-  ;;removes carriage return chacters
-  (let ((i 0))
-    (dotimes (j (length string))
-      (when (not (= (aref string j) 13)) ;;carriage return
-	(aset string i (aref string j))
-	(setq i (+ i 1))))
-    (substring string 0 i)))
+  ;; Removes carriage return characters.  Returns a new string: modifying
+  ;; STRING in place with aset fails on non-ASCII text in Emacs 31, and the
+  ;; error made the filter drop the whole chunk of output.
+  (string-replace "\r" "" string))
 
 (setq *seperator* "*#*#dsflsadk#*#*")
 
