@@ -219,7 +219,6 @@
       (MC:clean-cells)
       (setq *waiting* t) ;;this is needed to avoid parsing "(gdb)" as a segment fault during startup
       (setq *gdb-mode* nil)
-      (setq *gdb-mode-start* 0)
       (setq *mc-accumulator* nil)
       (setq *load-count* 0)
       (setq *execute_count* 0)
@@ -229,7 +228,9 @@
       (shell-command "rm -f /tmp/TEMP*")
       (print '(initialization complete))
       (start-process "MetaC" (gdb-buffer) "/usr/bin/bash")
-      (with-current-buffer (gdb-buffer) (shell-mode))
+      (with-current-buffer (gdb-buffer)
+        (shell-mode)
+        (setq-local comint-input-sender #'MC:gdb-input-sender))
       (set-process-filter (mc-process) (function MC:filter))
       (process-send-string
        (mc-process)
@@ -334,11 +335,8 @@
 	(when *gdb-mode*
           (with-current-buffer (gdb-buffer) ;this new wrapper fixes issues with gdb startup
             (goto-char (point-max))
-	    (when *mc-accumulator* (insert *mc-accumulator*))
-	    (set-marker (process-mark (mc-process)) (point))
-            (when (> *gdb-mode-start* 0) ;; this form makes sure the user knows <enter> will continue
-              (when (= 1 *gdb-mode-start*) (insert "continue"))
-              (setq *gdb-mode-start* (1- *gdb-mode-start*))))
+	    (when *mc-accumulator* (insert *mc-accumulator*)) ; nil after an inner call or a gdb-exec-error
+	    (set-marker (process-mark (mc-process)) (point)))
 	  (setq *mc-accumulator* nil)))))
 
 (defun MC:dotag (tag value)
@@ -525,10 +523,6 @@
     (let ((old-filter (process-filter proc)))
       (set-process-filter proc nil)
 
-      ;; Clear any pending output
-      ;; CLAUDE SAID REMOVE THIS: 
-      ;;(accept-process-output PROC 0.1)
-
       ;; Set up the buffer
       (erase-buffer)
       (insert (mc-fix value))
@@ -554,7 +548,23 @@
 
     ;; Set GDB mode
     (setq *gdb-mode* t)
-    (setq *gdb-mode-start* 2)))
+    (setq *gdb-fresh* t)))
+
+;; In gdb an empty input line repeats the previous command.  That is
+;; useful while stepping, but as the first input after gdb takes control
+;; it would repeat a command from an earlier session, such as "continue".
+;; So until the user sends a non-blank line, an empty line is sent as "#"
+;; instead: gdb treats that as a comment, does nothing, and prints a
+;; fresh prompt.  After that, empty lines repeat as usual.
+(defvar *gdb-fresh* nil
+  "Non-nil from when gdb takes control until the user sends a non-blank line.")
+
+(defun MC:gdb-input-sender (proc string)
+  (let ((blank (string-match-p "\\`[ \t]*\\'" string)))
+    (if (and *gdb-mode* *gdb-fresh* blank)
+        (comint-simple-send proc "#")
+      (unless blank (setq *gdb-fresh* nil))
+      (comint-simple-send proc string))))
 
 (defun MC:fixup-gdb ()
   (newline)
