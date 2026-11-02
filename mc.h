@@ -309,7 +309,14 @@ expptr combine_atoms(expptr a1, expptr a2);
 
 FILE * read_stream;
 void init_stream();
-expptr read_from_file();
+
+typedef struct read_stream_struct{
+  FILE* stream;
+  char readchar;
+  char next;
+  }read_stream_struct, *mc_read_stream;
+
+expptr read_from_file(mc_read_stream read_stream);
 
 expptr explist_exp(explist l);
 
