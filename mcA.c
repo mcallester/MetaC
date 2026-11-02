@@ -523,6 +523,7 @@ int precedence(char c){
   if(terminatorp(c))return -1;
   if(c==';')return 1;
   if(c==',')return 2;
+  if(c==':')return 3;
   if(c=='@' || c < 0)return 4; //unicode
   if(c=='|')return 5;
   if(c=='&')return 6;
