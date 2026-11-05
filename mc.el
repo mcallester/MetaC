@@ -1,3 +1,5 @@
+;;; -*- lexical-binding: nil -*-
+
 (setq *gdb* "/usr/bin/gdb")
 (setq *MetaC* "/home/david/MetaC/")
 
